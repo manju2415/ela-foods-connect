@@ -1,11 +1,21 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, User, Menu, X, Search } from "lucide-react";
+import { ShoppingCart, User, Menu, X, Search, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import elaLogo from "@/assets/ela-foods-logo.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -14,6 +24,11 @@ const Header = () => {
     { name: "About", href: "/about" },
     { name: "Contact", href: "/contact" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -48,13 +63,52 @@ const Header = () => {
                 0
               </span>
             </Button>
-            <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
-              <User className="h-4 w-4" />
-              Login
-            </Button>
-            <Button size="sm" className="hidden sm:flex">
-              Sign Up
-            </Button>
+
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
+                    <User className="h-4 w-4" />
+                    Account
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem className="text-muted-foreground text-xs">
+                    {user.email}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/orders")}>
+                    My Orders
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate("/wallet")}>
+                    Wallet
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:flex gap-2"
+                  onClick={() => navigate("/auth")}
+                >
+                  <User className="h-4 w-4" />
+                  Login
+                </Button>
+                <Button size="sm" className="hidden sm:flex" onClick={() => navigate("/auth")}>
+                  Sign Up
+                </Button>
+              </>
+            )}
 
             {/* Mobile Menu Button */}
             <Button
@@ -83,10 +137,25 @@ const Header = () => {
                 </Link>
               ))}
               <div className="flex gap-3 pt-4 border-t border-border">
-                <Button variant="outline" className="flex-1">
-                  Login
-                </Button>
-                <Button className="flex-1">Sign Up</Button>
+                {user ? (
+                  <>
+                    <Button variant="outline" className="flex-1" onClick={() => navigate("/dashboard")}>
+                      Dashboard
+                    </Button>
+                    <Button variant="destructive" className="flex-1" onClick={handleSignOut}>
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="flex-1" onClick={() => navigate("/auth")}>
+                      Login
+                    </Button>
+                    <Button className="flex-1" onClick={() => navigate("/auth")}>
+                      Sign Up
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </nav>
