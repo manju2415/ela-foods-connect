@@ -6,6 +6,7 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import AddressManager from "@/components/AddressManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2 } from "lucide-react";
+import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -79,6 +80,11 @@ interface ReferralCode {
   is_active: boolean;
 }
 
+interface ReferralStats {
+  total_referrals: number;
+  total_earnings: number;
+}
+
 interface WishlistProduct {
   id: string;
   name: string;
@@ -101,6 +107,7 @@ const Dashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [isFoundingMember, setIsFoundingMember] = useState(false);
+  const [referralStats, setReferralStats] = useState<ReferralStats>({ total_referrals: 0, total_earnings: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -184,6 +191,22 @@ const Dashboard = () => {
     }
     
     setIsFoundingMember(!!foundingRes.data);
+
+    // Fetch referral stats for founding members
+    if (foundingRes.data) {
+      const { data: referrals } = await supabase
+        .from("referrals")
+        .select("incentive_amount")
+        .eq("referrer_id", user.id);
+      
+      if (referrals) {
+        setReferralStats({
+          total_referrals: referrals.length,
+          total_earnings: referrals.reduce((sum, r) => sum + (Number(r.incentive_amount) || 0), 0),
+        });
+      }
+    }
+
     setLoading(false);
   };
 
@@ -272,7 +295,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
               <User className="h-4 w-4 hidden sm:block" />
               Overview
@@ -284,6 +307,10 @@ const Dashboard = () => {
             <TabsTrigger value="wishlist" className="gap-2">
               <Heart className="h-4 w-4 hidden sm:block" />
               Wishlist
+            </TabsTrigger>
+            <TabsTrigger value="addresses" className="gap-2">
+              <MapPin className="h-4 w-4 hidden sm:block" />
+              Addresses
             </TabsTrigger>
             <TabsTrigger value="wallet" className="gap-2">
               <Wallet className="h-4 w-4 hidden sm:block" />
@@ -348,52 +375,77 @@ const Dashboard = () => {
               </Card>
             </div>
 
-            {/* Referral Codes Section (for Founding Members) */}
+            {/* Founding Member Dashboard */}
             {isFoundingMember && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Gift className="h-5 w-5" />
-                    Your Referral Codes
-                  </CardTitle>
-                  <CardDescription>
-                    Share these codes with friends to earn rewards
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : referralCodes.length === 0 ? (
-                    <p className="text-muted-foreground">No referral codes available.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {referralCodes.map((code) => (
-                        <div
-                          key={code.code}
-                          className="flex items-center justify-between p-3 rounded-lg bg-muted"
-                        >
-                          <div>
-                            <span className="font-mono font-semibold text-lg">{code.code}</span>
-                            <p className="text-sm text-muted-foreground">
-                              Used: {code.usage_count} / {code.max_uses || "∞"}
-                            </p>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyReferralCode(code.code)}
+              <div className="space-y-6">
+                {/* Referral Stats */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-primary">{referralStats.total_referrals}</div>
+                      <p className="text-sm text-muted-foreground">People joined using your codes</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold text-green-600">₹{referralStats.total_earnings.toFixed(2)}</div>
+                      <p className="text-sm text-muted-foreground">Credited to your wallet</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Referral Codes */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gift className="h-5 w-5" />
+                      Your Referral Codes
+                    </CardTitle>
+                    <CardDescription>
+                      Share these codes with friends to earn ₹50 for each signup
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loading ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-12 w-full" />
+                        <Skeleton className="h-12 w-full" />
+                      </div>
+                    ) : referralCodes.length === 0 ? (
+                      <p className="text-muted-foreground">No referral codes available. Contact support to get one.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {referralCodes.map((code) => (
+                          <div
+                            key={code.code}
+                            className="flex items-center justify-between p-4 rounded-lg bg-muted"
                           >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                            <div>
+                              <span className="font-mono font-semibold text-xl">{code.code}</span>
+                              <p className="text-sm text-muted-foreground">
+                                {code.usage_count} referrals {code.max_uses && `(max ${code.max_uses})`}
+                              </p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              onClick={() => copyReferralCode(code.code)}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* Recent Orders */}
@@ -634,6 +686,22 @@ const Dashboard = () => {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Addresses Tab */}
+          <TabsContent value="addresses">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  My Addresses
+                </CardTitle>
+                <CardDescription>Manage your saved shipping addresses</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AddressManager />
               </CardContent>
             </Card>
           </TabsContent>

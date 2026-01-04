@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, Package, Wallet, CreditCard } from "lucide-react";
+import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +40,18 @@ interface WalletData {
   balance: number;
 }
 
+interface Coupon {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  min_order_amount: number;
+  max_discount_amount: number | null;
+  usage_count: number;
+  usage_limit: number | null;
+  valid_until: string | null;
+}
+
 const Checkout = () => {
   const { user } = useAuth();
   const { items, totalPrice, clearCart } = useCart();
@@ -53,6 +65,10 @@ const Checkout = () => {
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddAddress, setShowAddAddress] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
 
   const [newAddress, setNewAddress] = useState({
     full_name: "",
@@ -160,6 +176,70 @@ const Checkout = () => {
     }
   };
 
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError("");
+
+    const { data, error } = await supabase
+      .from("coupons")
+      .select("*")
+      .eq("code", couponCode.toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error || !data) {
+      setCouponError("Invalid or expired coupon code");
+      setCouponLoading(false);
+      return;
+    }
+
+    if (data.min_order_amount && totalPrice < data.min_order_amount) {
+      setCouponError(`Minimum order amount is ₹${data.min_order_amount}`);
+      setCouponLoading(false);
+      return;
+    }
+
+    if (data.usage_limit && data.usage_count >= data.usage_limit) {
+      setCouponError("Coupon usage limit reached");
+      setCouponLoading(false);
+      return;
+    }
+
+    if (data.valid_until && new Date(data.valid_until) < new Date()) {
+      setCouponError("Coupon has expired");
+      setCouponLoading(false);
+      return;
+    }
+
+    setAppliedCoupon(data);
+    setCouponLoading(false);
+    toast({
+      title: "Coupon Applied!",
+      description: `Discount of ${data.discount_type === "percentage" ? data.discount_value + "%" : "₹" + data.discount_value} applied`,
+    });
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponError("");
+  };
+
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0;
+    let discount = 0;
+    if (appliedCoupon.discount_type === "percentage") {
+      discount = (totalPrice * appliedCoupon.discount_value) / 100;
+    } else {
+      discount = appliedCoupon.discount_value;
+    }
+    if (appliedCoupon.max_discount_amount) {
+      discount = Math.min(discount, appliedCoupon.max_discount_amount);
+    }
+    return Math.min(discount, totalPrice);
+  };
+
   const handlePlaceOrder = async () => {
     if (!user || !selectedAddressId) {
       toast({
@@ -175,8 +255,9 @@ const Checkout = () => {
 
     setPlacing(true);
 
-    const walletAmount = useWallet ? Math.min(wallet?.balance || 0, totalPrice) : 0;
-    const finalAmount = totalPrice - walletAmount;
+    const discountAmount = calculateDiscount();
+    const walletAmount = useWallet ? Math.min(wallet?.balance || 0, totalPrice - discountAmount) : 0;
+    const finalAmount = totalPrice - discountAmount - walletAmount;
 
     // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
@@ -191,9 +272,10 @@ const Checkout = () => {
         payment_status: "pending",
         subtotal: totalPrice,
         shipping_amount: 0,
-        discount_amount: 0,
+        discount_amount: discountAmount,
         wallet_amount_used: walletAmount,
         total_amount: finalAmount,
+        coupon_code: appliedCoupon?.code || null,
         shipping_address: {
           full_name: selectedAddress.full_name,
           phone: selectedAddress.phone,
@@ -235,6 +317,23 @@ const Checkout = () => {
       console.error("Order items error:", itemsError);
     }
 
+    // Update coupon usage count
+    if (appliedCoupon) {
+      await supabase
+        .from("coupons")
+        .update({ usage_count: appliedCoupon.usage_count + 1 })
+        .eq("id", appliedCoupon.id);
+    }
+
+    // Send order confirmation email
+    try {
+      await supabase.functions.invoke("send-order-confirmation", {
+        body: { order_id: order.id },
+      });
+    } catch (emailError) {
+      console.error("Failed to send confirmation email:", emailError);
+    }
+
     // Clear cart
     await clearCart();
 
@@ -251,9 +350,10 @@ const Checkout = () => {
     return null;
   }
 
+  const discountAmount = calculateDiscount();
   const walletBalance = wallet?.balance || 0;
-  const walletAmount = useWallet ? Math.min(walletBalance, totalPrice) : 0;
-  const finalAmount = totalPrice - walletAmount;
+  const walletAmount = useWallet ? Math.min(walletBalance, totalPrice - discountAmount) : 0;
+  const finalAmount = totalPrice - discountAmount - walletAmount;
 
   return (
     <div className="min-h-screen bg-background">
@@ -405,6 +505,51 @@ const Checkout = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Coupon Code */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Ticket className="h-5 w-5" />
+                  Promo Code
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-600" />
+                      <span className="font-mono font-semibold">{appliedCoupon.code}</span>
+                      <span className="text-sm text-green-600">
+                        -{appliedCoupon.discount_type === "percentage" 
+                          ? `${appliedCoupon.discount_value}%` 
+                          : `₹${appliedCoupon.discount_value}`}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={removeCoupon}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter promo code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        className="font-mono"
+                      />
+                      <Button onClick={applyCoupon} disabled={couponLoading || !couponCode.trim()}>
+                        {couponLoading ? "..." : "Apply"}
+                      </Button>
+                    </div>
+                    {couponError && (
+                      <p className="text-sm text-destructive">{couponError}</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           {/* Right Column - Order Summary */}
@@ -446,6 +591,12 @@ const Checkout = () => {
                     <span className="text-muted-foreground">Shipping</span>
                     <span className="text-green-600">Free</span>
                   </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Coupon Discount</span>
+                      <span>-₹{discountAmount.toFixed(2)}</span>
+                    </div>
+                  )}
                   {walletAmount > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Wallet Applied</span>

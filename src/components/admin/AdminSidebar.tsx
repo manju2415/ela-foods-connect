@@ -1,4 +1,4 @@
-import { Users, Ticket, Package, ShoppingCart, Settings, LayoutDashboard, FolderTree } from "lucide-react";
+import { Users, Ticket, Package, ShoppingCart, Settings, LayoutDashboard, FolderTree, BadgePercent } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
@@ -19,6 +19,7 @@ const menuItems = [
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
+  { title: "Coupons", url: "/admin/coupons", icon: BadgePercent },
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
