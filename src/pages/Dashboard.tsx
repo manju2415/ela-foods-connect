@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWishlist } from "@/contexts/WishlistContext";
+import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -27,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle } from "lucide-react";
+import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2 } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -77,10 +79,22 @@ interface ReferralCode {
   is_active: boolean;
 }
 
+interface WishlistProduct {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  compare_at_price: number | null;
+  images: string[];
+  stock_quantity: number;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
+  const { addToCart } = useCart();
   
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
@@ -92,6 +106,8 @@ const Dashboard = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
+  const [loadingWishlistProducts, setLoadingWishlistProducts] = useState(false);
   
   const [formData, setFormData] = useState({
     full_name: "",
@@ -105,6 +121,30 @@ const Dashboard = () => {
     }
     fetchData();
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (wishlistItems.length > 0) {
+      fetchWishlistProducts();
+    } else {
+      setWishlistProducts([]);
+    }
+  }, [wishlistItems]);
+
+  const fetchWishlistProducts = async () => {
+    const productIds = wishlistItems.map((item) => item.product_id);
+    if (productIds.length === 0) return;
+
+    setLoadingWishlistProducts(true);
+    const { data } = await supabase
+      .from("products")
+      .select("id, name, slug, price, compare_at_price, images, stock_quantity")
+      .in("id", productIds);
+    
+    if (data) {
+      setWishlistProducts(data);
+    }
+    setLoadingWishlistProducts(false);
+  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -232,7 +272,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
               <User className="h-4 w-4 hidden sm:block" />
               Overview
@@ -240,6 +280,10 @@ const Dashboard = () => {
             <TabsTrigger value="orders" className="gap-2">
               <Package className="h-4 w-4 hidden sm:block" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="wishlist" className="gap-2">
+              <Heart className="h-4 w-4 hidden sm:block" />
+              Wishlist
             </TabsTrigger>
             <TabsTrigger value="wallet" className="gap-2">
               <Wallet className="h-4 w-4 hidden sm:block" />
@@ -495,6 +539,96 @@ const Dashboard = () => {
                               <span className="text-sm">This order has been cancelled</span>
                             </div>
                           )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Wishlist Tab */}
+          <TabsContent value="wishlist">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="h-5 w-5" />
+                  My Wishlist
+                </CardTitle>
+                <CardDescription>Products you've saved for later</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {wishlistLoading || loadingWishlistProducts ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-48 w-full" />
+                    ))}
+                  </div>
+                ) : wishlistProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Your wishlist is empty</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Save items you love by clicking the heart icon on products
+                    </p>
+                    <Button onClick={() => navigate("/products")}>Browse Products</Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {wishlistProducts.map((product) => (
+                      <div
+                        key={product.id}
+                        className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors"
+                      >
+                        <Link to={`/product/${product.slug}`}>
+                          <div className="aspect-square bg-muted">
+                            <img
+                              src={product.images?.[0] || "/placeholder.svg"}
+                              alt={product.name}
+                              className="w-full h-full object-cover hover:scale-105 transition-transform"
+                            />
+                          </div>
+                        </Link>
+                        <div className="p-4">
+                          <Link to={`/product/${product.slug}`}>
+                            <h3 className="font-medium hover:text-primary transition-colors line-clamp-2 mb-2">
+                              {product.name}
+                            </h3>
+                          </Link>
+                          <div className="flex items-baseline gap-2 mb-3">
+                            <span className="font-bold text-lg">₹{Number(product.price).toFixed(2)}</span>
+                            {product.compare_at_price && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                ₹{Number(product.compare_at_price).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => {
+                                addToCart(product.id);
+                                toast({
+                                  title: "Added to cart",
+                                  description: `${product.name} has been added to your cart.`,
+                                });
+                              }}
+                              disabled={product.stock_quantity === 0}
+                            >
+                              <ShoppingCart className="h-4 w-4 mr-1" />
+                              {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toggleWishlist(product.id)}
+                              className="text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}

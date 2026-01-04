@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 
 interface ProductCardProps {
   id: string;
@@ -29,12 +30,20 @@ const ProductCard = ({
   isBestSeller,
 }: ProductCardProps) => {
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const inWishlist = isInWishlist(id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     addToCart(id);
+  };
+
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(id);
   };
 
   return (
@@ -66,9 +75,12 @@ const ProductCard = ({
         <Button
           variant="ghost"
           size="icon"
-          className="absolute top-3 right-3 bg-card/80 hover:bg-card hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
+          className={`absolute top-3 right-3 bg-card/80 hover:bg-card transition-opacity ${
+            inWishlist ? "opacity-100 text-destructive" : "opacity-0 group-hover:opacity-100 hover:text-primary"
+          }`}
+          onClick={handleToggleWishlist}
         >
-          <Heart className="h-5 w-5" />
+          <Heart className={`h-5 w-5 ${inWishlist ? "fill-current" : ""}`} />
         </Button>
 
         {/* Quick Add Button */}
