@@ -11,8 +11,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift } from "lucide-react";
+import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -31,8 +46,28 @@ interface Order {
   id: string;
   order_number: string;
   status: string;
+  payment_status: string;
   total_amount: number;
+  subtotal: number;
+  shipping_amount: number | null;
+  discount_amount: number | null;
+  shipping_address: {
+    full_name?: string;
+    phone?: string;
+    address_line1?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+  };
   created_at: string;
+}
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  product_price: number;
+  quantity: number;
+  total_price: number;
 }
 
 interface ReferralCode {
@@ -54,6 +89,9 @@ const Dashboard = () => {
   const [isFoundingMember, setIsFoundingMember] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
   
   const [formData, setFormData] = useState({
     full_name: "",
@@ -95,7 +133,10 @@ const Dashboard = () => {
     }
     
     if (ordersRes.data) {
-      setOrders(ordersRes.data);
+      setOrders(ordersRes.data.map(order => ({
+        ...order,
+        shipping_address: order.shipping_address as Order["shipping_address"]
+      })));
     }
     
     if (referralRes.data) {
@@ -142,14 +183,29 @@ const Dashboard = () => {
     });
   };
 
+  const viewOrderDetails = async (order: Order) => {
+    setSelectedOrder(order);
+    setLoadingItems(true);
+    const { data } = await supabase
+      .from("order_items")
+      .select("*")
+      .eq("order_id", order.id);
+    setOrderItems(data || []);
+    setLoadingItems(false);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
         return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20";
       case "confirmed":
         return "bg-blue-500/10 text-blue-600 border-blue-500/20";
-      case "shipped":
+      case "processing":
         return "bg-purple-500/10 text-purple-600 border-purple-500/20";
+      case "shipped":
+        return "bg-indigo-500/10 text-indigo-600 border-indigo-500/20";
+      case "out_for_delivery":
+        return "bg-cyan-500/10 text-cyan-600 border-cyan-500/20";
       case "delivered":
         return "bg-green-500/10 text-green-600 border-green-500/20";
       case "cancelled":
@@ -349,7 +405,7 @@ const Dashboard = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Order History</CardTitle>
-                <CardDescription>View all your past orders</CardDescription>
+                <CardDescription>View all your past orders and track their status</CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -372,23 +428,73 @@ const Dashboard = () => {
                     {orders.map((order) => (
                       <div
                         key={order.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border gap-4"
+                        className="p-4 rounded-lg border hover:border-primary/50 transition-colors"
                       >
-                        <div className="space-y-1">
-                          <p className="font-semibold">{order.order_number}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Placed on {new Date(order.created_at).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            })}
-                          </p>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                          <div className="space-y-1">
+                            <p className="font-semibold text-lg">{order.order_number}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Placed on {new Date(order.created_at).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "long",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Badge className={getStatusColor(order.status)}>
+                              {order.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                            </Badge>
+                            <p className="font-bold text-lg">₹{Number(order.total_amount).toFixed(2)}</p>
+                            <Button variant="outline" size="sm" onClick={() => viewOrderDetails(order)}>
+                              <Eye className="h-4 w-4 mr-1" /> View
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                          </Badge>
-                          <p className="font-bold text-lg">₹{order.total_amount}</p>
+                        
+                        {/* Order Status Timeline */}
+                        <div className="mt-4 pt-4 border-t">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className={`flex flex-col items-center gap-1 ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <Clock className="h-4 w-4" />
+                              </div>
+                              <span>Placed</span>
+                            </div>
+                            <div className="flex-1 h-0.5 bg-muted mx-2">
+                              <div className={`h-full ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`} style={{ width: ["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "100%" : "0%" }} />
+                            </div>
+                            <div className={`flex flex-col items-center gap-1 ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <CheckCircle className="h-4 w-4" />
+                              </div>
+                              <span>Confirmed</span>
+                            </div>
+                            <div className="flex-1 h-0.5 bg-muted mx-2">
+                              <div className={`h-full ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`} style={{ width: ["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "100%" : "0%" }} />
+                            </div>
+                            <div className={`flex flex-col items-center gap-1 ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <Truck className="h-4 w-4" />
+                              </div>
+                              <span>Shipped</span>
+                            </div>
+                            <div className="flex-1 h-0.5 bg-muted mx-2">
+                              <div className={`h-full ${order.status === "delivered" ? "bg-primary" : ""}`} style={{ width: order.status === "delivered" ? "100%" : "0%" }} />
+                            </div>
+                            <div className={`flex flex-col items-center gap-1 ${order.status === "delivered" ? "text-primary" : "text-muted-foreground"}`}>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${order.status === "delivered" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                                <Package className="h-4 w-4" />
+                              </div>
+                              <span>Delivered</span>
+                            </div>
+                          </div>
+                          {order.status === "cancelled" && (
+                            <div className="mt-3 flex items-center gap-2 text-destructive">
+                              <XCircle className="h-4 w-4" />
+                              <span className="text-sm">This order has been cancelled</span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -510,6 +616,116 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Order Detail Dialog */}
+      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details - {selectedOrder?.order_number}</DialogTitle>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-6">
+              {/* Order Status */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Order Status</p>
+                  <Badge className={getStatusColor(selectedOrder.status)}>
+                    {selectedOrder.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Payment Status</p>
+                  <Badge variant={selectedOrder.payment_status === "completed" ? "default" : "secondary"}>
+                    {selectedOrder.payment_status.replace(/\b\w/g, l => l.toUpperCase())}
+                  </Badge>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Order Date</p>
+                  <p className="font-medium">
+                    {new Date(selectedOrder.created_at).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Shipping Address */}
+              <div>
+                <h4 className="font-semibold mb-2">Shipping Address</h4>
+                <div className="text-sm text-muted-foreground">
+                  <p className="font-medium text-foreground">{selectedOrder.shipping_address?.full_name}</p>
+                  <p>{selectedOrder.shipping_address?.address_line1}</p>
+                  <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postal_code}</p>
+                  <p>{selectedOrder.shipping_address?.phone}</p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Order Items */}
+              <div>
+                <h4 className="font-semibold mb-2">Order Items</h4>
+                {loadingItems ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Price</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orderItems.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{item.product_name}</TableCell>
+                          <TableCell className="text-right">₹{Number(item.product_price).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{item.quantity}</TableCell>
+                          <TableCell className="text-right">₹{Number(item.total_price).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* Order Summary */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>₹{Number(selectedOrder.subtotal).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Shipping</span>
+                  <span>₹{Number(selectedOrder.shipping_amount || 0).toFixed(2)}</span>
+                </div>
+                {selectedOrder.discount_amount && selectedOrder.discount_amount > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount</span>
+                    <span>-₹{Number(selectedOrder.discount_amount).toFixed(2)}</span>
+                  </div>
+                )}
+                <Separator />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total</span>
+                  <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Footer />
     </div>
