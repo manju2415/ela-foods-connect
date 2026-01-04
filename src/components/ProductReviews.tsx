@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { Star, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -127,6 +128,13 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
       : 0;
 
+  // Calculate rating distribution
+  const ratingDistribution = [5, 4, 3, 2, 1].map((stars) => {
+    const count = reviews.filter((r) => r.rating === stars).length;
+    const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+    return { stars, count, percentage };
+  });
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Must be logged in");
@@ -206,21 +214,39 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
   return (
     <div className="mt-16 border-t pt-12">
-      {/* Header with average rating */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-        <div>
-          <h2 className="text-2xl font-bold">Customer Reviews</h2>
-          {reviews.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <StarRating rating={Math.round(averageRating)} />
-              <span className="font-semibold">{averageRating.toFixed(1)}</span>
-              <span className="text-muted-foreground">
-                ({reviews.length} {reviews.length === 1 ? "review" : "reviews"})
-              </span>
-            </div>
-          )}
-        </div>
+      <h2 className="text-2xl font-bold mb-6">Customer Reviews</h2>
 
+      {/* Rating Summary */}
+      {reviews.length > 0 && (
+        <div className="grid md:grid-cols-[280px_1fr] gap-8 mb-8 p-6 border rounded-lg bg-muted/30">
+          {/* Average Rating */}
+          <div className="text-center md:border-r md:pr-8">
+            <div className="text-5xl font-bold">{averageRating.toFixed(1)}</div>
+            <StarRating rating={Math.round(averageRating)} size="lg" />
+            <p className="text-muted-foreground mt-2">
+              {reviews.length} {reviews.length === 1 ? "review" : "reviews"}
+            </p>
+          </div>
+
+          {/* Rating Distribution */}
+          <div className="space-y-2">
+            {ratingDistribution.map(({ stars, count, percentage }) => (
+              <div key={stars} className="flex items-center gap-3">
+                <span className="text-sm w-12 text-muted-foreground">
+                  {stars} star
+                </span>
+                <Progress value={percentage} className="flex-1 h-2" />
+                <span className="text-sm w-8 text-right text-muted-foreground">
+                  {count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Write Review Button */}
+      <div className="flex justify-end mb-6">
         {user && !userReview && (
           <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
             <DialogTrigger asChild>
