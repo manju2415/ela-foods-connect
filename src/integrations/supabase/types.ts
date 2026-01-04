@@ -198,6 +198,129 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_partners: {
+        Row: {
+          created_at: string
+          current_location: Json | null
+          id: string
+          is_available: boolean | null
+          updated_at: string
+          user_id: string
+          vehicle_number: string | null
+          vehicle_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_location?: Json | null
+          id?: string
+          is_available?: boolean | null
+          updated_at?: string
+          user_id: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_location?: Json | null
+          id?: string
+          is_available?: boolean | null
+          updated_at?: string
+          user_id?: string
+          vehicle_number?: string | null
+          vehicle_type?: string | null
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean | null
+          message: string
+          reference_id: string | null
+          reference_type: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_assignments: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          delivered_at: string | null
+          delivery_partner_id: string
+          id: string
+          notes: string | null
+          order_id: string
+          picked_up_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_partner_id: string
+          id?: string
+          notes?: string | null
+          order_id: string
+          picked_up_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_partner_id?: string
+          id?: string
+          notes?: string | null
+          order_id?: string
+          picked_up_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_assignments_delivery_partner_id_fkey"
+            columns: ["delivery_partner_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -657,6 +780,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_wallet_transaction: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_reference_id?: string
+          p_type: Database["public"]["Enums"]["wallet_transaction_type"]
+          p_user_id: string
+        }
+        Returns: string
+      }
+      create_notification: {
+        Args: {
+          p_message: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_title: string
+          p_type?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       has_role: {
@@ -668,9 +812,18 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
+      process_referral_incentive: {
+        Args: { p_referral_code: string; p_referred_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      app_role: "super_admin" | "admin" | "founding_member" | "member"
+      app_role:
+        | "super_admin"
+        | "admin"
+        | "founding_member"
+        | "member"
+        | "delivery_partner"
       order_status:
         | "pending"
         | "confirmed"
@@ -814,7 +967,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "admin", "founding_member", "member"],
+      app_role: [
+        "super_admin",
+        "admin",
+        "founding_member",
+        "member",
+        "delivery_partner",
+      ],
       order_status: [
         "pending",
         "confirmed",
