@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
+import { useWishlist } from "@/contexts/WishlistContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart } from "lucide-react";
 import { toast } from "sonner";
 
 interface Product {
@@ -45,6 +46,7 @@ interface Category {
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -314,6 +316,14 @@ export default function ProductDetail() {
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
                   {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => toggleWishlist(product.id)}
+                  className={isInWishlist(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
+                >
+                  <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? "fill-current" : ""}`} />
                 </Button>
               </div>
 
