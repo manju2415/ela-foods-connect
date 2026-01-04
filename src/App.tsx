@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
+import Checkout from "./pages/Checkout";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import FoundingMembers from "./pages/admin/FoundingMembers";
 import ReferralCodes from "./pages/admin/ReferralCodes";
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="/auth" element={<Auth />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/checkout" element={<Checkout />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/founding-members" element={<FoundingMembers />} />
               <Route path="/admin/referral-codes" element={<ReferralCodes />} />
