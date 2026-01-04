@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Heart } from "lucide-react";
 
 interface ProductCardProps {
+  id: string;
   name: string;
   price: number;
   originalPrice?: number;
@@ -14,6 +15,7 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({
+  id,
   name,
   price,
   originalPrice,
