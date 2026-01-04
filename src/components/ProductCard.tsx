@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { useCart } from "@/contexts/CartContext";
 interface ProductCardProps {
   id: string;
   name: string;
+  slug: string;
   price: number;
   originalPrice?: number;
   image: string;
@@ -18,6 +20,7 @@ interface ProductCardProps {
 const ProductCard = ({
   id,
   name,
+  slug,
   price,
   originalPrice,
   image,
@@ -35,7 +38,8 @@ const ProductCard = ({
   };
 
   return (
-    <Card className="group overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
+    <Link to={`/product/${slug}`}>
+      <Card className="group overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
       <div className="relative overflow-hidden">
         <img
           src={image}
@@ -93,6 +97,7 @@ const ProductCard = ({
         </div>
       </CardContent>
     </Card>
+    </Link>
   );
 };
 
