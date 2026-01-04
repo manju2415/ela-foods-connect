@@ -18,6 +18,7 @@ import ReferralCodes from "./pages/admin/ReferralCodes";
 import AdminOrders from "./pages/admin/Orders";
 import AdminProducts from "./pages/admin/Products";
 import AdminCategories from "./pages/admin/Categories";
+import AdminCoupons from "./pages/admin/Coupons";
 import AdminSettings from "./pages/admin/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -45,6 +46,7 @@ const App = () => (
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
                 <Route path="/admin/categories" element={<AdminCategories />} />
+                <Route path="/admin/coupons" element={<AdminCoupons />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
