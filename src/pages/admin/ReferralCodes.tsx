@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -74,19 +75,28 @@ const ReferralCodes = () => {
   const toggleCodeStatus = async (codeId: string, currentStatus: boolean) => {
     setTogglingId(codeId);
     
-    // Note: We need to add an update policy for admins to toggle codes
-    // For now, we'll show a message that this requires super_admin
-    toast({ 
-      title: "Update not available", 
-      description: "Code status updates require additional permissions",
-      variant: "destructive" 
-    });
+    const { error } = await supabase
+      .from("referral_codes")
+      .update({ is_active: !currentStatus })
+      .eq("id", codeId);
+
+    if (error) {
+      toast({ 
+        title: "Failed to update code status", 
+        description: error.message,
+        variant: "destructive" 
+      });
+    } else {
+      toast({ title: `Code ${!currentStatus ? "activated" : "deactivated"} successfully` });
+      fetchCodes();
+    }
     
     setTogglingId(null);
   };
 
   return (
-    <AdminLayout>
+    <SuperAdminGuard>
+      <AdminLayout>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold">Referral Codes</h2>
@@ -158,6 +168,7 @@ const ReferralCodes = () => {
         </Card>
       </div>
     </AdminLayout>
+  </SuperAdminGuard>
   );
 };
 
