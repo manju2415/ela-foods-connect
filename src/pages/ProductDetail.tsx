@@ -6,6 +6,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import ProductReviews from "@/components/ProductReviews";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -385,6 +386,9 @@ export default function ProductDetail() {
               </div>
             </div>
           )}
+
+          {/* Product Reviews */}
+          <ProductReviews productId={product.id} />
         </div>
       </main>
       <Footer />
