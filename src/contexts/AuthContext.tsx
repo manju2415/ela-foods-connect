@@ -80,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          referral_code: referralCode.toUpperCase(),
         },
       },
     });
@@ -88,9 +89,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: error as Error };
     }
 
-    // If signup successful and we have a user, create the referral record
-    // This needs to be done via an edge function or trigger since RLS prevents direct insert
-    // For now, we'll store the referral info in user metadata and handle it via trigger
+    // If signup successful and we have a user, process the referral incentive
+    if (data.user) {
+      // Use setTimeout to defer the Supabase call (avoiding deadlock in auth state change)
+      setTimeout(async () => {
+        try {
+          await supabase.rpc("process_referral_incentive", {
+            p_referral_code: referralCode.toUpperCase(),
+            p_referred_user_id: data.user!.id,
+          });
+        } catch (err) {
+          console.error("Error processing referral incentive:", err);
+        }
+      }, 100);
+    }
     
     return { error: null };
   };

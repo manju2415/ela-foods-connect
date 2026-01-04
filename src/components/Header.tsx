@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, User, Menu, X, Search, LogOut, Shield } from "lucide-react";
+import { ShoppingCart, User, Menu, X, Search, LogOut, Shield, Truck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,12 +13,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import CartSheet from "@/components/CartSheet";
+import { NotificationBell } from "@/components/NotificationBell";
 import elaLogo from "@/assets/ela-foods-logo.png";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDeliveryPartner, setIsDeliveryPartner] = useState(false);
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
@@ -32,15 +34,20 @@ const Header = () => {
   ];
 
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkRoles = async () => {
       if (user) {
-        const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
-        setIsAdmin(!!data);
+        const [adminRes, partnerRes] = await Promise.all([
+          supabase.rpc("is_admin", { _user_id: user.id }),
+          supabase.from("delivery_partners").select("id").eq("user_id", user.id).maybeSingle(),
+        ]);
+        setIsAdmin(!!adminRes.data);
+        setIsDeliveryPartner(!!partnerRes.data);
       } else {
         setIsAdmin(false);
+        setIsDeliveryPartner(false);
       }
     };
-    checkAdmin();
+    checkRoles();
   }, [user]);
 
   const handleSignOut = async () => {
@@ -72,10 +79,13 @@ const Header = () => {
             </nav>
 
             {/* Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="hidden sm:flex">
                 <Search className="h-5 w-5" />
               </Button>
+              
+              {user && <NotificationBell />}
+              
               <Button
                 variant="ghost"
                 size="icon"
@@ -108,6 +118,15 @@ const Header = () => {
                         <DropdownMenuItem onClick={() => navigate("/admin")}>
                           <Shield className="h-4 w-4 mr-2" />
                           Admin Panel
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    {isDeliveryPartner && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/delivery")}>
+                          <Truck className="h-4 w-4 mr-2" />
+                          Delivery Dashboard
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>

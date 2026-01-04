@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
+import DeliveryDashboard from "./pages/DeliveryDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import FoundingMembers from "./pages/admin/FoundingMembers";
 import ReferralCodes from "./pages/admin/ReferralCodes";
@@ -20,6 +21,11 @@ import AdminProducts from "./pages/admin/Products";
 import AdminCategories from "./pages/admin/Categories";
 import AdminCoupons from "./pages/admin/Coupons";
 import AdminSettings from "./pages/admin/Settings";
+import AdminDeliveryPartners from "./pages/admin/DeliveryPartners";
+import AdminOrderAssignments from "./pages/admin/OrderAssignments";
+import AdminAnalytics from "./pages/admin/Analytics";
+import AdminInventory from "./pages/admin/Inventory";
+import AdminUsers from "./pages/admin/Users";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +46,7 @@ const App = () => (
                 <Route path="/products" element={<Products />} />
                 <Route path="/product/:slug" element={<ProductDetail />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route path="/delivery" element={<DeliveryDashboard />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/founding-members" element={<FoundingMembers />} />
                 <Route path="/admin/referral-codes" element={<ReferralCodes />} />
@@ -48,6 +55,11 @@ const App = () => (
                 <Route path="/admin/categories" element={<AdminCategories />} />
                 <Route path="/admin/coupons" element={<AdminCoupons />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/admin/delivery-partners" element={<AdminDeliveryPartners />} />
+                <Route path="/admin/order-assignments" element={<AdminOrderAssignments />} />
+                <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                <Route path="/admin/inventory" element={<AdminInventory />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
