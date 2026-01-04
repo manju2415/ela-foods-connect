@@ -1,51 +1,52 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "./ProductCard";
-import productNamkeen from "@/assets/product-namkeen.jpg";
-import productMixture from "@/assets/product-mixture.jpg";
-import productChips from "@/assets/product-chips.jpg";
-import productBhujia from "@/assets/product-bhujia.jpg";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const products = [
-  {
-    id: 1,
-    name: "Classic Masala Namkeen",
-    price: 149,
-    originalPrice: 199,
-    image: productNamkeen,
-    category: "Namkeen",
-    isNew: false,
-    isBestSeller: true,
-  },
-  {
-    id: 2,
-    name: "Spicy Mumbai Mixture",
-    price: 129,
-    image: productMixture,
-    category: "Mixture",
-    isNew: true,
-    isBestSeller: false,
-  },
-  {
-    id: 3,
-    name: "Crispy Potato Chips",
-    price: 99,
-    originalPrice: 120,
-    image: productChips,
-    category: "Chips",
-    isNew: false,
-    isBestSeller: true,
-  },
-  {
-    id: 4,
-    name: "Besan Bhujia Sev",
-    price: 169,
-    image: productBhujia,
-    category: "Bhujia",
-    isNew: true,
-    isBestSeller: false,
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  compare_at_price: number | null;
+  images: string[];
+  is_featured: boolean;
+  categories: {
+    name: string;
+  } | null;
+}
 
 const FeaturedProducts = () => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select(`
+          id,
+          name,
+          price,
+          compare_at_price,
+          images,
+          is_featured,
+          categories (name)
+        `)
+        .eq("is_active", true)
+        .eq("is_featured", true)
+        .limit(4);
+
+      if (error) {
+        console.error("Error fetching products:", error);
+      } else {
+        setProducts(data || []);
+      }
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, []);
+
   return (
     <section className="py-16 md:py-24 bg-background">
       <div className="container mx-auto px-4">
@@ -64,9 +65,28 @@ const FeaturedProducts = () => {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <ProductCard key={product.id} {...product} />
-          ))}
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="aspect-square w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))
+          ) : (
+            products.map((product) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                originalPrice={product.compare_at_price || undefined}
+                image={product.images?.[0] || "/placeholder.svg"}
+                category={product.categories?.name || "Snacks"}
+                isBestSeller={product.is_featured}
+              />
+            ))
+          )}
         </div>
 
         {/* View All Button */}
