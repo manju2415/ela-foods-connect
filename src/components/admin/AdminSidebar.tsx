@@ -12,6 +12,7 @@ import {
   BarChart3,
   Boxes,
   UserCog,
+  LucideIcon,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -26,13 +27,21 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useUserRole } from "@/hooks/useUserRole";
 
-const menuItems = [
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  superAdminOnly?: boolean;
+}
+
+const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-  { title: "Users", url: "/admin/users", icon: UserCog },
-  { title: "Founding Members", url: "/admin/founding-members", icon: Users },
-  { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket },
+  { title: "Users", url: "/admin/users", icon: UserCog, superAdminOnly: true },
+  { title: "Founding Members", url: "/admin/founding-members", icon: Users, superAdminOnly: true },
+  { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
@@ -40,13 +49,18 @@ const menuItems = [
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList },
   { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+  { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
 
 export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { isSuperAdmin } = useUserRole();
+
+  const visibleMenuItems = menuItems.filter(
+    (item) => !item.superAdminOnly || isSuperAdmin
+  );
 
   return (
     <Sidebar collapsible="icon">
@@ -55,7 +69,7 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Admin Panel</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     asChild

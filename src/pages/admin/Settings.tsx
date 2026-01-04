@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Store, Truck, Receipt, Save } from "lucide-react";
+import { Store, Truck, Receipt, Save, Gift, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 
@@ -37,6 +38,20 @@ interface TaxSettings {
   tax_included_in_price: boolean;
 }
 
+interface ReferralSettings {
+  referral_bonus_amount: number;
+  enable_referral_bonus: boolean;
+  max_referrals_per_user: number | null;
+  welcome_bonus_amount: number;
+  enable_welcome_bonus: boolean;
+}
+
+interface WalletSettings {
+  min_wallet_topup: number;
+  max_wallet_balance: number;
+  enable_wallet_payments: boolean;
+}
+
 const defaultStoreSettings: StoreSettings = {
   store_name: "ELA Foods",
   store_email: "contact@elafoods.com",
@@ -60,10 +75,26 @@ const defaultTaxSettings: TaxSettings = {
   tax_included_in_price: true,
 };
 
+const defaultReferralSettings: ReferralSettings = {
+  referral_bonus_amount: 50,
+  enable_referral_bonus: true,
+  max_referrals_per_user: null,
+  welcome_bonus_amount: 0,
+  enable_welcome_bonus: false,
+};
+
+const defaultWalletSettings: WalletSettings = {
+  min_wallet_topup: 100,
+  max_wallet_balance: 10000,
+  enable_wallet_payments: true,
+};
+
 export default function Settings() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>(defaultShippingSettings);
   const [taxSettings, setTaxSettings] = useState<TaxSettings>(defaultTaxSettings);
+  const [referralSettings, setReferralSettings] = useState<ReferralSettings>(defaultReferralSettings);
+  const [walletSettings, setWalletSettings] = useState<WalletSettings>(defaultWalletSettings);
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
@@ -87,6 +118,10 @@ export default function Settings() {
           setShippingSettings({ ...defaultShippingSettings, ...(setting.value as unknown as ShippingSettings) });
         } else if (setting.key === "tax_settings" && setting.value) {
           setTaxSettings({ ...defaultTaxSettings, ...(setting.value as unknown as TaxSettings) });
+        } else if (setting.key === "referral_settings" && setting.value) {
+          setReferralSettings({ ...defaultReferralSettings, ...(setting.value as unknown as ReferralSettings) });
+        } else if (setting.key === "wallet_settings" && setting.value) {
+          setWalletSettings({ ...defaultWalletSettings, ...(setting.value as unknown as WalletSettings) });
         }
       });
     }
@@ -134,27 +169,32 @@ export default function Settings() {
       { key: "store_settings", value: storeSettings as unknown as Json, description: "General store information" },
       { key: "shipping_settings", value: shippingSettings as unknown as Json, description: "Shipping rates and zones" },
       { key: "tax_settings", value: taxSettings as unknown as Json, description: "Tax configuration" },
+      { key: "referral_settings", value: referralSettings as unknown as Json, description: "Referral incentive settings" },
+      { key: "wallet_settings", value: walletSettings as unknown as Json, description: "Wallet configuration" },
     ]);
     setIsSaving(false);
   };
 
   if (isLoading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      </AdminLayout>
+      <SuperAdminGuard>
+        <AdminLayout>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        </AdminLayout>
+      </SuperAdminGuard>
     );
   }
 
   return (
-    <AdminLayout>
+    <SuperAdminGuard>
+      <AdminLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground">Configure your store settings</p>
+            <h1 className="text-3xl font-bold tracking-tight">Platform Settings</h1>
+            <p className="text-muted-foreground">Configure your store, referral incentives, and wallet settings (Super Admin only)</p>
           </div>
           <Button onClick={handleSaveAll} disabled={isSaving || saveMutation.isPending}>
             <Save className="mr-2 h-4 w-4" />
@@ -163,7 +203,7 @@ export default function Settings() {
         </div>
 
         <Tabs defaultValue="store" className="space-y-6">
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="store" className="flex items-center gap-2">
               <Store className="h-4 w-4" /> Store Info
             </TabsTrigger>
@@ -172,6 +212,12 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="tax" className="flex items-center gap-2">
               <Receipt className="h-4 w-4" /> Tax
+            </TabsTrigger>
+            <TabsTrigger value="referral" className="flex items-center gap-2">
+              <Gift className="h-4 w-4" /> Referrals
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" /> Wallet
             </TabsTrigger>
           </TabsList>
 
@@ -367,8 +413,179 @@ export default function Settings() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Referral Settings Tab */}
+          <TabsContent value="referral">
+            <Card>
+              <CardHeader>
+                <CardTitle>Referral Incentive Settings</CardTitle>
+                <CardDescription>Configure referral bonuses for founding members</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Referral Bonus</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Credit referrer's wallet when a new user signs up with their code
+                    </p>
+                  </div>
+                  <Switch
+                    checked={referralSettings.enable_referral_bonus}
+                    onCheckedChange={(checked) =>
+                      setReferralSettings({ ...referralSettings, enable_referral_bonus: checked })
+                    }
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="referral_bonus_amount">Referral Bonus Amount (₹)</Label>
+                    <Input
+                      id="referral_bonus_amount"
+                      type="number"
+                      value={referralSettings.referral_bonus_amount}
+                      onChange={(e) =>
+                        setReferralSettings({
+                          ...referralSettings,
+                          referral_bonus_amount: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      disabled={!referralSettings.enable_referral_bonus}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Amount credited to referrer when someone uses their code
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_referrals">Max Referrals Per User</Label>
+                    <Input
+                      id="max_referrals"
+                      type="number"
+                      value={referralSettings.max_referrals_per_user ?? ""}
+                      placeholder="Unlimited"
+                      onChange={(e) =>
+                        setReferralSettings({
+                          ...referralSettings,
+                          max_referrals_per_user: e.target.value ? parseInt(e.target.value) : null,
+                        })
+                      }
+                      disabled={!referralSettings.enable_referral_bonus}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Leave empty for unlimited referrals
+                    </p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Welcome Bonus</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Credit new user's wallet when they sign up with a referral code
+                    </p>
+                  </div>
+                  <Switch
+                    checked={referralSettings.enable_welcome_bonus}
+                    onCheckedChange={(checked) =>
+                      setReferralSettings({ ...referralSettings, enable_welcome_bonus: checked })
+                    }
+                  />
+                </div>
+
+                {referralSettings.enable_welcome_bonus && (
+                  <div className="space-y-2">
+                    <Label htmlFor="welcome_bonus_amount">Welcome Bonus Amount (₹)</Label>
+                    <Input
+                      id="welcome_bonus_amount"
+                      type="number"
+                      value={referralSettings.welcome_bonus_amount}
+                      onChange={(e) =>
+                        setReferralSettings({
+                          ...referralSettings,
+                          welcome_bonus_amount: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Amount credited to new user's wallet on signup
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Wallet Settings Tab */}
+          <TabsContent value="wallet">
+            <Card>
+              <CardHeader>
+                <CardTitle>Wallet Settings</CardTitle>
+                <CardDescription>Configure wallet rules and limits</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Wallet Payments</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Allow customers to pay using wallet balance
+                    </p>
+                  </div>
+                  <Switch
+                    checked={walletSettings.enable_wallet_payments}
+                    onCheckedChange={(checked) =>
+                      setWalletSettings({ ...walletSettings, enable_wallet_payments: checked })
+                    }
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="min_wallet_topup">Minimum Top-up Amount (₹)</Label>
+                    <Input
+                      id="min_wallet_topup"
+                      type="number"
+                      value={walletSettings.min_wallet_topup}
+                      onChange={(e) =>
+                        setWalletSettings({
+                          ...walletSettings,
+                          min_wallet_topup: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Minimum amount to add money to wallet
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="max_wallet_balance">Maximum Wallet Balance (₹)</Label>
+                    <Input
+                      id="max_wallet_balance"
+                      type="number"
+                      value={walletSettings.max_wallet_balance}
+                      onChange={(e) =>
+                        setWalletSettings({
+                          ...walletSettings,
+                          max_wallet_balance: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Maximum balance a user can hold
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
     </AdminLayout>
+  </SuperAdminGuard>
   );
 }

@@ -812,6 +812,7 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       process_referral_incentive: {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean

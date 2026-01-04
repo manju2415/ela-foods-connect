@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,13 +167,14 @@ const FoundingMembers = () => {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">Founding Members</h2>
-            <p className="text-muted-foreground">Manage founding members and their referral codes</p>
-          </div>
+    <SuperAdminGuard>
+      <AdminLayout>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Founding Members</h2>
+              <p className="text-muted-foreground">Manage founding members and their referral codes</p>
+            </div>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -282,6 +284,7 @@ const FoundingMembers = () => {
         </Card>
       </div>
     </AdminLayout>
+  </SuperAdminGuard>
   );
 };
 

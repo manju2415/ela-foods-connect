@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,12 +146,13 @@ export default function UsersPage() {
   };
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-          <p className="text-muted-foreground">Manage user accounts and roles</p>
-        </div>
+    <SuperAdminGuard>
+      <AdminLayout>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+            <p className="text-muted-foreground">Manage user accounts and roles</p>
+          </div>
 
         <Card>
           <CardHeader>
@@ -311,5 +313,6 @@ export default function UsersPage() {
         </Dialog>
       </div>
     </AdminLayout>
+  </SuperAdminGuard>
   );
 }
