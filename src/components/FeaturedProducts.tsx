@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface Product {
   id: string;
   name: string;
+  slug: string;
   price: number;
   compare_at_price: number | null;
   images: string[];
@@ -26,6 +27,7 @@ const FeaturedProducts = () => {
         .select(`
           id,
           name,
+          slug,
           price,
           compare_at_price,
           images,
@@ -79,6 +81,7 @@ const FeaturedProducts = () => {
                 key={product.id}
                 id={product.id}
                 name={product.name}
+                slug={product.slug}
                 price={product.price}
                 originalPrice={product.compare_at_price || undefined}
                 image={product.images?.[0] || "/placeholder.svg"}

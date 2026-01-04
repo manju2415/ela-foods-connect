@@ -297,6 +297,7 @@ const Products = () => {
                       key={product.id}
                       id={product.id}
                       name={product.name}
+                      slug={product.slug}
                       price={product.price}
                       originalPrice={product.compare_at_price || undefined}
                       image={product.images?.[0] || "/placeholder.svg"}
