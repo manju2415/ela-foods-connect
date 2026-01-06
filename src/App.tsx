@@ -12,6 +12,8 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
 import Checkout from "./pages/Checkout";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
 import DeliveryDashboard from "./pages/DeliveryDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import FoundingMembers from "./pages/admin/FoundingMembers";
@@ -44,8 +46,11 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
+                <Route path="/categories" element={<Products />} />
                 <Route path="/product/:slug" element={<ProductDetail />} />
                 <Route path="/checkout" element={<Checkout />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/delivery" element={<DeliveryDashboard />} />
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/founding-members" element={<FoundingMembers />} />
