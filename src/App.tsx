@@ -28,6 +28,7 @@ import AdminOrderAssignments from "./pages/admin/OrderAssignments";
 import AdminAnalytics from "./pages/admin/Analytics";
 import AdminInventory from "./pages/admin/Inventory";
 import AdminUsers from "./pages/admin/Users";
+import MLMSettings from "./pages/admin/MLMSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="/admin/analytics" element={<AdminAnalytics />} />
                 <Route path="/admin/inventory" element={<AdminInventory />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/mlm-settings" element={<MLMSettings />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
