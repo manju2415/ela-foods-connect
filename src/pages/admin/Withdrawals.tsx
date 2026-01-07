@@ -1,0 +1,296 @@
+import { useEffect, useState } from "react";
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, CheckCircle, XCircle, Clock, Banknote } from "lucide-react";
+import { format } from "date-fns";
+
+interface WithdrawalRequest {
+  id: string;
+  user_id: string;
+  amount: number;
+  status: string;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  bank_account_holder: string | null;
+  notes: string | null;
+  created_at: string;
+  processed_at: string | null;
+}
+
+interface UserProfile {
+  email: string;
+  full_name: string | null;
+}
+
+const AdminWithdrawals = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [requests, setRequests] = useState<(WithdrawalRequest & { profile?: UserProfile })[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
+  const [notes, setNotes] = useState("");
+  const [stats, setStats] = useState({ pending: 0, approved: 0, total: 0 });
+
+  useEffect(() => {
+    fetchRequests();
+  }, []);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("withdrawal_requests")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      // Fetch user profiles
+      const userIds = [...new Set(data.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, email, full_name")
+        .in("id", userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      const enrichedRequests = data.map(r => ({
+        ...r,
+        profile: profileMap.get(r.user_id)
+      }));
+      
+      setRequests(enrichedRequests);
+      
+      // Calculate stats
+      const pending = data.filter(r => r.status === "pending").length;
+      const approved = data.filter(r => r.status === "approved" || r.status === "completed").length;
+      const total = data.reduce((sum, r) => r.status === "approved" || r.status === "completed" ? sum + Number(r.amount) : sum, 0);
+      setStats({ pending, approved, total });
+    }
+    setLoading(false);
+  };
+
+  const handleProcess = async (status: "approved" | "rejected") => {
+    if (!selectedRequest || !user) return;
+    setProcessingId(selectedRequest.id);
+
+    const { data, error } = await supabase.rpc("process_withdrawal", {
+      p_request_id: selectedRequest.id,
+      p_status: status,
+      p_notes: notes || null,
+      p_admin_id: user.id
+    });
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Success",
+        description: `Withdrawal ${status === "approved" ? "approved" : "rejected"} successfully.`
+      });
+      fetchRequests();
+      setSelectedRequest(null);
+      setNotes("");
+    }
+    setProcessingId(null);
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+      case "approved":
+        return <Badge variant="outline" className="bg-green-500/10 text-green-600"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case "completed":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+      case "rejected":
+        return <Badge variant="outline" className="bg-red-500/10 text-red-600"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+          <p className="text-muted-foreground">Manage user withdrawal requests</p>
+        </div>
+
+        {/* Stats */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
+              <Clock className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Approved Requests</CardTitle>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Paid Out</CardTitle>
+              <Banknote className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">₹{stats.total.toFixed(2)}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Requests Table */}
+        <Card>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : requests.length === 0 ? (
+              <div className="text-center p-8 text-muted-foreground">
+                No withdrawal requests yet
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Bank Details</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {requests.map((request) => (
+                    <TableRow key={request.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{request.profile?.full_name || "N/A"}</p>
+                          <p className="text-sm text-muted-foreground">{request.profile?.email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-semibold">₹{Number(request.amount).toFixed(2)}</TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          <p>{request.bank_account_holder}</p>
+                          <p className="text-muted-foreground">{request.bank_name} - {request.bank_account_number}</p>
+                          <p className="text-muted-foreground">IFSC: {request.bank_ifsc}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(request.status)}</TableCell>
+                      <TableCell>{format(new Date(request.created_at), "MMM dd, yyyy")}</TableCell>
+                      <TableCell>
+                        {request.status === "pending" && (
+                          <Button size="sm" onClick={() => setSelectedRequest(request)}>
+                            Process
+                          </Button>
+                        )}
+                        {request.notes && (
+                          <p className="text-xs text-muted-foreground mt-1">{request.notes}</p>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Process Dialog */}
+        <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Process Withdrawal Request</DialogTitle>
+            </DialogHeader>
+            {selectedRequest && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">User</p>
+                    <p className="font-medium">{requests.find(r => r.id === selectedRequest.id)?.profile?.full_name}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Amount</p>
+                    <p className="font-medium text-lg">₹{Number(selectedRequest.amount).toFixed(2)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-muted-foreground">Bank Details</p>
+                    <p>{selectedRequest.bank_account_holder}</p>
+                    <p>{selectedRequest.bank_name} - A/C: {selectedRequest.bank_account_number}</p>
+                    <p>IFSC: {selectedRequest.bank_ifsc}</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Notes (optional)</label>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add any notes about this request..."
+                  />
+                </div>
+              </div>
+            )}
+            <DialogFooter className="gap-2">
+              <Button
+                variant="destructive"
+                onClick={() => handleProcess("rejected")}
+                disabled={!!processingId}
+              >
+                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
+                Reject
+              </Button>
+              <Button
+                onClick={() => handleProcess("approved")}
+                disabled={!!processingId}
+              >
+                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Approve
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AdminLayout>
+  );
+};
+
+export default AdminWithdrawals;

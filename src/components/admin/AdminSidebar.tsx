@@ -14,6 +14,7 @@ import {
   UserCog,
   LucideIcon,
   Network,
+  Banknote,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -40,10 +41,12 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
+  { title: "Network Analytics", url: "/admin/network-analytics", icon: Network },
   { title: "Users", url: "/admin/users", icon: UserCog, superAdminOnly: true },
   { title: "Founding Members", url: "/admin/founding-members", icon: Users, superAdminOnly: true },
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
   { title: "MLM Settings", url: "/admin/mlm-settings", icon: Network, superAdminOnly: true },
+  { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },

@@ -29,6 +29,9 @@ import AdminAnalytics from "./pages/admin/Analytics";
 import AdminInventory from "./pages/admin/Inventory";
 import AdminUsers from "./pages/admin/Users";
 import MLMSettings from "./pages/admin/MLMSettings";
+import AdminWithdrawals from "./pages/admin/Withdrawals";
+import NetworkAnalytics from "./pages/admin/NetworkAnalytics";
+import GuestCheckout from "./pages/GuestCheckout";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
