@@ -31,6 +31,7 @@ import AdminUsers from "./pages/admin/Users";
 import MLMSettings from "./pages/admin/MLMSettings";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import NetworkAnalytics from "./pages/admin/NetworkAnalytics";
+import AdminTestimonials from "./pages/admin/Testimonials";
 import GuestCheckout from "./pages/GuestCheckout";
 import RegistrationPayment from "./pages/RegistrationPayment";
 import NotFound from "./pages/NotFound";
@@ -73,6 +74,7 @@ const App = () => (
                 <Route path="/admin/mlm-settings" element={<MLMSettings />} />
                 <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
                 <Route path="/admin/network-analytics" element={<NetworkAnalytics />} />
+                <Route path="/admin/testimonials" element={<AdminTestimonials />} />
                 <Route path="/registration-payment" element={<RegistrationPayment />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />

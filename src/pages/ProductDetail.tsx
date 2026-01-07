@@ -8,6 +8,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductReviews from "@/components/ProductReviews";
+import { TestimonialForm } from "@/components/TestimonialForm";
+import { TestimonialsDisplay } from "@/components/TestimonialsDisplay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -413,6 +415,15 @@ export default function ProductDetail() {
               </div>
             </div>
           )}
+
+          {/* Testimonials Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold">Customer Testimonials</h2>
+              <TestimonialForm productId={product.id} productName={product.name} />
+            </div>
+            <TestimonialsDisplay productId={product.id} />
+          </div>
 
           {/* Product Reviews */}
           <ProductReviews productId={product.id} />

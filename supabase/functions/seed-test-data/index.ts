@@ -5,6 +5,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface TestUser {
+  email: string;
+  password: string;
+  fullName: string;
+  roles: string[];
+  referralCode?: string;
+}
+
+const TEST_USERS: TestUser[] = [
+  {
+    email: 'superadmin@elafoods.com',
+    password: 'SuperAdmin123!',
+    fullName: 'Super Admin User',
+    roles: ['super_admin', 'admin']
+  },
+  {
+    email: 'admin@elafoods.com',
+    password: 'Admin123!',
+    fullName: 'Admin User',
+    roles: ['admin']
+  },
+  {
+    email: 'founder@elafoods.com',
+    password: 'TestPass123!',
+    fullName: 'Test Founding Member',
+    roles: ['founding_member', 'member'],
+    referralCode: 'ELAFOUND01'
+  },
+  {
+    email: 'delivery@elafoods.com',
+    password: 'Delivery123!',
+    fullName: 'Delivery Partner',
+    roles: ['delivery_partner', 'member']
+  },
+  {
+    email: 'member@elafoods.com',
+    password: 'Member123!',
+    fullName: 'Regular Member',
+    roles: ['member']
+  }
+];
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -17,83 +59,111 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Create a test user via admin API
-    const testEmail = 'founder@elafoods.com';
-    const testPassword = 'TestPass123!';
+    const results: { email: string; password: string; roles: string[]; referralCode?: string; status: string }[] = [];
 
-    // Check if user already exists
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-    let testUser = existingUsers?.users?.find(u => u.email === testEmail);
+    for (const testUser of TEST_USERS) {
+      // Check if user already exists
+      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
+      let user = existingUsers?.users?.find(u => u.email === testUser.email);
 
-    if (!testUser) {
-      // Create the test user
-      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-        email: testEmail,
-        password: testPassword,
-        email_confirm: true,
-        user_metadata: { full_name: 'Test Founding Member' }
-      });
-
-      if (createError) {
-        console.error('Error creating user:', createError);
-        throw createError;
-      }
-      testUser = newUser.user;
-      console.log('Created test user:', testUser.id);
-    } else {
-      console.log('Test user already exists:', testUser.id);
-    }
-
-    // Add founding_member role
-    const { error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .upsert({ 
-        user_id: testUser.id, 
-        role: 'founding_member' 
-      }, { 
-        onConflict: 'user_id,role' 
-      });
-
-    if (roleError) {
-      console.error('Error adding role:', roleError);
-    }
-
-    // Create referral code for this user
-    const { data: existingCode } = await supabaseAdmin
-      .from('referral_codes')
-      .select('code')
-      .eq('user_id', testUser.id)
-      .single();
-
-    let referralCode = existingCode?.code;
-
-    if (!referralCode) {
-      referralCode = 'ELAFOUND01';
-      const { error: codeError } = await supabaseAdmin
-        .from('referral_codes')
-        .insert({
-          code: referralCode,
-          user_id: testUser.id,
-          max_uses: 100,
-          is_active: true
+      if (!user) {
+        // Create the test user
+        const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email: testUser.email,
+          password: testUser.password,
+          email_confirm: true,
+          user_metadata: { full_name: testUser.fullName }
         });
 
-      if (codeError) {
-        console.error('Error creating referral code:', codeError);
-        throw codeError;
+        if (createError) {
+          console.error(`Error creating user ${testUser.email}:`, createError);
+          results.push({ 
+            email: testUser.email, 
+            password: testUser.password, 
+            roles: testUser.roles, 
+            status: `Error: ${createError.message}` 
+          });
+          continue;
+        }
+        user = newUser.user;
+        console.log('Created test user:', user.id);
       }
-      console.log('Created referral code:', referralCode);
+
+      // Add roles
+      for (const role of testUser.roles) {
+        const { error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .upsert({ 
+            user_id: user.id, 
+            role: role 
+          }, { 
+            onConflict: 'user_id,role' 
+          });
+
+        if (roleError) {
+          console.error(`Error adding role ${role} to ${testUser.email}:`, roleError);
+        }
+      }
+
+      // Create delivery partner record if needed
+      if (testUser.roles.includes('delivery_partner')) {
+        const { error: dpError } = await supabaseAdmin
+          .from('delivery_partners')
+          .upsert({
+            user_id: user.id,
+            vehicle_type: 'Motorcycle',
+            vehicle_number: 'KA01AB1234',
+            is_available: true
+          }, {
+            onConflict: 'user_id'
+          });
+
+        if (dpError) {
+          console.error(`Error creating delivery partner for ${testUser.email}:`, dpError);
+        }
+      }
+
+      // Create referral code if specified
+      let referralCode = testUser.referralCode;
+      if (referralCode) {
+        const { data: existingCode } = await supabaseAdmin
+          .from('referral_codes')
+          .select('code')
+          .eq('user_id', user.id)
+          .single();
+
+        if (!existingCode) {
+          const { error: codeError } = await supabaseAdmin
+            .from('referral_codes')
+            .insert({
+              code: referralCode,
+              user_id: user.id,
+              max_uses: 100,
+              is_active: true
+            });
+
+          if (codeError) {
+            console.error(`Error creating referral code for ${testUser.email}:`, codeError);
+          }
+        } else {
+          referralCode = existingCode.code;
+        }
+      }
+
+      results.push({
+        email: testUser.email,
+        password: testUser.password,
+        roles: testUser.roles,
+        referralCode,
+        status: 'Success'
+      });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Test data seeded successfully',
-        testUser: {
-          email: testEmail,
-          password: testPassword
-        },
-        referralCode
+        message: 'Test users seeded successfully',
+        users: results
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
