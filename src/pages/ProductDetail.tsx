@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductReviews from "@/components/ProductReviews";
@@ -29,6 +30,7 @@ interface Product {
   short_description: string | null;
   price: number;
   compare_at_price: number | null;
+  member_price: number | null;
   sku: string | null;
   stock_quantity: number;
   weight_grams: number | null;
@@ -48,6 +50,7 @@ export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { isMember } = useUserRole();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -124,8 +127,11 @@ export default function ProductDetail() {
     }
   };
 
-  const discount = product?.compare_at_price
-    ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
+  // Calculate display price and discount based on membership
+  const displayPrice = isMember && product?.member_price ? product.member_price : product?.price || 0;
+  const strikethroughPrice = isMember && product?.member_price ? product?.price : product?.compare_at_price;
+  const discount = strikethroughPrice && product
+    ? Math.round(((strikethroughPrice - displayPrice) / strikethroughPrice) * 100)
     : 0;
 
   if (productLoading) {
@@ -276,12 +282,22 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-bold">₹{Number(product.price).toFixed(2)}</span>
-                {product.compare_at_price && (
-                  <span className="text-xl text-muted-foreground line-through">
-                    ₹{Number(product.compare_at_price).toFixed(2)}
-                  </span>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-bold">₹{Number(displayPrice).toFixed(2)}</span>
+                  {strikethroughPrice && strikethroughPrice > displayPrice && (
+                    <span className="text-xl text-muted-foreground line-through">
+                      ₹{Number(strikethroughPrice).toFixed(2)}
+                    </span>
+                  )}
+                  {isMember && product.member_price && (
+                    <Badge className="bg-green-600 text-white">Member Price</Badge>
+                  )}
+                </div>
+                {!isMember && product.member_price && (
+                  <p className="text-sm text-green-600">
+                    Member price: ₹{Number(product.member_price).toFixed(2)} — Sign up to save!
+                  </p>
                 )}
               </div>
 
