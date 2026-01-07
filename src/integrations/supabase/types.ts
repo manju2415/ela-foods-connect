@@ -856,6 +856,54 @@ export type Database = {
           },
         ]
       }
+      withdrawal_requests: {
+        Row: {
+          amount: number
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       user_hierarchy: {
@@ -954,6 +1002,19 @@ export type Database = {
       process_referral_incentive: {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean
+      }
+      process_withdrawal: {
+        Args: {
+          p_admin_id?: string
+          p_notes?: string
+          p_request_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
+      request_withdrawal: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: Json
       }
     }
     Enums: {
