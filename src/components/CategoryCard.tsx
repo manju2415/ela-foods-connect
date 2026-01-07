@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -14,10 +15,11 @@ const CategoryCard = ({ name, slug, image, productCount }: CategoryCardProps) =>
     <Link to={`/products?category=${slug}`}>
       <Card className="group relative overflow-hidden cursor-pointer border-0 shadow-md hover:shadow-xl transition-all duration-300">
         <div className="aspect-[4/3] overflow-hidden">
-          <img
+          <OptimizedImage
             src={image}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+            containerClassName="w-full h-full"
           />
         </div>
         

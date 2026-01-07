@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
@@ -82,10 +83,11 @@ const ProductCard = ({
     <Link to={`/product/${slug}`}>
       <Card className="group overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
       <div className="relative overflow-hidden">
-        <img
+        <OptimizedImage
           src={image}
           alt={name}
           className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
+          containerClassName="aspect-square"
         />
         
         {/* Badges */}
