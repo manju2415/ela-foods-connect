@@ -52,6 +52,7 @@ interface Product {
   short_description: string | null;
   price: number;
   compare_at_price: number | null;
+  member_price: number | null;
   sku: string | null;
   stock_quantity: number;
   weight_grams: number | null;
@@ -74,6 +75,7 @@ interface ProductFormData {
   short_description: string;
   price: string;
   compare_at_price: string;
+  member_price: string;
   sku: string;
   stock_quantity: string;
   weight_grams: string;
@@ -89,6 +91,7 @@ const initialFormData: ProductFormData = {
   short_description: "",
   price: "",
   compare_at_price: "",
+  member_price: "",
   sku: "",
   stock_quantity: "0",
   weight_grams: "",
@@ -165,6 +168,7 @@ export default function Products() {
         short_description: data.short_description || null,
         price: parseFloat(data.price),
         compare_at_price: data.compare_at_price ? parseFloat(data.compare_at_price) : null,
+        member_price: data.member_price ? parseFloat(data.member_price) : null,
         sku: data.sku || null,
         stock_quantity: parseInt(data.stock_quantity) || 0,
         weight_grams: data.weight_grams ? parseInt(data.weight_grams) : null,
@@ -203,6 +207,7 @@ export default function Products() {
           short_description: data.short_description || null,
           price: parseFloat(data.price),
           compare_at_price: data.compare_at_price ? parseFloat(data.compare_at_price) : null,
+          member_price: data.member_price ? parseFloat(data.member_price) : null,
           sku: data.sku || null,
           stock_quantity: parseInt(data.stock_quantity) || 0,
           weight_grams: data.weight_grams ? parseInt(data.weight_grams) : null,
@@ -258,6 +263,7 @@ export default function Products() {
       short_description: product.short_description || "",
       price: product.price.toString(),
       compare_at_price: product.compare_at_price?.toString() || "",
+      member_price: product.member_price?.toString() || "",
       sku: product.sku || "",
       stock_quantity: product.stock_quantity.toString(),
       weight_grams: product.weight_grams?.toString() || "",
@@ -491,9 +497,9 @@ export default function Products() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price *</Label>
+                  <Label htmlFor="price">MRP Price *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -501,6 +507,17 @@ export default function Products() {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="member_price">Member Price</Label>
+                  <Input
+                    id="member_price"
+                    type="number"
+                    step="0.01"
+                    value={formData.member_price}
+                    onChange={(e) => setFormData({ ...formData, member_price: e.target.value })}
+                    placeholder="Discounted price for members"
                   />
                 </div>
                 <div className="space-y-2">

@@ -23,6 +23,7 @@ interface Product {
   slug: string;
   price: number;
   compare_at_price: number | null;
+  member_price: number | null;
   images: string[];
   is_featured: boolean;
   category_id: string | null;
@@ -76,6 +77,7 @@ const Products = () => {
         slug,
         price,
         compare_at_price,
+        member_price,
         images,
         is_featured,
         category_id,
@@ -299,6 +301,7 @@ const Products = () => {
                       name={product.name}
                       slug={product.slug}
                       price={product.price}
+                      memberPrice={product.member_price}
                       originalPrice={product.compare_at_price || undefined}
                       image={product.images?.[0] || "/placeholder.svg"}
                       category={product.categories?.name || "Snacks"}

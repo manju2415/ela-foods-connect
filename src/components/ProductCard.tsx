@@ -5,13 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { ShoppingCart, Heart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface ProductCardProps {
   id: string;
   name: string;
   slug: string;
-  price: number;
-  originalPrice?: number;
+  price: number; // MRP price for everyone
+  memberPrice?: number | null; // Discounted price for members only
+  originalPrice?: number; // compare_at_price (strikethrough price)
   image: string;
   category: string;
   isNew?: boolean;
@@ -23,6 +25,7 @@ const ProductCard = ({
   name,
   slug,
   price,
+  memberPrice,
   originalPrice,
   image,
   category,
@@ -31,7 +34,14 @@ const ProductCard = ({
 }: ProductCardProps) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const { isMember } = useUserRole();
+  
+  // Show member price if user is a member and member_price exists
+  const displayPrice = isMember && memberPrice ? memberPrice : price;
+  // For members, show MRP as strikethrough. For non-members, show compare_at_price if exists
+  const strikethroughPrice = isMember && memberPrice ? price : originalPrice;
+  
+  const discount = strikethroughPrice ? Math.round(((strikethroughPrice - displayPrice) / strikethroughPrice) * 100) : 0;
   const inWishlist = isInWishlist(id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -69,6 +79,9 @@ const ProductCard = ({
               {discount}% OFF
             </Badge>
           )}
+          {isMember && memberPrice && (
+            <Badge className="bg-green-600 text-white">Member Price</Badge>
+          )}
         </div>
 
         {/* Wishlist Button */}
@@ -100,13 +113,18 @@ const ProductCard = ({
           {name}
         </h3>
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-primary">₹{price}</span>
-          {originalPrice && (
+          <span className="text-lg font-bold text-primary">₹{displayPrice}</span>
+          {strikethroughPrice && strikethroughPrice > displayPrice && (
             <span className="text-sm text-muted-foreground line-through">
-              ₹{originalPrice}
+              ₹{strikethroughPrice}
             </span>
           )}
         </div>
+        {!isMember && memberPrice && (
+          <p className="text-xs text-green-600 mt-1">
+            Member price: ₹{memberPrice}
+          </p>
+        )}
       </CardContent>
     </Card>
     </Link>

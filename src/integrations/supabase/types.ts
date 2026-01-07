@@ -504,6 +504,7 @@ export type Database = {
           images: string[] | null
           is_active: boolean | null
           is_featured: boolean | null
+          member_price: number | null
           name: string
           price: number
           short_description: string | null
@@ -522,6 +523,7 @@ export type Database = {
           images?: string[] | null
           is_active?: boolean | null
           is_featured?: boolean | null
+          member_price?: number | null
           name: string
           price: number
           short_description?: string | null
@@ -540,6 +542,7 @@ export type Database = {
           images?: string[] | null
           is_active?: boolean | null
           is_featured?: boolean | null
+          member_price?: number | null
           name?: string
           price?: number
           short_description?: string | null
