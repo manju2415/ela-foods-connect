@@ -5,6 +5,7 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { DeliveryScheduler } from "@/components/checkout/DeliveryScheduler";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { format } from "date-fns";
 
 interface Address {
   id: string;
@@ -71,6 +73,8 @@ const Checkout = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
+  const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<Date | null>(null);
+  const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState<string | null>(null);
 
   const [newAddress, setNewAddress] = useState({
     full_name: "",
@@ -274,7 +278,7 @@ const Checkout = () => {
     // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
-    // Create order
+    // Create order with delivery scheduling
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
@@ -288,6 +292,8 @@ const Checkout = () => {
         wallet_amount_used: totalWalletUsed,
         total_amount: finalAmount,
         coupon_code: appliedCoupon?.code || null,
+        preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
+        preferred_delivery_slot_id: selectedDeliverySlotId,
         shipping_address: {
           full_name: selectedAddress.full_name,
           phone: selectedAddress.phone,
@@ -477,6 +483,14 @@ const Checkout = () => {
                 )}
               </CardContent>
             </Card>
+
+            {/* Delivery Scheduling */}
+            <DeliveryScheduler
+              selectedDate={selectedDeliveryDate}
+              selectedSlotId={selectedDeliverySlotId}
+              onDateChange={setSelectedDeliveryDate}
+              onSlotChange={setSelectedDeliverySlotId}
+            />
 
             {/* Payment Options */}
             <Card>

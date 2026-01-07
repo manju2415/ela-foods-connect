@@ -231,6 +231,42 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_time_slots: {
+        Row: {
+          created_at: string
+          display_order: number | null
+          end_time: string
+          id: string
+          is_active: boolean | null
+          max_orders_per_slot: number | null
+          name: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number | null
+          end_time: string
+          id?: string
+          is_active?: boolean | null
+          max_orders_per_slot?: number | null
+          name: string
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number | null
+          end_time?: string
+          id?: string
+          is_active?: boolean | null
+          max_orders_per_slot?: number | null
+          name?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mlm_settings: {
         Row: {
           description: string | null
@@ -405,6 +441,8 @@ export type Database = {
           notes: string | null
           order_number: string
           payment_status: Database["public"]["Enums"]["payment_status"]
+          preferred_delivery_date: string | null
+          preferred_delivery_slot_id: string | null
           shipping_address: Json
           shipping_amount: number | null
           status: Database["public"]["Enums"]["order_status"]
@@ -422,6 +460,8 @@ export type Database = {
           notes?: string | null
           order_number: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          preferred_delivery_date?: string | null
+          preferred_delivery_slot_id?: string | null
           shipping_address: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -439,6 +479,8 @@ export type Database = {
           notes?: string | null
           order_number?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          preferred_delivery_date?: string | null
+          preferred_delivery_slot_id?: string | null
           shipping_address?: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -448,7 +490,15 @@ export type Database = {
           user_id?: string
           wallet_amount_used?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_preferred_delivery_slot_id_fkey"
+            columns: ["preferred_delivery_slot_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_time_slots"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       platform_settings: {
         Row: {
