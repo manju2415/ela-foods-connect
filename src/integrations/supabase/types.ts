@@ -231,6 +231,33 @@ export type Database = {
         }
         Relationships: []
       }
+      mlm_settings: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -565,35 +592,74 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
           created_at: string
           email: string
           full_name: string | null
           id: string
           is_active: boolean | null
           phone: string | null
+          referral_count: number | null
+          referred_by: string | null
+          registration_fee_paid: number | null
           updated_at: string
+          user_level: Database["public"]["Enums"]["user_level"] | null
         }
         Insert: {
           avatar_url?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           created_at?: string
           email: string
           full_name?: string | null
           id: string
           is_active?: boolean | null
           phone?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
+          registration_fee_paid?: number | null
           updated_at?: string
+          user_level?: Database["public"]["Enums"]["user_level"] | null
         }
         Update: {
           avatar_url?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           phone?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
+          registration_fee_paid?: number | null
           updated_at?: string
+          user_level?: Database["public"]["Enums"]["user_level"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "user_hierarchy"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       referral_codes: {
         Row: {
@@ -691,7 +757,9 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          is_withdrawable: boolean | null
           reference_id: string | null
+          source_user_id: string | null
           type: Database["public"]["Enums"]["wallet_transaction_type"]
           wallet_id: string
         }
@@ -701,7 +769,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_withdrawable?: boolean | null
           reference_id?: string | null
+          source_user_id?: string | null
           type: Database["public"]["Enums"]["wallet_transaction_type"]
           wallet_id: string
         }
@@ -711,7 +781,9 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          is_withdrawable?: boolean | null
           reference_id?: string | null
+          source_user_id?: string | null
           type?: Database["public"]["Enums"]["wallet_transaction_type"]
           wallet_id?: string
         }
@@ -730,22 +802,28 @@ export type Database = {
           balance: number
           created_at: string
           id: string
+          purchase_only_balance: number | null
           updated_at: string
           user_id: string
+          withdrawable_balance: number | null
         }
         Insert: {
           balance?: number
           created_at?: string
           id?: string
+          purchase_only_balance?: number | null
           updated_at?: string
           user_id: string
+          withdrawable_balance?: number | null
         }
         Update: {
           balance?: number
           created_at?: string
           id?: string
+          purchase_only_balance?: number | null
           updated_at?: string
           user_id?: string
+          withdrawable_balance?: number | null
         }
         Relationships: []
       }
@@ -780,7 +858,37 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_hierarchy: {
+        Row: {
+          email: string | null
+          full_name: string | null
+          id: string | null
+          purchase_only_balance: number | null
+          referral_count: number | null
+          referred_by: string | null
+          referred_by_email: string | null
+          referred_by_name: string | null
+          total_wallet_balance: number | null
+          user_level: Database["public"]["Enums"]["user_level"] | null
+          withdrawable_balance: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "user_hierarchy"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_wallet_transaction: {
@@ -804,8 +912,27 @@ export type Database = {
         }
         Returns: string
       }
+      credit_purchase_commission: {
+        Args: { p_order_total: number; p_user_id: string }
+        Returns: boolean
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
+      generate_user_referral_code: {
+        Args: { p_user_id: string }
+        Returns: string
+      }
+      get_user_downline: {
+        Args: { p_user_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          level_depth: number
+          referred_by: string
+          user_id: string
+          user_level: Database["public"]["Enums"]["user_level"]
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -816,6 +943,14 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      process_mlm_referral: {
+        Args: {
+          p_referral_code: string
+          p_referred_user_id: string
+          p_registration_fee?: number
+        }
+        Returns: Json
+      }
       process_referral_incentive: {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean
@@ -837,6 +972,7 @@ export type Database = {
         | "delivered"
         | "cancelled"
       payment_status: "pending" | "completed" | "failed" | "refunded"
+      user_level: "founder" | "master" | "associate"
       wallet_transaction_type:
         | "credit"
         | "debit"
@@ -988,6 +1124,7 @@ export const Constants = {
         "cancelled",
       ],
       payment_status: ["pending", "completed", "failed", "refunded"],
+      user_level: ["founder", "master", "associate"],
       wallet_transaction_type: [
         "credit",
         "debit",
