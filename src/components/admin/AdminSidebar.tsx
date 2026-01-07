@@ -15,6 +15,7 @@ import {
   LucideIcon,
   Network,
   Banknote,
+  MessageSquareQuote,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -51,6 +52,7 @@ const menuItems: MenuItem[] = [
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
   { title: "Coupons", url: "/admin/coupons", icon: BadgePercent },
+  { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquareQuote },
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList },
   { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck },

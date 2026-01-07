@@ -779,6 +779,59 @@ export type Database = {
           },
         ]
       }
+      testimonials: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          content: string
+          created_at: string
+          id: string
+          is_approved: boolean | null
+          is_featured: boolean | null
+          product_id: string | null
+          rating: number | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean | null
+          is_featured?: boolean | null
+          product_id?: string | null
+          rating?: number | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean | null
+          is_featured?: boolean | null
+          product_id?: string | null
+          rating?: number | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testimonials_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
