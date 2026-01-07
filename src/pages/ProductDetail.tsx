@@ -127,11 +127,9 @@ export default function ProductDetail() {
     }
   };
 
-  // Calculate display price and discount based on membership
-  const displayPrice = isMember && product?.member_price ? product.member_price : product?.price || 0;
-  const strikethroughPrice = isMember && product?.member_price ? product?.price : product?.compare_at_price;
-  const discount = strikethroughPrice && product
-    ? Math.round(((strikethroughPrice - displayPrice) / strikethroughPrice) * 100)
+  // Calculate discount for compare_at_price
+  const discount = product?.compare_at_price && product?.price
+    ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : 0;
 
   if (productLoading) {
@@ -282,22 +280,35 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
+                {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-3xl font-bold">₹{Number(displayPrice).toFixed(2)}</span>
-                  {strikethroughPrice && strikethroughPrice > displayPrice && (
-                    <span className="text-xl text-muted-foreground line-through">
-                      ₹{Number(strikethroughPrice).toFixed(2)}
+                  <span className="text-sm text-muted-foreground">MRP:</span>
+                  <span className={`font-bold ${product.member_price && isMember ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
+                    ₹{Number(product.price).toFixed(2)}
+                  </span>
+                  {product.compare_at_price && product.compare_at_price > product.price && (
+                    <span className="text-lg text-muted-foreground line-through">
+                      ₹{Number(product.compare_at_price).toFixed(2)}
                     </span>
                   )}
-                  {isMember && product.member_price && (
-                    <Badge className="bg-green-600 text-white">Member Price</Badge>
+                  {discount > 0 && (
+                    <Badge variant="secondary">{discount}% OFF</Badge>
                   )}
                 </div>
-                {!isMember && product.member_price && (
-                  <p className="text-sm text-green-600">
-                    Member price: ₹{Number(product.member_price).toFixed(2)} — Sign up to save!
-                  </p>
+                {/* Member Price */}
+                {product.member_price && (
+                  <div className="flex items-baseline gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
+                    <span className="text-sm text-green-700 dark:text-green-400 font-medium">Member Price:</span>
+                    <span className={`font-bold ${isMember ? 'text-3xl text-green-600' : 'text-2xl text-green-600'}`}>
+                      ₹{Number(product.member_price).toFixed(2)}
+                    </span>
+                    {isMember ? (
+                      <Badge className="bg-green-600 text-white">Your Price</Badge>
+                    ) : (
+                      <span className="text-sm text-green-600">Become a member to save!</span>
+                    )}
+                  </div>
                 )}
               </div>
 
