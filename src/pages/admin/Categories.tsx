@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Search, Plus, Pencil, Trash2, FolderTree, Upload, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/utils/imageCompression";
 
 interface Category {
   id: string;
@@ -99,11 +100,12 @@ export default function Categories() {
   });
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split(".").pop();
+    const compressedFile = await compressImage(file);
+    const fileExt = compressedFile.name.split(".").pop();
     const fileName = `category-${crypto.randomUUID()}.${fileExt}`;
     const { error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, file);
+      .upload(fileName, compressedFile);
     if (error) throw error;
     const { data: urlData } = supabase.storage
       .from("product-images")

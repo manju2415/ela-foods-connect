@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Megaphone, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/utils/imageCompression";
 
 interface Advertisement {
   id: string;
@@ -116,11 +117,12 @@ export default function Advertisements() {
   });
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split(".").pop();
+    const compressedFile = await compressImage(file);
+    const fileExt = compressedFile.name.split(".").pop();
     const fileName = `ad-${crypto.randomUUID()}.${fileExt}`;
     const { error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, file);
+      .upload(fileName, compressedFile);
     if (error) throw error;
     const { data: urlData } = supabase.storage
       .from("product-images")
