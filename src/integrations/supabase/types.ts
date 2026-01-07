@@ -65,6 +65,105 @@ export type Database = {
         }
         Relationships: []
       }
+      advertisements: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          link_text: string | null
+          link_url: string | null
+          placement: string
+          starts_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_text?: string | null
+          link_url?: string | null
+          placement?: string
+          starts_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          link_text?: string | null
+          link_url?: string | null
+          placement?: string
+          starts_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      banners: {
+        Row: {
+          badge_text: string | null
+          created_at: string
+          cta_link: string | null
+          cta_text: string | null
+          display_order: number | null
+          ends_at: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          location: string | null
+          starts_at: string | null
+          subtitle: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          badge_text?: string | null
+          created_at?: string
+          cta_link?: string | null
+          cta_text?: string | null
+          display_order?: number | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          starts_at?: string | null
+          subtitle?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          badge_text?: string | null
+          created_at?: string
+          cta_link?: string | null
+          cta_text?: string | null
+          display_order?: number | null
+          ends_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          location?: string | null
+          starts_at?: string | null
+          subtitle?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cart_items: {
         Row: {
           created_at: string
@@ -588,6 +687,8 @@ export type Database = {
           sku: string | null
           slug: string
           stock_quantity: number
+          unit_type: string | null
+          unit_value: number | null
           updated_at: string
           weight_grams: number | null
         }
@@ -607,6 +708,8 @@ export type Database = {
           sku?: string | null
           slug: string
           stock_quantity?: number
+          unit_type?: string | null
+          unit_value?: number | null
           updated_at?: string
           weight_grams?: number | null
         }
@@ -626,6 +729,8 @@ export type Database = {
           sku?: string | null
           slug?: string
           stock_quantity?: number
+          unit_type?: string | null
+          unit_value?: number | null
           updated_at?: string
           weight_grams?: number | null
         }

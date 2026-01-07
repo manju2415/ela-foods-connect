@@ -12,6 +12,8 @@ interface Product {
   member_price: number | null;
   images: string[];
   is_featured: boolean;
+  unit_type: string | null;
+  unit_value: number | null;
   categories: {
     name: string;
   } | null;
@@ -34,6 +36,8 @@ const FeaturedProducts = () => {
           member_price,
           images,
           is_featured,
+          unit_type,
+          unit_value,
           categories (name)
         `)
         .eq("is_active", true)
@@ -90,6 +94,8 @@ const FeaturedProducts = () => {
                 image={product.images?.[0] || "/placeholder.svg"}
                 category={product.categories?.name || "Snacks"}
                 isBestSeller={product.is_featured}
+                unitType={product.unit_type}
+                unitValue={product.unit_value}
               />
             ))
           )}

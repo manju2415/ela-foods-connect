@@ -18,6 +18,8 @@ interface ProductCardProps {
   category: string;
   isNew?: boolean;
   isBestSeller?: boolean;
+  unitType?: string | null;
+  unitValue?: number | null;
 }
 
 const ProductCard = ({
@@ -31,6 +33,8 @@ const ProductCard = ({
   category,
   isNew,
   isBestSeller,
+  unitType,
+  unitValue,
 }: ProductCardProps) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -39,6 +43,28 @@ const ProductCard = ({
   // Calculate discount for compare_at_price
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const inWishlist = isInWishlist(id);
+
+  // Format unit display
+  const getUnitDisplay = () => {
+    if (!unitType) return null;
+    const unitLabels: Record<string, string> = {
+      g: 'g',
+      kg: 'kg',
+      ml: 'ml',
+      litre: 'L',
+      packet: 'pkt',
+      piece: 'pc',
+      box: 'box',
+      dozen: 'doz',
+    };
+    const label = unitLabels[unitType] || unitType;
+    if (unitValue) {
+      return `${unitValue}${label}`;
+    }
+    return null;
+  };
+
+  const unitDisplay = getUnitDisplay();
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -102,9 +128,12 @@ const ProductCard = ({
         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
           {category}
         </p>
-        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
+        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
           {name}
         </h3>
+        {unitDisplay && (
+          <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+        )}
         {/* Pricing - Show both MRP and Member Price */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
