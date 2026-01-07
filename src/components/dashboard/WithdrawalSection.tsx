@@ -28,11 +28,10 @@ interface Profile {
 }
 
 interface WithdrawalSectionProps {
-  withdrawableBalance: number;
-  onWithdrawalComplete: () => void;
+  userId: string;
 }
 
-export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }: WithdrawalSectionProps) => {
+export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
@@ -41,6 +40,7 @@ export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }:
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showBankForm, setShowBankForm] = useState(false);
+  const [withdrawableBalance, setWithdrawableBalance] = useState(0);
   const [bankDetails, setBankDetails] = useState({
     bank_name: "",
     bank_account_number: "",
@@ -49,26 +49,31 @@ export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }:
   });
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       fetchData();
     }
-  }, [user]);
+  }, [userId]);
 
   const fetchData = async () => {
-    if (!user) return;
+    if (!userId) return;
     setLoadingData(true);
 
-    const [requestsRes, profileRes] = await Promise.all([
+    const [requestsRes, profileRes, walletRes] = await Promise.all([
       supabase
         .from("withdrawal_requests")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(10),
       supabase
         .from("profiles")
         .select("bank_name, bank_account_number, bank_ifsc, bank_account_holder")
-        .eq("id", user.id)
+        .eq("id", userId)
+        .single(),
+      supabase
+        .from("wallets")
+        .select("withdrawable_balance")
+        .eq("user_id", userId)
         .single()
     ]);
 
@@ -81,6 +86,9 @@ export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }:
         bank_ifsc: profileRes.data.bank_ifsc || "",
         bank_account_holder: profileRes.data.bank_account_holder || ""
       });
+    }
+    if (walletRes.data) {
+      setWithdrawableBalance(walletRes.data.withdrawable_balance || 0);
     }
     setLoadingData(false);
   };
@@ -134,7 +142,7 @@ export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }:
 
     setLoading(true);
     const { data, error } = await supabase.rpc("request_withdrawal", {
-      p_user_id: user.id,
+      p_user_id: userId,
       p_amount: withdrawAmount
     });
 
@@ -146,7 +154,6 @@ export const WithdrawalSection = ({ withdrawableBalance, onWithdrawalComplete }:
         toast({ title: "Success", description: "Withdrawal request submitted!" });
         setAmount("");
         fetchData();
-        onWithdrawalComplete();
       } else {
         toast({ title: "Error", description: result.error || "Failed to request withdrawal", variant: "destructive" });
       }

@@ -9,8 +9,10 @@ import Footer from "@/components/Footer";
 import AddressManager from "@/components/AddressManager";
 import { OrderStatusTimeline } from "@/components/OrderStatusTimeline";
 import { UserTreeView } from "@/components/dashboard/UserTreeView";
+import { NetworkTreeVisual } from "@/components/dashboard/NetworkTreeVisual";
 import { SplitWalletView } from "@/components/dashboard/SplitWalletView";
 import { ReferralSection } from "@/components/dashboard/ReferralSection";
+import { WithdrawalSection } from "@/components/dashboard/WithdrawalSection";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -733,12 +735,13 @@ const Dashboard = () => {
           {/* Wallet Tab */}
           <TabsContent value="wallet" className="space-y-6">
             <SplitWalletView userId={user.id} />
+            <WithdrawalSection userId={user.id} />
           </TabsContent>
 
           {/* Network Tab (Referrals & Downline) */}
           <TabsContent value="network" className="space-y-6">
             <ReferralSection userId={user.id} />
-            <UserTreeView userId={user.id} />
+            <NetworkTreeVisual userId={user.id} />
           </TabsContent>
 
           {/* Settings Tab */}

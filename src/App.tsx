@@ -32,6 +32,7 @@ import MLMSettings from "./pages/admin/MLMSettings";
 import AdminWithdrawals from "./pages/admin/Withdrawals";
 import NetworkAnalytics from "./pages/admin/NetworkAnalytics";
 import GuestCheckout from "./pages/GuestCheckout";
+import RegistrationPayment from "./pages/RegistrationPayment";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,9 @@ const App = () => (
                 <Route path="/admin/inventory" element={<AdminInventory />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/mlm-settings" element={<MLMSettings />} />
+                <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
+                <Route path="/admin/network-analytics" element={<NetworkAnalytics />} />
+                <Route path="/registration-payment" element={<RegistrationPayment />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
