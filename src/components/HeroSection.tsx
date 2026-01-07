@@ -1,15 +1,57 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star } from "lucide-react";
-import heroImage from "@/assets/hero-snacks.jpg";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import heroImageFallback from "@/assets/hero-snacks.jpg";
+
+interface Banner {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  cta_text: string | null;
+  cta_link: string | null;
+  image_url: string | null;
+  badge_text: string | null;
+}
 
 const HeroSection = () => {
+  const { data: banner } = useQuery({
+    queryKey: ["hero-banner"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .eq("location", "home_hero")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true })
+        .limit(1)
+        .single();
+      if (error && error.code !== "PGRST116") throw error;
+      return data as Banner | null;
+    },
+  });
+
+  // Default values if no banner is set
+  const title = banner?.title || "Experience the Mother's Touch";
+  const subtitle = banner?.subtitle || "Discover authentic homemade snacks crafted with love and traditional recipes. From crispy namkeen to spicy mixtures, taste the difference that quality makes.";
+  const ctaText = banner?.cta_text || "Shop Now";
+  const ctaLink = banner?.cta_link || "/products";
+  const badgeText = banner?.badge_text || "Premium Quality Snacks";
+  const heroImage = banner?.image_url || heroImageFallback;
+
+  // Split title by newline or use as is
+  const titleParts = title.split('\n');
+  const mainTitle = titleParts[0];
+  const highlightTitle = titleParts[1] || null;
+
   return (
     <section className="relative min-h-[85vh] flex items-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
         <img
           src={heroImage}
-          alt="Delicious snacks"
+          alt="Hero banner"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-foreground/30" />
@@ -19,29 +61,36 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-2xl">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 bg-secondary/20 backdrop-blur-sm border border-secondary/30 rounded-full px-4 py-2 mb-6">
-            <Star className="h-4 w-4 text-secondary fill-secondary" />
-            <span className="text-sm text-card font-medium">Premium Quality Snacks</span>
-          </div>
+          {badgeText && (
+            <div className="inline-flex items-center gap-2 bg-secondary/20 backdrop-blur-sm border border-secondary/30 rounded-full px-4 py-2 mb-6">
+              <Star className="h-4 w-4 text-secondary fill-secondary" />
+              <span className="text-sm text-card font-medium">{badgeText}</span>
+            </div>
+          )}
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-card leading-tight mb-6">
-            Experience the
-            <span className="block text-secondary mt-2">Mother's Touch</span>
+            {mainTitle}
+            {highlightTitle && (
+              <span className="block text-secondary mt-2">{highlightTitle}</span>
+            )}
           </h1>
 
           <p className="text-lg md:text-xl text-card/80 mb-8 leading-relaxed">
-            Discover authentic homemade snacks crafted with love and traditional recipes. 
-            From crispy namkeen to spicy mixtures, taste the difference that quality makes.
+            {subtitle}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button variant="hero" size="xl" className="gap-2">
-              Shop Now
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-            <Button variant="heroOutline" size="xl">
-              Explore Categories
-            </Button>
+            <Link to={ctaLink}>
+              <Button variant="hero" size="xl" className="gap-2">
+                {ctaText}
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/products">
+              <Button variant="heroOutline" size="xl">
+                Explore Categories
+              </Button>
+            </Link>
           </div>
 
           {/* Stats */}

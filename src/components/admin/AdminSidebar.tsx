@@ -16,6 +16,8 @@ import {
   Network,
   Banknote,
   MessageSquareQuote,
+  Image,
+  Megaphone,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -48,6 +50,8 @@ const menuItems: MenuItem[] = [
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
   { title: "MLM Settings", url: "/admin/mlm-settings", icon: Network, superAdminOnly: true },
   { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
+  { title: "Banners", url: "/admin/banners", icon: Image },
+  { title: "Advertisements", url: "/admin/advertisements", icon: Megaphone },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },
