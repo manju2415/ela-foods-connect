@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Image, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import { compressImage } from "@/utils/imageCompression";
 
 interface Banner {
   id: string;
@@ -116,11 +117,12 @@ export default function Banners() {
   });
 
   const uploadImage = async (file: File): Promise<string> => {
-    const fileExt = file.name.split(".").pop();
+    const compressedFile = await compressImage(file, { maxWidthOrHeight: 2560 }); // Higher for banners
+    const fileExt = compressedFile.name.split(".").pop();
     const fileName = `banner-${crypto.randomUUID()}.${fileExt}`;
     const { error } = await supabase.storage
       .from("product-images")
-      .upload(fileName, file);
+      .upload(fileName, compressedFile);
     if (error) throw error;
     const { data: urlData } = supabase.storage
       .from("product-images")
