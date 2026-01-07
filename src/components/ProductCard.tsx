@@ -36,12 +36,8 @@ const ProductCard = ({
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
   
-  // Show member price if user is a member and member_price exists
-  const displayPrice = isMember && memberPrice ? memberPrice : price;
-  // For members, show MRP as strikethrough. For non-members, show compare_at_price if exists
-  const strikethroughPrice = isMember && memberPrice ? price : originalPrice;
-  
-  const discount = strikethroughPrice ? Math.round(((strikethroughPrice - displayPrice) / strikethroughPrice) * 100) : 0;
+  // Calculate discount for compare_at_price
+  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const inWishlist = isInWishlist(id);
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -79,9 +75,6 @@ const ProductCard = ({
               {discount}% OFF
             </Badge>
           )}
-          {isMember && memberPrice && (
-            <Badge className="bg-green-600 text-white">Member Price</Badge>
-          )}
         </div>
 
         {/* Wishlist Button */}
@@ -112,19 +105,31 @@ const ProductCard = ({
         <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-2">
           {name}
         </h3>
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-bold text-primary">₹{displayPrice}</span>
-          {strikethroughPrice && strikethroughPrice > displayPrice && (
-            <span className="text-sm text-muted-foreground line-through">
-              ₹{strikethroughPrice}
+        {/* Pricing - Show both MRP and Member Price */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">MRP:</span>
+            <span className={`font-bold ${memberPrice && isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
+              ₹{price}
             </span>
+            {originalPrice && originalPrice > price && (
+              <span className="text-sm text-muted-foreground line-through">
+                ₹{originalPrice}
+              </span>
+            )}
+          </div>
+          {memberPrice && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-green-600 font-medium">Member Price:</span>
+              <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>
+                ₹{memberPrice}
+              </span>
+              {isMember && (
+                <Badge className="bg-green-600 text-white text-xs px-1.5 py-0.5">Your Price</Badge>
+              )}
+            </div>
           )}
         </div>
-        {!isMember && memberPrice && (
-          <p className="text-xs text-green-600 mt-1">
-            Member price: ₹{memberPrice}
-          </p>
-        )}
       </CardContent>
     </Card>
     </Link>
