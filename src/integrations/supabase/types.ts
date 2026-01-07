@@ -1073,6 +1073,17 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      get_network_roots: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          referral_count: number
+          referred_by: string
+          user_id: string
+          user_level: string
+        }[]
+      }
       get_user_downline: {
         Args: { p_user_id: string }
         Returns: {
