@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { ArrowRight, Star } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useImagePreload } from "@/hooks/useImagePreload";
 import heroImageFallback from "@/assets/hero-snacks.jpg";
 
 interface Banner {
@@ -40,6 +42,9 @@ const HeroSection = () => {
   const badgeText = banner?.badge_text || "Premium Quality Snacks";
   const heroImage = banner?.image_url || heroImageFallback;
 
+  // Preload hero image for better LCP
+  useImagePreload([heroImage]);
+
   // Split title by newline or use as is
   const titleParts = title.split('\n');
   const mainTitle = titleParts[0];
@@ -49,10 +54,13 @@ const HeroSection = () => {
     <section className="relative min-h-[85vh] flex items-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
-        <img
+        <OptimizedImage
           src={heroImage}
           alt="Hero banner"
           className="w-full h-full object-cover"
+          containerClassName="w-full h-full"
+          priority
+          blur={false}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-foreground/30" />
       </div>

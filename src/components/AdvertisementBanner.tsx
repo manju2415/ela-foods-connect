@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import { X } from "lucide-react";
 import { useState } from "react";
 
@@ -61,10 +62,11 @@ export function AdvertisementBanner({ placement, className = "" }: Advertisement
 
           {ad.image_url ? (
             <div className="flex flex-col md:flex-row">
-              <img
+              <OptimizedImage
                 src={ad.image_url}
                 alt={ad.title}
                 className="w-full md:w-1/3 h-32 md:h-auto object-cover"
+                containerClassName="w-full md:w-1/3 h-32 md:h-auto"
               />
               <div className="p-4 flex-1 flex flex-col justify-center">
                 <h3 className="font-semibold text-lg text-foreground mb-1">{ad.title}</h3>

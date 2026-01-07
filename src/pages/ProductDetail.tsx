@@ -13,6 +13,7 @@ import { TestimonialsDisplay } from "@/components/TestimonialsDisplay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OptimizedImage } from "@/components/ui/optimized-image";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -215,10 +216,12 @@ export default function ProductDetail() {
             {/* Image Gallery */}
             <div className="space-y-4">
               <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                <img
+                <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
                   className="w-full h-full object-cover"
+                  containerClassName="w-full h-full"
+                  priority
                 />
                 {images.length > 1 && (
                   <>
@@ -258,7 +261,7 @@ export default function ProductDetail() {
                           : "border-transparent hover:border-muted-foreground"
                       }`}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <OptimizedImage src={img} alt="" className="w-full h-full object-cover" containerClassName="w-full h-full" />
                     </button>
                   ))}
                 </div>
@@ -393,10 +396,11 @@ export default function ProductDetail() {
                     className="group"
                   >
                     <div className="aspect-square rounded-lg overflow-hidden bg-muted mb-2">
-                      <img
+                      <OptimizedImage
                         src={relatedProduct.images?.[0] || "/placeholder.svg"}
                         alt={relatedProduct.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        containerClassName="w-full h-full"
                       />
                     </div>
                     <h3 className="font-medium group-hover:text-primary transition-colors line-clamp-2">
