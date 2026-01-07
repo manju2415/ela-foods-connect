@@ -42,6 +42,10 @@ interface Profile {
   full_name: string | null;
   phone: string | null;
   avatar_url: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  bank_ifsc: string | null;
+  bank_account_holder: string | null;
 }
 
 interface WalletData {
@@ -123,6 +127,10 @@ const Dashboard = () => {
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
+    bank_name: "",
+    bank_account_number: "",
+    bank_ifsc: "",
+    bank_account_holder: "",
   });
 
   useEffect(() => {
@@ -176,6 +184,10 @@ const Dashboard = () => {
       setFormData({
         full_name: profileRes.data.full_name || "",
         phone: profileRes.data.phone || "",
+        bank_name: profileRes.data.bank_name || "",
+        bank_account_number: profileRes.data.bank_account_number || "",
+        bank_ifsc: profileRes.data.bank_ifsc || "",
+        bank_account_holder: profileRes.data.bank_account_holder || "",
       });
     }
     
@@ -223,6 +235,10 @@ const Dashboard = () => {
       .update({
         full_name: formData.full_name,
         phone: formData.phone,
+        bank_name: formData.bank_name,
+        bank_account_number: formData.bank_account_number,
+        bank_ifsc: formData.bank_ifsc,
+        bank_account_holder: formData.bank_account_holder,
       })
       .eq("id", user.id);
 
@@ -299,7 +315,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview" className="gap-2">
               <User className="h-4 w-4 hidden sm:block" />
               Overview
@@ -307,6 +323,10 @@ const Dashboard = () => {
             <TabsTrigger value="orders" className="gap-2">
               <Package className="h-4 w-4 hidden sm:block" />
               Orders
+            </TabsTrigger>
+            <TabsTrigger value="network" className="gap-2">
+              <Gift className="h-4 w-4 hidden sm:block" />
+              Network
             </TabsTrigger>
             <TabsTrigger value="wishlist" className="gap-2">
               <Heart className="h-4 w-4 hidden sm:block" />
@@ -711,55 +731,18 @@ const Dashboard = () => {
           </TabsContent>
 
           {/* Wallet Tab */}
-          <TabsContent value="wallet">
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Wallet Balance</CardTitle>
-                  <CardDescription>Your available balance for purchases</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <Skeleton className="h-16 w-32" />
-                  ) : (
-                    <div className="text-4xl font-bold text-primary">
-                      ₹{wallet?.balance?.toFixed(2) || "0.00"}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+          <TabsContent value="wallet" className="space-y-6">
+            <SplitWalletView userId={user.id} />
+          </TabsContent>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Earn More</CardTitle>
-                  <CardDescription>Ways to add money to your wallet</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Gift className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Refer Friends</p>
-                      <p className="text-sm text-muted-foreground">
-                        Earn wallet credits when friends sign up with your referral code
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <Package className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Order Rewards</p>
-                      <p className="text-sm text-muted-foreground">
-                        Get cashback on orders during promotional periods
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Network Tab (Referrals & Downline) */}
+          <TabsContent value="network" className="space-y-6">
+            <ReferralSection userId={user.id} />
+            <UserTreeView userId={user.id} />
           </TabsContent>
 
           {/* Settings Tab */}
-          <TabsContent value="settings">
+          <TabsContent value="settings" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Profile Settings</CardTitle>
@@ -811,9 +794,79 @@ const Dashboard = () => {
                         placeholder="Enter your phone number"
                       />
                     </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bank Details Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Bank Details</CardTitle>
+                <CardDescription>Required for withdrawing your referral earnings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {loading ? (
+                  <div className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="bank_name">Bank Name</Label>
+                        <Input
+                          id="bank_name"
+                          value={formData.bank_name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, bank_name: e.target.value })
+                          }
+                          placeholder="e.g., State Bank of India"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="bank_ifsc">IFSC Code</Label>
+                        <Input
+                          id="bank_ifsc"
+                          value={formData.bank_ifsc}
+                          onChange={(e) =>
+                            setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })
+                          }
+                          placeholder="e.g., SBIN0001234"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_account_holder">Account Holder Name</Label>
+                      <Input
+                        id="bank_account_holder"
+                        value={formData.bank_account_holder}
+                        onChange={(e) =>
+                          setFormData({ ...formData, bank_account_holder: e.target.value })
+                        }
+                        placeholder="Name as per bank account"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="bank_account_number">Account Number</Label>
+                      <Input
+                        id="bank_account_number"
+                        value={formData.bank_account_number}
+                        onChange={(e) =>
+                          setFormData({ ...formData, bank_account_number: e.target.value })
+                        }
+                        placeholder="Your bank account number"
+                      />
+                    </div>
 
                     <Button onClick={handleSaveProfile} disabled={saving}>
-                      {saving ? "Saving..." : "Save Changes"}
+                      {saving ? "Saving..." : "Save All Changes"}
                     </Button>
                   </>
                 )}

@@ -38,6 +38,8 @@ interface Address {
 
 interface WalletData {
   balance: number;
+  withdrawable_balance: number;
+  purchase_only_balance: number;
 }
 
 interface Coupon {
@@ -59,9 +61,9 @@ const Checkout = () => {
   const { toast } = useToast();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
-  const [wallet, setWallet] = useState<WalletData | null>(null);
+  const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
-  const [useWallet, setUseWallet] = useState(false);
+  const [useWallet, setUseWallet] = useState(true); // Default to using wallet
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -99,7 +101,7 @@ const Checkout = () => {
     setLoading(true);
     const [addressRes, walletRes] = await Promise.all([
       supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
-      supabase.from("wallets").select("balance").eq("user_id", user.id).maybeSingle(),
+      supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", user.id).maybeSingle(),
     ]);
 
     if (addressRes.data) {
@@ -113,7 +115,11 @@ const Checkout = () => {
     }
 
     if (walletRes.data) {
-      setWallet(walletRes.data);
+      setWallet({
+        balance: walletRes.data.balance || 0,
+        withdrawable_balance: walletRes.data.withdrawable_balance || 0,
+        purchase_only_balance: walletRes.data.purchase_only_balance || 0,
+      });
     }
 
     setLoading(false);
@@ -256,8 +262,14 @@ const Checkout = () => {
     setPlacing(true);
 
     const discountAmount = calculateDiscount();
-    const walletAmount = useWallet ? Math.min(wallet?.balance || 0, totalPrice - discountAmount) : 0;
-    const finalAmount = totalPrice - discountAmount - walletAmount;
+    
+    // Calculate wallet usage: purchase-only first, then withdrawable
+    const amountAfterDiscount = totalPrice - discountAmount;
+    const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
+    const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
+    const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
+    const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
+    const finalAmount = amountAfterDiscount - totalWalletUsed;
 
     // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
@@ -273,7 +285,7 @@ const Checkout = () => {
         subtotal: totalPrice,
         shipping_amount: 0,
         discount_amount: discountAmount,
-        wallet_amount_used: walletAmount,
+        wallet_amount_used: totalWalletUsed,
         total_amount: finalAmount,
         coupon_code: appliedCoupon?.code || null,
         shipping_address: {
@@ -351,9 +363,17 @@ const Checkout = () => {
   }
 
   const discountAmount = calculateDiscount();
-  const walletBalance = wallet?.balance || 0;
-  const walletAmount = useWallet ? Math.min(walletBalance, totalPrice - discountAmount) : 0;
-  const finalAmount = totalPrice - discountAmount - walletAmount;
+  const purchaseOnlyBalance = wallet.purchase_only_balance;
+  const withdrawableBalance = wallet.withdrawable_balance;
+  const totalWalletBalance = wallet.balance;
+  
+  // Calculate wallet usage for display: purchase-only first, then withdrawable
+  const amountAfterDiscount = totalPrice - discountAmount;
+  const purchaseOnlyUsed = useWallet ? Math.min(purchaseOnlyBalance, amountAfterDiscount) : 0;
+  const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
+  const withdrawableUsed = useWallet ? Math.min(withdrawableBalance, remainingAfterPurchaseOnly) : 0;
+  const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
+  const finalAmount = amountAfterDiscount - totalWalletUsed;
 
   return (
     <div className="min-h-screen bg-background">
@@ -467,28 +487,41 @@ const Checkout = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {walletBalance > 0 && (
+                {totalWalletBalance > 0 && (
                   <div
-                    className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-colors ${
+                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
                       useWallet ? "border-primary bg-primary/5" : "border-border"
                     }`}
                     onClick={() => setUseWallet(!useWallet)}
                   >
-                    <div className="flex items-center gap-3">
-                      <Wallet className="h-5 w-5 text-primary" />
-                      <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <Wallet className="h-5 w-5 text-primary" />
                         <p className="font-medium">Use Wallet Balance</p>
-                        <p className="text-sm text-muted-foreground">
-                          Available: ₹{walletBalance.toFixed(2)}
-                        </p>
                       </div>
+                      <input
+                        type="checkbox"
+                        checked={useWallet}
+                        onChange={() => {}}
+                        className="h-5 w-5 accent-primary"
+                      />
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={useWallet}
-                      onChange={() => {}}
-                      className="h-5 w-5 accent-primary"
-                    />
+                    <div className="ml-8 space-y-1 text-sm">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Purchase Credits:</span>
+                        <span className="text-foreground">₹{purchaseOnlyBalance.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Withdrawable Balance:</span>
+                        <span className="text-foreground">₹{withdrawableBalance.toFixed(2)}</span>
+                      </div>
+                      {useWallet && totalWalletUsed > 0 && (
+                        <div className="flex justify-between font-medium text-primary pt-1 border-t">
+                          <span>Will use:</span>
+                          <span>-₹{totalWalletUsed.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -597,11 +630,21 @@ const Checkout = () => {
                       <span>-₹{discountAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  {walletAmount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Wallet Applied</span>
-                      <span>-₹{walletAmount.toFixed(2)}</span>
-                    </div>
+                  {totalWalletUsed > 0 && (
+                    <>
+                      {purchaseOnlyUsed > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Purchase Credits Used</span>
+                          <span>-₹{purchaseOnlyUsed.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {withdrawableUsed > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Wallet Balance Used</span>
+                          <span>-₹{withdrawableUsed.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   <Separator />
                   <div className="flex justify-between font-semibold text-lg">

@@ -24,12 +24,21 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
 
   const handleCheckout = () => {
     onOpenChange(false);
-    navigate("/checkout");
+    if (user) {
+      navigate("/checkout");
+    } else {
+      navigate("/guest-checkout");
+    }
   };
 
   const handleLogin = () => {
     onOpenChange(false);
     navigate("/auth");
+  };
+
+  const handleGuestCheckout = () => {
+    onOpenChange(false);
+    navigate("/guest-checkout");
   };
 
   return (
@@ -42,14 +51,25 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
           </SheetTitle>
         </SheetHeader>
 
-        {!user ? (
+        {!user && items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <ShoppingBag className="h-16 w-16 text-muted-foreground" />
             <p className="text-muted-foreground text-center">
-              Please login to view your cart
+              Your cart is empty. Browse our products to add items.
             </p>
-            <Button onClick={handleLogin}>Login</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                onOpenChange(false);
+                navigate("/products");
+              }}
+            >
+              Browse Products
+            </Button>
           </div>
+        ) : !user && items.length > 0 ? (
+          // Guest cart with items - handled by CartContext localStorage
+          null // This won't show since we now have a guest cart implementation
         ) : items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
             <ShoppingBag className="h-16 w-16 text-muted-foreground" />
