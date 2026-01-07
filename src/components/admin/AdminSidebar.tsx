@@ -13,6 +13,7 @@ import {
   Boxes,
   UserCog,
   LucideIcon,
+  Network,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -42,6 +43,7 @@ const menuItems: MenuItem[] = [
   { title: "Users", url: "/admin/users", icon: UserCog, superAdminOnly: true },
   { title: "Founding Members", url: "/admin/founding-members", icon: Users, superAdminOnly: true },
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
+  { title: "MLM Settings", url: "/admin/mlm-settings", icon: Network, superAdminOnly: true },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },
   { title: "Products", url: "/admin/products", icon: Package },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes },

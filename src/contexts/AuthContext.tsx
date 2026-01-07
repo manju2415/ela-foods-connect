@@ -89,17 +89,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: error as Error };
     }
 
-    // If signup successful and we have a user, process the referral incentive
+    // If signup successful and we have a user, process the MLM referral
     if (data.user) {
       // Use setTimeout to defer the Supabase call (avoiding deadlock in auth state change)
       setTimeout(async () => {
         try {
-          await supabase.rpc("process_referral_incentive", {
+          await supabase.rpc("process_mlm_referral", {
             p_referral_code: referralCode.toUpperCase(),
             p_referred_user_id: data.user!.id,
+            p_registration_fee: 0, // Registration fee can be collected separately
           });
         } catch (err) {
-          console.error("Error processing referral incentive:", err);
+          console.error("Error processing MLM referral:", err);
         }
       }, 100);
     }
