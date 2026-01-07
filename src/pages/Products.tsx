@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
+import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,6 +28,8 @@ interface Product {
   images: string[];
   is_featured: boolean;
   category_id: string | null;
+  unit_type: string | null;
+  unit_value: number | null;
   categories: {
     name: string;
   } | null;
@@ -81,6 +84,8 @@ const Products = () => {
         images,
         is_featured,
         category_id,
+        unit_type,
+        unit_value,
         categories (name)
       `)
       .eq("is_active", true)
@@ -306,6 +311,8 @@ const Products = () => {
                       image={product.images?.[0] || "/placeholder.svg"}
                       category={product.categories?.name || "Snacks"}
                       isBestSeller={product.is_featured}
+                      unitType={product.unit_type}
+                      unitValue={product.unit_value}
                     />
                   ))}
                 </div>
@@ -315,6 +322,7 @@ const Products = () => {
         </div>
       </main>
 
+      <AdvertisementBanner placement="products_bottom" />
       <Footer />
     </div>
   );

@@ -6,6 +6,7 @@ import CategoriesSection from "@/components/CategoriesSection";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import ReferralBanner from "@/components/ReferralBanner";
 import Newsletter from "@/components/Newsletter";
+import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 
 const Index = () => {
   return (
@@ -13,10 +14,13 @@ const Index = () => {
       <Header />
       <main className="flex-1">
         <HeroSection />
+        <AdvertisementBanner placement="home_top" />
         <FeaturedProducts />
+        <AdvertisementBanner placement="home_sidebar" />
         <CategoriesSection />
         <ReferralBanner />
         <WhyChooseUs />
+        <AdvertisementBanner placement="home_bottom" />
         <Newsletter />
       </main>
       <Footer />

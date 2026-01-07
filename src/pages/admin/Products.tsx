@@ -56,6 +56,8 @@ interface Product {
   sku: string | null;
   stock_quantity: number;
   weight_grams: number | null;
+  unit_type: string | null;
+  unit_value: number | null;
   images: string[];
   category_id: string | null;
   is_active: boolean;
@@ -79,6 +81,8 @@ interface ProductFormData {
   sku: string;
   stock_quantity: string;
   weight_grams: string;
+  unit_type: string;
+  unit_value: string;
   category_id: string;
   is_active: boolean;
   is_featured: boolean;
@@ -95,6 +99,8 @@ const initialFormData: ProductFormData = {
   sku: "",
   stock_quantity: "0",
   weight_grams: "",
+  unit_type: "g",
+  unit_value: "",
   category_id: "",
   is_active: true,
   is_featured: false,
@@ -172,6 +178,8 @@ export default function Products() {
         sku: data.sku || null,
         stock_quantity: parseInt(data.stock_quantity) || 0,
         weight_grams: data.weight_grams ? parseInt(data.weight_grams) : null,
+        unit_type: data.unit_type || "g",
+        unit_value: data.unit_value ? parseFloat(data.unit_value) : null,
         category_id: data.category_id || null,
         is_active: data.is_active,
         is_featured: data.is_featured,
@@ -211,6 +219,8 @@ export default function Products() {
           sku: data.sku || null,
           stock_quantity: parseInt(data.stock_quantity) || 0,
           weight_grams: data.weight_grams ? parseInt(data.weight_grams) : null,
+          unit_type: data.unit_type || "g",
+          unit_value: data.unit_value ? parseFloat(data.unit_value) : null,
           category_id: data.category_id || null,
           is_active: data.is_active,
           is_featured: data.is_featured,
@@ -267,6 +277,8 @@ export default function Products() {
       sku: product.sku || "",
       stock_quantity: product.stock_quantity.toString(),
       weight_grams: product.weight_grams?.toString() || "",
+      unit_type: product.unit_type || "g",
+      unit_value: product.unit_value?.toString() || "",
       category_id: product.category_id || "",
       is_active: product.is_active,
       is_featured: product.is_featured,
@@ -557,6 +569,41 @@ export default function Products() {
                     type="number"
                     value={formData.weight_grams}
                     onChange={(e) => setFormData({ ...formData, weight_grams: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unit_type">Unit Type</Label>
+                  <Select
+                    value={formData.unit_type}
+                    onValueChange={(value) => setFormData({ ...formData, unit_type: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="g">Grams (g)</SelectItem>
+                      <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                      <SelectItem value="ml">Millilitres (ml)</SelectItem>
+                      <SelectItem value="litre">Litres (L)</SelectItem>
+                      <SelectItem value="packet">Packet</SelectItem>
+                      <SelectItem value="piece">Piece</SelectItem>
+                      <SelectItem value="box">Box</SelectItem>
+                      <SelectItem value="dozen">Dozen</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="unit_value">Unit Value</Label>
+                  <Input
+                    id="unit_value"
+                    type="number"
+                    step="0.01"
+                    value={formData.unit_value}
+                    onChange={(e) => setFormData({ ...formData, unit_value: e.target.value })}
+                    placeholder="e.g. 500 for 500g"
                   />
                 </div>
               </div>
