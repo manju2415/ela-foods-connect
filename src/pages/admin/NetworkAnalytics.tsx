@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, TrendingUp, Wallet, Network, Crown, Star, UserCheck } from "lucide-react";
+import { Loader2, Users, TrendingUp, Wallet, Network, Crown, Star, UserCheck, Eye } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { AdminNetworkTree } from "@/components/admin/AdminNetworkTree";
+import { UserDashboardViewer } from "@/components/admin/UserDashboardViewer";
+import { Button } from "@/components/ui/button";
 
 interface NetworkStats {
   totalUsers: number;
@@ -29,6 +33,8 @@ const NetworkAnalytics = () => {
   const [stats, setStats] = useState<NetworkStats | null>(null);
   const [topReferrers, setTopReferrers] = useState<TopReferrer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -88,6 +94,11 @@ const NetworkAnalytics = () => {
     }
 
     setLoading(false);
+  };
+
+  const handleViewUser = (userId: string) => {
+    setSelectedUserId(userId);
+    setViewerOpen(true);
   };
 
   if (loading) {
@@ -176,95 +187,124 @@ const NetworkAnalytics = () => {
           </Card>
         </div>
 
-        {/* Charts Row */}
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* User Level Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle>User Level Distribution</CardTitle>
-              <CardDescription>Breakdown by membership level</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={userLevelData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                      label={({ name, value }) => `${name}: ${value}`}
-                    >
-                      {userLevelData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tabs for Overview and Network Tree */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="network-tree">Network Tree</TabsTrigger>
+          </TabsList>
 
-          {/* Wallet Balance Distribution */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Wallet Balance Types</CardTitle>
-              <CardDescription>Withdrawable vs Purchase-only balances</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={walletData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip formatter={(value: number) => `₹${value.toFixed(2)}`} />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="overview" className="space-y-6 mt-6">
+            {/* Charts Row */}
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* User Level Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Level Distribution</CardTitle>
+                  <CardDescription>Breakdown by membership level</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={userLevelData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={60}
+                          outerRadius={80}
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, value }) => `${name}: ${value}`}
+                        >
+                          {userLevelData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-        {/* Top Referrers */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Referrers</CardTitle>
-            <CardDescription>Users with most referrals</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topReferrers.length === 0 ? (
-              <p className="text-muted-foreground text-center py-8">No referrals yet</p>
-            ) : (
-              <div className="space-y-4">
-                {topReferrers.map((referrer, index) => (
-                  <div key={referrer.id} className="flex items-center justify-between p-3 rounded-lg border">
-                    <div className="flex items-center gap-4">
-                      <span className="text-lg font-bold text-muted-foreground w-6">#{index + 1}</span>
-                      <div className="flex items-center gap-2">
-                        {getLevelIcon(referrer.user_level || "associate")}
-                        <div>
-                          <p className="font-medium">{referrer.full_name || "N/A"}</p>
-                          <p className="text-sm text-muted-foreground">{referrer.email}</p>
+              {/* Wallet Balance Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Wallet Balance Types</CardTitle>
+                  <CardDescription>Withdrawable vs Purchase-only balances</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={walletData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => `₹${value.toFixed(2)}`} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Top Referrers */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Referrers</CardTitle>
+                <CardDescription>Users with most referrals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {topReferrers.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">No referrals yet</p>
+                ) : (
+                  <div className="space-y-4">
+                    {topReferrers.map((referrer, index) => (
+                      <div key={referrer.id} className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-4">
+                          <span className="text-lg font-bold text-muted-foreground w-6">#{index + 1}</span>
+                          <div className="flex items-center gap-2">
+                            {getLevelIcon(referrer.user_level || "associate")}
+                            <div>
+                              <p className="font-medium">{referrer.full_name || "N/A"}</p>
+                              <p className="text-sm text-muted-foreground">{referrer.email}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-primary">{referrer.referral_count}</p>
+                            <p className="text-xs text-muted-foreground">referrals</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleViewUser(referrer.id)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xl font-bold text-primary">{referrer.referral_count}</p>
-                      <p className="text-xs text-muted-foreground">referrals</p>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="network-tree" className="mt-6">
+            <AdminNetworkTree onViewUser={handleViewUser} />
+          </TabsContent>
+        </Tabs>
       </div>
+
+      <UserDashboardViewer
+        userId={selectedUserId}
+        open={viewerOpen}
+        onOpenChange={setViewerOpen}
+      />
     </AdminLayout>
   );
 };
