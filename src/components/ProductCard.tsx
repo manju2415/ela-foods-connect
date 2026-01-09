@@ -41,8 +41,11 @@ const ProductCard = ({
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
   
+  // Auto-calculate member price if not set (10% discount)
+  const effectiveMemberPrice = memberPrice ?? Math.round(price * 0.9);
   // Calculate discount for compare_at_price
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
+  const memberDiscount = Math.round(((price - effectiveMemberPrice) / price) * 100);
   const inWishlist = isInWishlist(id);
 
   // Format unit display
@@ -140,7 +143,7 @@ const ProductCard = ({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">MRP:</span>
-            <span className={`font-bold ${memberPrice && isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
+            <span className={`font-bold ${isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
               ₹{price}
             </span>
             {originalPrice && originalPrice > price && (
@@ -149,17 +152,20 @@ const ProductCard = ({
               </span>
             )}
           </div>
-          {memberPrice && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-green-600 font-medium">Member Price:</span>
-              <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>
-                ₹{memberPrice}
-              </span>
-              {isMember && (
-                <Badge className="bg-green-600 text-white text-xs px-1.5 py-0.5">Your Price</Badge>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-green-600 font-medium">Member:</span>
+            <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>
+              ₹{effectiveMemberPrice}
+            </span>
+            {memberDiscount > 0 && (
+              <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
+                {memberDiscount}% OFF
+              </Badge>
+            )}
+            {isMember && (
+              <Badge className="bg-green-600 text-white text-xs px-1.5 py-0.5">Your Price</Badge>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
