@@ -37,6 +37,10 @@ import AdminAdvertisements from "./pages/admin/Advertisements";
 import GuestCheckout from "./pages/GuestCheckout";
 import RegistrationPayment from "./pages/RegistrationPayment";
 import NotFound from "./pages/NotFound";
+import DriverApp from "./pages/DriverApp";
+import CustomerApp from "./pages/CustomerApp";
+import MemberApp from "./pages/MemberApp";
+import MobileApps from "./pages/MobileApps";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +84,11 @@ const App = () => (
                 <Route path="/admin/banners" element={<AdminBanners />} />
                 <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
                 <Route path="/registration-payment" element={<RegistrationPayment />} />
+                {/* Mobile App Entry Points */}
+                <Route path="/mobile-apps" element={<MobileApps />} />
+                <Route path="/driver-app" element={<DriverApp />} />
+                <Route path="/customer-app" element={<CustomerApp />} />
+                <Route path="/member-app" element={<MemberApp />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
