@@ -25,9 +25,12 @@ import {
   CheckCircle2,
   Truck,
   Navigation,
+  IndianRupee,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { maskPhoneNumber } from "@/utils/phoneMasking";
+import EarningsSummary from "@/components/delivery/EarningsSummary";
 
 interface Assignment {
   id: string;
@@ -290,6 +293,7 @@ export default function DeliveryDashboard() {
             <TabsList>
               <TabsTrigger value="active">Active ({activeAssignments.length})</TabsTrigger>
               <TabsTrigger value="completed">Completed ({completedAssignments.length})</TabsTrigger>
+              <TabsTrigger value="earnings">Earnings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="active" className="space-y-4">
@@ -364,6 +368,10 @@ export default function DeliveryDashboard() {
                 ))
               )}
             </TabsContent>
+
+            <TabsContent value="earnings">
+              {partnerId && <EarningsSummary partnerId={partnerId} />}
+            </TabsContent>
           </Tabs>
         </div>
       </main>
@@ -396,13 +404,19 @@ export default function DeliveryDashboard() {
                   {selectedAssignment.order.shipping_address?.city}, {selectedAssignment.order.shipping_address?.state} - {selectedAssignment.order.shipping_address?.postal_code}
                 </p>
                 {selectedAssignment.order.shipping_address?.phone && (
-                  <a 
-                    href={`tel:${selectedAssignment.order.shipping_address.phone}`}
-                    className="flex items-center gap-2 text-primary mt-2"
-                  >
-                    <Phone className="h-4 w-4" />
-                    {selectedAssignment.order.shipping_address.phone}
-                  </a>
+                  <div className="mt-2 space-y-1">
+                    <p className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="h-4 w-4" />
+                      {maskPhoneNumber(selectedAssignment.order.shipping_address.phone)}
+                    </p>
+                    <a 
+                      href={`tel:${selectedAssignment.order.shipping_address.phone}`}
+                      className="inline-flex items-center gap-2 text-primary text-sm"
+                    >
+                      <Phone className="h-3 w-3" />
+                      Call Customer
+                    </a>
+                  </div>
                 )}
               </div>
 
