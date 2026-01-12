@@ -1,7 +1,10 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
+import { useOfflineStorage } from "@/hooks/useOfflineStorage";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
+import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
 import DeliveryDashboard from "./DeliveryDashboard";
 
 /**
@@ -12,7 +15,8 @@ import DeliveryDashboard from "./DeliveryDashboard";
 export default function DriverApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { isSupported } = usePushNotifications();
+  const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
+  const { isOnline } = useOfflineStorage();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -20,17 +24,30 @@ export default function DriverApp() {
     }
   }, [user, loading, navigate]);
 
+  // Request push notification permission on first load
+  useEffect(() => {
+    if (isSupported && permissionStatus === 'prompt' && user) {
+      requestPermission();
+    }
+  }, [isSupported, permissionStatus, user, requestPermission]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading Driver App...</p>
+      <MobileAppLayout appType="driver" hideNav>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading Driver App...</p>
+          </div>
         </div>
-      </div>
+      </MobileAppLayout>
     );
   }
 
-  // Render the delivery dashboard (could be customized for mobile-only view)
-  return <DeliveryDashboard />;
+  return (
+    <MobileAppLayout appType="driver">
+      <OfflineIndicator />
+      <DeliveryDashboard />
+    </MobileAppLayout>
+  );
 }
