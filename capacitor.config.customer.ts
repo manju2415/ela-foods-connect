@@ -14,9 +14,27 @@ const config: CapacitorConfig = {
     },
     SplashScreen: {
       launchShowDuration: 2000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
       backgroundColor: '#f97316',
-      showSpinner: false,
+      showSpinner: true,
+      androidSpinnerStyle: 'small',
+      iosSpinnerStyle: 'small',
+      spinnerColor: '#ffffff',
+      splashFullScreen: true,
+      splashImmersive: true,
     },
+    StatusBar: {
+      style: 'LIGHT',
+      backgroundColor: '#f97316',
+    },
+  },
+  ios: {
+    contentInset: 'automatic',
+    scheme: 'ELA Foods',
+  },
+  android: {
+    backgroundColor: '#f97316',
   },
 };
 
