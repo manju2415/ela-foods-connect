@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
+import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useOfflineStorage } from "@/hooks/useOfflineStorage";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
@@ -16,6 +17,7 @@ export default function DriverApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
+  const { hideSplash } = useSplashScreen('driver');
   const { isOnline } = useOfflineStorage();
 
   useEffect(() => {
@@ -31,13 +33,23 @@ export default function DriverApp() {
     }
   }, [isSupported, permissionStatus, user, requestPermission]);
 
+  // Hide splash screen when app is ready
+  useEffect(() => {
+    if (!loading) {
+      hideSplash();
+    }
+  }, [loading, hideSplash]);
+
   if (loading) {
     return (
       <MobileAppLayout appType="driver" hideNav>
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#16a34a' }}>
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading Driver App...</p>
+            <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-3xl">🚚</span>
+            </div>
+            <h1 className="text-xl font-bold text-white mb-2">ELA Delivery</h1>
+            <p className="text-white/70">Deliver with ELA</p>
           </div>
         </div>
       </MobileAppLayout>

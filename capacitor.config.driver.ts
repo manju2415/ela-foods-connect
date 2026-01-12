@@ -14,9 +14,27 @@ const config: CapacitorConfig = {
     },
     SplashScreen: {
       launchShowDuration: 2000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
       backgroundColor: '#16a34a',
-      showSpinner: false,
+      showSpinner: true,
+      androidSpinnerStyle: 'small',
+      iosSpinnerStyle: 'small',
+      spinnerColor: '#ffffff',
+      splashFullScreen: true,
+      splashImmersive: true,
     },
+    StatusBar: {
+      style: 'LIGHT',
+      backgroundColor: '#16a34a',
+    },
+  },
+  ios: {
+    contentInset: 'automatic',
+    scheme: 'ELA Delivery',
+  },
+  android: {
+    backgroundColor: '#16a34a',
   },
 };
 

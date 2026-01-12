@@ -1,93 +1,190 @@
-# App Build Configurations
+# ELA Foods Mobile Apps - Build Guide
 
-This project supports three separate mobile app builds using Capacitor:
+This project contains three separate mobile apps built with Capacitor:
 
-## 1. Customer App (ELA Foods)
-- **App ID:** `app.lovable.aab01a9c384445a1bae56f4a0a52a33f.customer`
-- **Entry Route:** `/customer-app`
-- **Features:** Browse products, place orders, track deliveries, manage wallet
+## App Configurations
 
-## 2. Driver App (ELA Delivery)
-- **App ID:** `app.lovable.aab01a9c384445a1bae56f4a0a52a33f.driver`
-- **Entry Route:** `/driver-app`
-- **Features:** View assignments, update delivery status, earnings tracking, offline mode
+| App | Config File | App ID | Entry Route | Theme Color |
+|-----|-------------|--------|-------------|-------------|
+| **Customer** | `capacitor.config.customer.ts` | `...customer` | `/customer-app` | Orange `#f97316` |
+| **Driver** | `capacitor.config.driver.ts` | `...driver` | `/driver-app` | Green `#16a34a` |
+| **Member** | `capacitor.config.member.ts` | `...member` | `/member-app` | Purple `#7c3aed` |
 
-## 3. Member App (ELA Network)
-- **App ID:** `app.lovable.aab01a9c384445a1bae56f4a0a52a33f.member`
-- **Entry Route:** `/member-app`
-- **Features:** MLM network view, referral management, wallet & withdrawals
+## Features by App
+
+### Customer App (ELA Foods) 🍽️
+- Browse products and categories
+- Shopping cart and checkout
+- Order tracking
+- Wishlist management
+- Wallet and payments
+- Push notifications for order updates
+
+### Driver App (ELA Delivery) 🚚
+- View assigned deliveries
+- Update delivery status
+- **Offline mode** with local caching
+- Earnings history
+- Navigation support
+- Push notifications for new orders
+
+### Member App (ELA Network) 🌐
+- Referral network tree
+- Commission tracking
+- Wallet with withdrawable balance
+- Team performance analytics
+- Push notifications for referral activity
+
+---
 
 ## Building Separate Apps
 
 ### Prerequisites
-1. Export to GitHub and clone the repository
-2. Run `npm install`
-3. For iOS: macOS with Xcode installed
-4. For Android: Android Studio installed
 
-### Customer App Build
+1. Export project to GitHub and clone locally
+2. Install dependencies: `npm install`
+3. For iOS: Xcode with Command Line Tools
+4. For Android: Android Studio with SDK
+
+### Build Instructions
+
+#### Customer App
 ```bash
-# Copy customer config
+# 1. Copy customer config
 cp capacitor.config.customer.ts capacitor.config.ts
 
-# Add platforms
+# 2. Add platforms (first time only)
 npx cap add ios
 npx cap add android
 
-# Build and sync
+# 3. Build and sync
 npm run build
 npx cap sync
 
-# Run
-npx cap run ios     # or android
+# 4. Generate app icons and splash screens
+npx capacitor-assets generate \
+  --iconBackgroundColor '#f97316' \
+  --splashBackgroundColor '#f97316'
+
+# 5. Run on device/emulator
+npx cap run ios
+# or
+npx cap run android
 ```
 
-### Driver App Build
+#### Driver App
 ```bash
-# Copy driver config
 cp capacitor.config.driver.ts capacitor.config.ts
+npx cap add ios && npx cap add android
+npm run build && npx cap sync
 
-# Add platforms (if not already)
-npx cap add ios
-npx cap add android
+npx capacitor-assets generate \
+  --iconBackgroundColor '#16a34a' \
+  --splashBackgroundColor '#16a34a'
 
-# Build and sync
-npm run build
-npx cap sync
-
-# Run
-npx cap run ios     # or android
+npx cap run ios  # or android
 ```
 
-### Member App Build
+#### Member App
 ```bash
-# Copy member config
 cp capacitor.config.member.ts capacitor.config.ts
+npx cap add ios && npx cap add android
+npm run build && npx cap sync
 
-# Add platforms (if not already)
-npx cap add ios
-npx cap add android
+npx capacitor-assets generate \
+  --iconBackgroundColor '#7c3aed' \
+  --splashBackgroundColor '#7c3aed'
 
-# Build and sync
-npm run build
-npx cap sync
-
-# Run
-npx cap run ios     # or android
+npx cap run ios  # or android
 ```
+
+---
+
+## App Icons & Splash Screens
+
+Each app uses branded colors for its splash screen and icons:
+
+| App | Background | Spinner | Status Bar |
+|-----|------------|---------|------------|
+| Customer | Orange `#f97316` | White | Light style |
+| Driver | Green `#16a34a` | White | Light style |
+| Member | Purple `#7c3aed` | White | Light style |
+
+### Generating Assets
+
+1. Install the assets plugin:
+```bash
+npm install -D @capacitor/assets
+```
+
+2. Create base assets in `resources/`:
+```
+resources/
+├── icon.png          # 1024x1024 app icon
+├── icon-foreground.png  # For adaptive icons (Android)
+├── splash.png        # 2732x2732 splash screen
+└── splash-dark.png   # Optional dark mode splash
+```
+
+3. Generate all sizes:
+```bash
+npx capacitor-assets generate
+```
+
+See `MOBILE_ASSETS.md` for detailed asset specifications.
+
+---
 
 ## FCM Push Notifications Setup
 
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Cloud Messaging for your project
-3. Download `google-services.json` (Android) and place in `android/app/`
-4. Download `GoogleService-Info.plist` (iOS) and place in `ios/App/App/`
-5. Add FCM Server Key to Supabase secrets for sending notifications
+1. Create Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+
+2. Download config files:
+   - **iOS**: `GoogleService-Info.plist` → `ios/App/App/`
+   - **Android**: `google-services.json` → `android/app/`
+
+3. Add FCM server key to secrets:
+   - Get Server Key from Firebase Console → Project Settings → Cloud Messaging
+   - Add as `FCM_SERVER_KEY` in project secrets
+
+---
 
 ## Offline Mode (Driver App)
 
-The driver app supports offline mode:
-- Delivery assignments are cached locally
-- Status updates are queued when offline
-- Auto-sync when back online
-- Visual indicator shows connection status
+The Driver app supports offline operation:
+
+- **Local Caching**: Order assignments cached in localStorage
+- **Queued Updates**: Status changes queued when offline
+- **Auto Sync**: Pending changes sync when back online
+- **Visual Indicator**: Shows online/offline status
+
+---
+
+## Hot Reload Development
+
+All configs point to the Lovable preview URL for hot reload during development. 
+For production builds, update the `server.url` to use local assets:
+
+```typescript
+// Remove server block for production
+server: {
+  // url: '...', // Comment out for production
+},
+```
+
+---
+
+## Troubleshooting
+
+### Splash screen not showing
+- Ensure `@capacitor/splash-screen` is installed
+- Run `npx cap sync` after config changes
+
+### Icons not updating
+- Clear app cache on device
+- Reinstall the app completely
+
+### Push notifications not working
+- Verify FCM config files are in correct locations
+- Check that FCM_SERVER_KEY secret is set
+- Ensure app has notification permissions
