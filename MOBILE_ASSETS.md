@@ -2,6 +2,27 @@
 
 This guide explains how to generate and configure app icons and splash screens for the three ELA Foods mobile apps.
 
+## Generated Assets
+
+Assets have been pre-generated and are located in `public/icons/`:
+
+```
+public/icons/
+├── customer/
+│   ├── icon.png              # 1024x1024 app icon (orange)
+│   ├── icon-foreground.png   # Android adaptive foreground
+│   └── splash.png            # 1080x1920 splash screen
+├── driver/
+│   ├── icon.png              # 1024x1024 app icon (green)
+│   ├── icon-foreground.png   # Android adaptive foreground
+│   └── splash.png            # 1080x1920 splash screen
+├── member/
+│   ├── icon.png              # 1024x1024 app icon (purple)
+│   ├── icon-foreground.png   # Android adaptive foreground
+│   └── splash.png            # 1080x1920 splash screen
+└── README.md
+```
+
 ## Quick Setup
 
 ### 1. Install Capacitor Assets Plugin
@@ -10,24 +31,19 @@ This guide explains how to generate and configure app icons and splash screens f
 npm install --save-dev @capacitor/assets
 ```
 
-### 2. Create Base Assets
+### 2. Copy Assets to Resources
 
-Create a 1024x1024 icon and 2732x2732 splash for each app:
+Copy the pre-generated icons to the resources folder for asset generation:
 
-```
-resources/
-├── customer/
-│   ├── icon.png          # 1024x1024 with orange background
-│   └── splash.png        # 2732x2732 with orange background + logo
-├── driver/
-│   ├── icon.png          # 1024x1024 with green background
-│   └── splash.png        # 2732x2732 with green background + logo
-└── member/
-    ├── icon.png          # 1024x1024 with purple background
-    └── splash.png        # 2732x2732 with purple background + logo
+```bash
+# For Customer App
+mkdir -p resources
+cp public/icons/customer/icon.png resources/icon.png
+cp public/icons/customer/icon-foreground.png resources/icon-foreground.png
+cp public/icons/customer/splash.png resources/splash.png
 ```
 
-### 3. Generate Assets for Each App
+### 3. Generate All Sizes for Each App
 
 **Customer App:**
 ```bash
