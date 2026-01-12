@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import Index from "./Index";
 
 /**
@@ -12,24 +13,36 @@ import Index from "./Index";
 export default function CustomerApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { isSupported } = usePushNotifications();
+  const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
 
   useEffect(() => {
     // Customer app can work without login (for browsing)
     // Push notifications only work when logged in
   }, [user, loading]);
 
+  // Request push notification permission when user is logged in
+  useEffect(() => {
+    if (isSupported && permissionStatus === 'prompt' && user) {
+      requestPermission();
+    }
+  }, [isSupported, permissionStatus, user, requestPermission]);
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading ELA Foods...</p>
+      <MobileAppLayout appType="customer" hideNav>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading ELA Foods...</p>
+          </div>
         </div>
-      </div>
+      </MobileAppLayout>
     );
   }
 
-  // Render the main index page (could be customized for mobile-only view)
-  return <Index />;
+  return (
+    <MobileAppLayout appType="customer">
+      <Index />
+    </MobileAppLayout>
+  );
 }
