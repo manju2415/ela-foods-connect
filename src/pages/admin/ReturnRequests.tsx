@@ -309,7 +309,7 @@ export default function ReturnRequests() {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Return Request Details</DialogTitle>
             <DialogDescription>

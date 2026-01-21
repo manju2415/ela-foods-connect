@@ -400,11 +400,11 @@ export default function Categories() {
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
+          <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Name *</Label>
                 <Input
@@ -548,7 +548,7 @@ export default function Categories() {
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex-shrink-0 pt-4 border-t sticky bottom-0 bg-background">
                 <Button type="button" variant="outline" onClick={closeDialog}>
                   Cancel
                 </Button>

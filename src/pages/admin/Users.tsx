@@ -280,7 +280,7 @@ export default function UsersPage() {
 
         {/* Manage Roles Dialog */}
         <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Manage Roles: {selectedUser?.full_name || selectedUser?.email}</DialogTitle>
             </DialogHeader>
@@ -346,7 +346,7 @@ export default function UsersPage() {
 
         {/* Edit User Status Dialog */}
         <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit User: {editingUser?.full_name || editingUser?.email}</DialogTitle>
             </DialogHeader>
