@@ -6,7 +6,9 @@ import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -29,7 +31,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown } from "lucide-react";
+import { Search, Users as UsersIcon, Shield, Crown, Plus, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
@@ -57,7 +59,10 @@ const ROLE_COLORS: Record<AppRole, string> = {
 export default function UsersPage() {
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
+  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [newUserData, setNewUserData] = useState({ email: "", full_name: "", phone: "" });
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
@@ -88,6 +93,24 @@ export default function UsersPage() {
         ...profile,
         roles: rolesMap.get(profile.id) || [],
       })) as User[];
+    },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: isActive })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User status updated");
+      setEditingUser(null);
+    },
+    onError: () => {
+      toast.error("Failed to update user status");
     },
   });
 
@@ -149,9 +172,11 @@ export default function UsersPage() {
     <SuperAdminGuard>
       <AdminLayout>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-            <p className="text-muted-foreground">Manage user accounts and roles</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+              <p className="text-muted-foreground">Manage user accounts and roles</p>
+            </div>
           </div>
 
         <Card>
@@ -229,7 +254,14 @@ export default function UsersPage() {
                       <TableCell>
                         {format(new Date(user.created_at), "MMM d, yyyy")}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setEditingUser(user)}
+                        >
+                          <UserCog className="h-4 w-4" />
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
@@ -306,6 +338,46 @@ export default function UsersPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit User Status Dialog */}
+        <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit User: {editingUser?.full_name || editingUser?.email}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Account Status</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {editingUser?.is_active ? "User can access the platform" : "User is blocked from the platform"}
+                  </p>
+                </div>
+                <Switch
+                  checked={editingUser?.is_active || false}
+                  onCheckedChange={(checked) => {
+                    if (editingUser) {
+                      toggleStatusMutation.mutate({ userId: editingUser.id, isActive: checked });
+                    }
+                  }}
+                />
+              </div>
+              <div className="border-t pt-4">
+                <h4 className="text-sm font-medium mb-2">User Details</h4>
+                <div className="text-sm space-y-1">
+                  <p><span className="text-muted-foreground">Email:</span> {editingUser?.email}</p>
+                  <p><span className="text-muted-foreground">Phone:</span> {editingUser?.phone || "N/A"}</p>
+                  <p><span className="text-muted-foreground">Joined:</span> {editingUser ? format(new Date(editingUser.created_at), "PPP") : ""}</p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditingUser(null)}>
                 Close
               </Button>
             </DialogFooter>

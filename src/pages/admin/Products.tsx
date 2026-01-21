@@ -64,11 +64,14 @@ interface Product {
   is_active: boolean;
   is_featured: boolean;
   created_at: string;
+  gst_percentage: number | null;
+  gst_inclusive: boolean | null;
 }
 
 interface Category {
   id: string;
   name: string;
+  parent_id: string | null;
 }
 
 interface ProductFormData {
@@ -87,6 +90,8 @@ interface ProductFormData {
   category_id: string;
   is_active: boolean;
   is_featured: boolean;
+  gst_percentage: string;
+  gst_inclusive: boolean;
 }
 
 const initialFormData: ProductFormData = {
@@ -105,6 +110,8 @@ const initialFormData: ProductFormData = {
   category_id: "",
   is_active: true,
   is_featured: false,
+  gst_percentage: "0",
+  gst_inclusive: true,
 };
 
 export default function Products() {
@@ -137,12 +144,32 @@ export default function Products() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name")
+        .select("id, name, parent_id")
         .order("name");
       if (error) throw error;
       return data as Category[];
     },
   });
+
+  // Build hierarchical category options
+  const getCategoryOptions = () => {
+    const parentCategories = categories.filter(c => !c.parent_id);
+    const options: { id: string; name: string; level: number }[] = [];
+    parentCategories.forEach(parent => {
+      options.push({ id: parent.id, name: parent.name, level: 0 });
+      const children = categories.filter(c => c.parent_id === parent.id);
+      children.forEach(child => {
+        options.push({ id: child.id, name: child.name, level: 1 });
+      });
+    });
+    // Add uncategorized categories (no parent but not parents themselves)
+    categories.filter(c => !c.parent_id && !parentCategories.includes(c)).forEach(cat => {
+      if (!options.find(o => o.id === cat.id)) {
+        options.push({ id: cat.id, name: cat.name, level: 0 });
+      }
+    });
+    return options;
+  };
 
   const uploadImages = async (files: File[]): Promise<string[]> => {
     const compressedFiles = await compressImages(files);
@@ -186,6 +213,8 @@ export default function Products() {
         is_active: data.is_active,
         is_featured: data.is_featured,
         images: imageUrls,
+        gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
+        gst_inclusive: data.gst_inclusive,
       });
       if (error) throw error;
     },
@@ -227,6 +256,8 @@ export default function Products() {
           is_active: data.is_active,
           is_featured: data.is_featured,
           images: imageUrls,
+          gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
+          gst_inclusive: data.gst_inclusive,
         })
         .eq("id", id);
       if (error) throw error;
@@ -284,6 +315,8 @@ export default function Products() {
       category_id: product.category_id || "",
       is_active: product.is_active,
       is_featured: product.is_featured,
+      gst_percentage: (product.gst_percentage || 0).toString(),
+      gst_inclusive: product.gst_inclusive !== false,
     });
     setExistingImages(product.images || []);
     setImageFiles([]);
@@ -611,7 +644,7 @@ export default function Products() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">Category / Subcategory *</Label>
                 <Select
                   value={formData.category_id}
                   onValueChange={(value) => setFormData({ ...formData, category_id: value })}
@@ -620,13 +653,39 @@ export default function Products() {
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    {getCategoryOptions().map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
+                        {cat.level === 1 ? `  └ ${cat.name}` : cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gst_percentage">GST Percentage (%)</Label>
+                  <Input
+                    id="gst_percentage"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={formData.gst_percentage}
+                    onChange={(e) => setFormData({ ...formData, gst_percentage: e.target.value })}
+                    placeholder="e.g. 18"
+                  />
+                </div>
+                <div className="space-y-2 flex items-end">
+                  <div className="flex items-center gap-2 pb-2">
+                    <Switch
+                      id="gst_inclusive"
+                      checked={formData.gst_inclusive}
+                      onCheckedChange={(checked) => setFormData({ ...formData, gst_inclusive: checked })}
+                    />
+                    <Label htmlFor="gst_inclusive">GST Inclusive in Price</Label>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">

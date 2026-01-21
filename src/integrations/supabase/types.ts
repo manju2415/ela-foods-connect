@@ -676,6 +676,8 @@ export type Database = {
           compare_at_price: number | null
           created_at: string
           description: string | null
+          gst_inclusive: boolean | null
+          gst_percentage: number | null
           id: string
           images: string[] | null
           is_active: boolean | null
@@ -697,6 +699,8 @@ export type Database = {
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
+          gst_inclusive?: boolean | null
+          gst_percentage?: number | null
           id?: string
           images?: string[] | null
           is_active?: boolean | null
@@ -718,6 +722,8 @@ export type Database = {
           compare_at_price?: number | null
           created_at?: string
           description?: string | null
+          gst_inclusive?: boolean | null
+          gst_percentage?: number | null
           id?: string
           images?: string[] | null
           is_active?: boolean | null

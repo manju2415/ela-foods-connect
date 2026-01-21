@@ -276,6 +276,9 @@ export default function Categories() {
     return categories.filter((c) => c.parent_id === categoryId).length;
   };
 
+  // Only show parent categories (no parent_id) for parent selection
+  const parentCategoryOptions = categories.filter(c => !c.parent_id);
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -351,10 +354,21 @@ export default function Categories() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{category.name}</div>
-                          <div className="text-sm text-muted-foreground">{category.slug}</div>
+                          <div className={category.parent_id ? "pl-6" : ""}>
+                            <div className="font-medium flex items-center gap-2">
+                              {category.parent_id && <span className="text-muted-foreground">└</span>}
+                              {category.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">{category.slug}</div>
+                          </div>
                         </TableCell>
-                        <TableCell>{getParentName(category.parent_id)}</TableCell>
+                        <TableCell>
+                          {category.parent_id ? (
+                            <Badge variant="outline">{getParentName(category.parent_id)}</Badge>
+                          ) : (
+                            <Badge>Parent Category</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{getChildCount(category.id)} subcategories</TableCell>
                         <TableCell>
                           <Badge variant={category.is_active ? "default" : "secondary"}>
@@ -432,8 +446,8 @@ export default function Categories() {
                       <SelectValue placeholder="None (Top level)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None (Top level)</SelectItem>
-                      {categories
+                      <SelectItem value="none">None (Parent Category)</SelectItem>
+                      {parentCategoryOptions
                         .filter((c) => c.id !== editingCategory?.id)
                         .map((cat) => (
                           <SelectItem key={cat.id} value={cat.id}>
@@ -442,6 +456,7 @@ export default function Categories() {
                         ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">Leave as "None" to create a parent category, or select a parent to create a subcategory</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="display_order">Display Order</Label>
