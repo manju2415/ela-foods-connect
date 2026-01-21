@@ -204,11 +204,13 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number | null
+          exchange_enabled: boolean | null
           id: string
           image_url: string | null
           is_active: boolean | null
           name: string
           parent_id: string | null
+          return_enabled: boolean | null
           slug: string
           updated_at: string
         }
@@ -216,11 +218,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          exchange_enabled?: boolean | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
           name: string
           parent_id?: string | null
+          return_enabled?: boolean | null
           slug: string
           updated_at?: string
         }
@@ -228,11 +232,13 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          exchange_enabled?: boolean | null
           id?: string
           image_url?: string | null
           is_active?: boolean | null
           name?: string
           parent_id?: string | null
+          return_enabled?: boolean | null
           slug?: string
           updated_at?: string
         }
