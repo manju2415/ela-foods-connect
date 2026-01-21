@@ -18,6 +18,9 @@ import {
   MessageSquareQuote,
   Image,
   Megaphone,
+  Crown,
+  RotateCcw,
+  FileText,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -48,6 +51,7 @@ const menuItems: MenuItem[] = [
   { title: "Users", url: "/admin/users", icon: UserCog, superAdminOnly: true },
   { title: "Founding Members", url: "/admin/founding-members", icon: Users, superAdminOnly: true },
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
+  { title: "Founders", url: "/admin/founders", icon: Crown, superAdminOnly: true },
   { title: "MLM Settings", url: "/admin/mlm-settings", icon: Network, superAdminOnly: true },
   { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
   { title: "Banners", url: "/admin/banners", icon: Image },
@@ -60,6 +64,8 @@ const menuItems: MenuItem[] = [
   { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
   { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList },
   { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck },
+  { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw },
+  { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
 

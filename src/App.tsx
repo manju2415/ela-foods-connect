@@ -33,6 +33,10 @@ import AdminWithdrawals from "./pages/admin/Withdrawals";
 import NetworkAnalytics from "./pages/admin/NetworkAnalytics";
 import AdminTestimonials from "./pages/admin/Testimonials";
 import AdminBanners from "./pages/admin/Banners";
+import AdminFounders from "./pages/admin/Founders";
+import AdminReturnRequests from "./pages/admin/ReturnRequests";
+import AdminPolicies from "./pages/admin/Policies";
+import Policies from "./pages/Policies";
 import AdminAdvertisements from "./pages/admin/Advertisements";
 import GuestCheckout from "./pages/GuestCheckout";
 import RegistrationPayment from "./pages/RegistrationPayment";
@@ -43,6 +47,7 @@ import MemberApp from "./pages/MemberApp";
 import MobileApps from "./pages/MobileApps";
 // Mobile Customer Pages
 import CustomerOrdersPage from "./pages/mobile/customer/OrdersPage";
+import CustomerOrderDetailPage from "./pages/mobile/customer/OrderDetailPage";
 import CustomerWalletPage from "./pages/mobile/customer/WalletPage";
 import CustomerProfilePage from "./pages/mobile/customer/ProfilePage";
 // Mobile Driver Pages
@@ -93,6 +98,11 @@ const App = () => (
                 <Route path="/admin/testimonials" element={<AdminTestimonials />} />
                 <Route path="/admin/banners" element={<AdminBanners />} />
                 <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
+                <Route path="/admin/founders" element={<AdminFounders />} />
+                <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
+                <Route path="/admin/policies" element={<AdminPolicies />} />
+                <Route path="/policies" element={<Policies />} />
+                <Route path="/policies/:slug" element={<Policies />} />
                 <Route path="/registration-payment" element={<RegistrationPayment />} />
                 {/* Mobile App Entry Points */}
                 <Route path="/mobile-apps" element={<MobileApps />} />
@@ -102,6 +112,7 @@ const App = () => (
                 <Route path="/driver-app/profile" element={<DriverProfilePage />} />
                 <Route path="/customer-app" element={<CustomerApp />} />
                 <Route path="/customer-app/orders" element={<CustomerOrdersPage />} />
+                <Route path="/customer-app/order/:orderId" element={<CustomerOrderDetailPage />} />
                 <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
                 <Route path="/customer-app/profile" element={<CustomerProfilePage />} />
                 <Route path="/member-app" element={<MemberApp />} />
