@@ -13,6 +13,8 @@ import { NetworkTreeVisual } from "@/components/dashboard/NetworkTreeVisual";
 import { SplitWalletView } from "@/components/dashboard/SplitWalletView";
 import { ReferralSection } from "@/components/dashboard/ReferralSection";
 import { WithdrawalSection } from "@/components/dashboard/WithdrawalSection";
+import { AddUserDialog } from "@/components/AddUserDialog";
+import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,7 +38,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin } from "lucide-react";
+import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw } from "lucide-react";
 
 interface Profile {
   id: string;
@@ -125,6 +127,7 @@ const Dashboard = () => {
   const [loadingItems, setLoadingItems] = useState(false);
   const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
   const [loadingWishlistProducts, setLoadingWishlistProducts] = useState(false);
+  const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     full_name: "",
@@ -309,11 +312,25 @@ const Dashboard = () => {
       <Header />
       
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">My Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your account, orders, and wallet
-          </p>
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">My Dashboard</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage your account, orders, and wallet
+            </p>
+          </div>
+          {isFoundingMember && (
+            <AddUserDialog 
+              defaultReferralCode={referralCodes[0]?.code}
+              onUserAdded={fetchData}
+              trigger={
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add User
+                </Button>
+              }
+            />
+          )}
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
@@ -984,10 +1001,43 @@ const Dashboard = () => {
                   <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
                 </div>
               </div>
+
+              {/* Return Request Button - only show for delivered orders */}
+              {selectedOrder.status === "delivered" && (
+                <div className="pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsReturnDialogOpen(true)}
+                    className="w-full"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Request Return/Exchange
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+
+
+      {/* Return Request Dialog */}
+      {selectedOrder && (
+        <ReturnRequestDialog
+          open={isReturnDialogOpen}
+          onOpenChange={setIsReturnDialogOpen}
+          orderId={selectedOrder.id}
+          orderNumber={selectedOrder.order_number}
+          orderItems={orderItems.map(item => ({
+            id: item.id,
+            product_name: item.product_name,
+            quantity: item.quantity,
+            product_price: item.product_price,
+          }))}
+          onSuccess={fetchData}
+        />
+      )}
 
       <Footer />
     </div>

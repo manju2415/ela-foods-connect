@@ -85,14 +85,14 @@ const Footer = () => {
           <p className="text-card/60 text-sm">
             © 2026 ELA Foods. All rights reserved.
           </p>
-          <div className="flex gap-6 text-sm">
-            <Link to="#" className="text-card/60 hover:text-secondary transition-colors">
-              Privacy Policy
+          <div className="flex gap-6 text-sm flex-wrap">
+            <Link to="/policies/return" className="text-card/60 hover:text-secondary transition-colors">
+              Return Policy
             </Link>
-            <Link to="#" className="text-card/60 hover:text-secondary transition-colors">
-              Terms of Service
+            <Link to="/policies/cancellation" className="text-card/60 hover:text-secondary transition-colors">
+              Cancellation Policy
             </Link>
-            <Link to="#" className="text-card/60 hover:text-secondary transition-colors">
+            <Link to="/policies/refund" className="text-card/60 hover:text-secondary transition-colors">
               Refund Policy
             </Link>
           </div>

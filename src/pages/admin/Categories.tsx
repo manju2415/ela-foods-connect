@@ -55,6 +55,9 @@ interface Category {
   is_active: boolean;
   display_order: number;
   created_at: string;
+  returns_enabled?: boolean;
+  return_window_days?: number;
+  exchange_enabled?: boolean;
 }
 
 interface CategoryFormData {
@@ -64,6 +67,9 @@ interface CategoryFormData {
   parent_id: string;
   is_active: boolean;
   display_order: string;
+  returns_enabled: boolean;
+  return_window_days: string;
+  exchange_enabled: boolean;
 }
 
 const initialFormData: CategoryFormData = {
@@ -73,6 +79,9 @@ const initialFormData: CategoryFormData = {
   parent_id: "",
   is_active: true,
   display_order: "0",
+  returns_enabled: true,
+  return_window_days: "7",
+  exchange_enabled: true,
 };
 
 export default function Categories() {
@@ -120,7 +129,7 @@ export default function Categories() {
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      const { error } = await supabase.from("categories").insert({
+      const { error } = await (supabase.from("categories") as any).insert({
         name: data.name,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),
         description: data.description || null,
@@ -128,6 +137,9 @@ export default function Categories() {
         is_active: data.is_active,
         display_order: parseInt(data.display_order) || 0,
         image_url: imageUrl,
+        returns_enabled: data.returns_enabled,
+        return_window_days: parseInt(data.return_window_days) || 7,
+        exchange_enabled: data.exchange_enabled,
       });
       if (error) throw error;
     },
@@ -149,8 +161,8 @@ export default function Categories() {
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      const { error } = await supabase
-        .from("categories")
+      const { error } = await (supabase
+        .from("categories") as any)
         .update({
           name: data.name,
           slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),
@@ -159,6 +171,9 @@ export default function Categories() {
           is_active: data.is_active,
           display_order: parseInt(data.display_order) || 0,
           image_url: imageUrl,
+          returns_enabled: data.returns_enabled,
+          return_window_days: parseInt(data.return_window_days) || 7,
+          exchange_enabled: data.exchange_enabled,
         })
         .eq("id", id);
       if (error) throw error;
@@ -207,6 +222,9 @@ export default function Categories() {
       parent_id: category.parent_id || "",
       is_active: category.is_active,
       display_order: category.display_order?.toString() || "0",
+      returns_enabled: category.returns_enabled !== false,
+      return_window_days: (category.return_window_days || 7).toString(),
+      exchange_enabled: category.exchange_enabled !== false,
     });
     setExistingImage(category.image_url);
     setImageFile(null);
@@ -477,13 +495,42 @@ export default function Categories() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                />
-                <Label htmlFor="is_active">Active</Label>
+              {/* Return & Exchange Settings */}
+              <div className="space-y-4 border-t pt-4">
+                <h4 className="text-sm font-medium">Return & Exchange Settings</h4>
+                
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="returns_enabled"
+                    checked={formData.returns_enabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, returns_enabled: checked })}
+                  />
+                  <Label htmlFor="returns_enabled">Allow Returns</Label>
+                </div>
+
+                {formData.returns_enabled && (
+                  <div className="space-y-2 pl-6">
+                    <Label htmlFor="return_window_days">Return Window (days)</Label>
+                    <Input
+                      id="return_window_days"
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={formData.return_window_days}
+                      onChange={(e) => setFormData({ ...formData, return_window_days: e.target.value })}
+                      className="w-24"
+                    />
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="exchange_enabled"
+                    checked={formData.exchange_enabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, exchange_enabled: checked })}
+                  />
+                  <Label htmlFor="exchange_enabled">Allow Exchanges</Label>
+                </div>
               </div>
 
               <DialogFooter>
@@ -497,6 +544,7 @@ export default function Categories() {
             </form>
           </DialogContent>
         </Dialog>
+
 
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
