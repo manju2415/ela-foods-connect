@@ -9,6 +9,7 @@ interface Category {
   slug: string;
   image_url: string | null;
   product_count: number;
+  parent_id: string | null;
 }
 
 const CategoriesSection = () => {
@@ -17,11 +18,12 @@ const CategoriesSection = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      // Fetch categories
+      // Fetch categories - only parent categories for homepage display
       const { data: categoriesData, error: catError } = await supabase
         .from("categories")
-        .select("id, name, slug, image_url")
+        .select("id, name, slug, image_url, parent_id")
         .eq("is_active", true)
+        .is("parent_id", null) // Only get parent categories
         .order("display_order");
 
       if (catError) {
@@ -30,7 +32,23 @@ const CategoriesSection = () => {
         return;
       }
 
-      // Fetch product counts per category
+      // Fetch all subcategory IDs for parent categories to count their products too
+      const { data: subcategories } = await supabase
+        .from("categories")
+        .select("id, parent_id")
+        .eq("is_active", true)
+        .not("parent_id", "is", null);
+
+      // Create a map of parent_id -> subcategory ids
+      const subcategoryMap = new Map<string, string[]>();
+      subcategories?.forEach((sub) => {
+        if (sub.parent_id) {
+          const existing = subcategoryMap.get(sub.parent_id) || [];
+          subcategoryMap.set(sub.parent_id, [...existing, sub.id]);
+        }
+      });
+
+      // Fetch product counts per category (including subcategories)
       const { data: products, error: prodError } = await supabase
         .from("products")
         .select("category_id")
@@ -40,7 +58,7 @@ const CategoriesSection = () => {
         console.error("Error fetching products:", prodError);
       }
 
-      // Count products per category
+      // Count products per category (including subcategory products for parents)
       const countMap: Record<string, number> = {};
       products?.forEach((p) => {
         if (p.category_id) {
@@ -48,10 +66,17 @@ const CategoriesSection = () => {
         }
       });
 
-      const categoriesWithCount = (categoriesData || []).map((cat) => ({
-        ...cat,
-        product_count: countMap[cat.id] || 0,
-      }));
+      const categoriesWithCount = (categoriesData || []).map((cat) => {
+        // Get subcategory IDs for this parent
+        const subIds = subcategoryMap.get(cat.id) || [];
+        // Sum products in parent + all subcategories
+        const parentCount = countMap[cat.id] || 0;
+        const subCount = subIds.reduce((acc, subId) => acc + (countMap[subId] || 0), 0);
+        return {
+          ...cat,
+          product_count: parentCount + subCount,
+        };
+      });
 
       setCategories(categoriesWithCount);
       setLoading(false);

@@ -39,6 +39,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  parent_id: string | null;
 }
 
 const Products = () => {
@@ -60,13 +61,24 @@ const Products = () => {
   const fetchCategories = async () => {
     const { data, error } = await supabase
       .from("categories")
-      .select("id, name, slug")
+      .select("id, name, slug, parent_id")
       .eq("is_active", true)
       .order("display_order");
 
     if (!error && data) {
       setCategories(data);
     }
+  };
+
+  // Organize categories hierarchically
+  const getHierarchicalCategories = () => {
+    const parents = categories.filter(c => !c.parent_id);
+    const result: { category: Category; children: Category[] }[] = [];
+    parents.forEach(parent => {
+      const children = categories.filter(c => c.parent_id === parent.id);
+      result.push({ category: parent, children });
+    });
+    return result;
   };
 
   const fetchProducts = async () => {
@@ -154,19 +166,37 @@ const Products = () => {
     <div className="space-y-6">
       <div>
         <h3 className="font-semibold text-foreground mb-3">Categories</h3>
-        <div className="space-y-2">
-          {categories.map((category) => (
-            <button
-              key={category.id}
-              onClick={() => handleCategorySelect(category.slug)}
-              className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
-                selectedCategory === category.slug
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted text-foreground"
-              }`}
-            >
-              {category.name}
-            </button>
+        <div className="space-y-1">
+          {getHierarchicalCategories().map(({ category: parent, children }) => (
+            <div key={parent.id}>
+              <button
+                onClick={() => handleCategorySelect(parent.slug)}
+                className={`w-full text-left px-3 py-2 rounded-lg transition-colors font-medium ${
+                  selectedCategory === parent.slug
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted text-foreground"
+                }`}
+              >
+                {parent.name}
+              </button>
+              {children.length > 0 && (
+                <div className="ml-4 border-l pl-2 mt-1 space-y-1">
+                  {children.map((child) => (
+                    <button
+                      key={child.id}
+                      onClick={() => handleCategorySelect(child.slug)}
+                      className={`w-full text-left px-3 py-1.5 rounded-lg transition-colors text-sm ${
+                        selectedCategory === child.slug
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      {child.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           ))}
         </div>
       </div>
