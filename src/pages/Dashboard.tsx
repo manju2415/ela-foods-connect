@@ -319,7 +319,7 @@ const Dashboard = () => {
               Manage your account, orders, and wallet
             </p>
           </div>
-          {isFoundingMember && (
+          {referralCodes.length > 0 && (
             <AddUserDialog 
               defaultReferralCode={referralCodes[0]?.code}
               onUserAdded={fetchData}
