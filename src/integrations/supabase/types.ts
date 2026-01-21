@@ -896,6 +896,94 @@ export type Database = {
           },
         ]
       }
+      return_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          id: string
+          order_id: string
+          order_item_id: string
+          picked_up_at: string | null
+          pickup_address: Json | null
+          pickup_date: string | null
+          pickup_slot_id: string | null
+          processed_at: string | null
+          processed_by: string | null
+          quantity: number
+          reason: string
+          refund_amount: number | null
+          request_type: string
+          resolution_type: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          order_item_id: string
+          picked_up_at?: string | null
+          pickup_address?: Json | null
+          pickup_date?: string | null
+          pickup_slot_id?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          quantity?: number
+          reason: string
+          refund_amount?: number | null
+          request_type: string
+          resolution_type?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          order_item_id?: string
+          picked_up_at?: string | null
+          pickup_address?: Json | null
+          pickup_date?: string | null
+          pickup_slot_id?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          quantity?: number
+          reason?: string
+          refund_amount?: number | null
+          request_type?: string
+          resolution_type?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "return_requests_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "return_requests_pickup_slot_id_fkey"
+            columns: ["pickup_slot_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_time_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       testimonials: {
         Row: {
           approved_at: string | null

@@ -39,11 +39,18 @@ interface ReturnRequest {
   order_id: string;
   order_item_id: string;
   user_id: string;
-  product_id: string | null;
   reason: string;
   request_type: string;
   status: string;
   pickup_date: string | null;
+  pickup_slot_id: string | null;
+  pickup_address: {
+    full_name: string;
+    address_line1: string;
+    city: string;
+    state: string;
+    postal_code: string;
+  } | null;
   refund_amount: number | null;
   admin_notes: string | null;
   created_at: string;
@@ -53,15 +60,15 @@ interface ReturnRequest {
   product_name?: string;
   quantity?: number;
   total_price?: number;
+  pickup_slot_name?: string;
 }
 
 const STATUS_OPTIONS = [
   { value: "pending", label: "Pending", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
   { value: "approved", label: "Approved", color: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
   { value: "rejected", label: "Rejected", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+  { value: "pickup_scheduled", label: "Pickup Scheduled", color: "bg-orange-500/10 text-orange-600 border-orange-500/20" },
   { value: "picked_up", label: "Picked Up", color: "bg-purple-500/10 text-purple-600 border-purple-500/20" },
-  { value: "refunded", label: "Refunded", color: "bg-green-500/10 text-green-600 border-green-500/20" },
-  { value: "exchanged", label: "Exchanged", color: "bg-cyan-500/10 text-cyan-600 border-cyan-500/20" },
   { value: "completed", label: "Completed", color: "bg-green-500/10 text-green-600 border-green-500/20" },
 ];
 
@@ -87,13 +94,16 @@ export default function ReturnRequests() {
         return [];
       }
       
-      // Enrich with order and user data
+      // Enrich with order, user data, and pickup slot
       const enrichedData = await Promise.all(
         ((data || []) as any[]).map(async (request) => {
-          const [orderRes, profileRes, itemRes] = await Promise.all([
+          const [orderRes, profileRes, itemRes, slotRes] = await Promise.all([
             supabase.from("orders").select("order_number").eq("id", request.order_id).maybeSingle(),
             supabase.from("profiles").select("email, full_name").eq("id", request.user_id).maybeSingle(),
             supabase.from("order_items").select("product_name, quantity, total_price").eq("id", request.order_item_id).maybeSingle(),
+            request.pickup_slot_id 
+              ? supabase.from("delivery_time_slots").select("name").eq("id", request.pickup_slot_id).maybeSingle()
+              : Promise.resolve({ data: null }),
           ]);
           
           return {
@@ -104,6 +114,7 @@ export default function ReturnRequests() {
             product_name: itemRes.data?.product_name,
             quantity: itemRes.data?.quantity,
             total_price: itemRes.data?.total_price,
+            pickup_slot_name: slotRes.data?.name,
           } as ReturnRequest;
         })
       );
@@ -347,6 +358,34 @@ export default function ReturnRequests() {
                 <p className="p-3 bg-muted rounded-lg text-sm">{selectedRequest.reason}</p>
               </div>
 
+              {/* Pickup Details Section */}
+              {selectedRequest.pickup_date && (
+                <div className="border rounded-lg p-4 space-y-2 bg-orange-500/5 border-orange-500/20">
+                  <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
+                    <Truck className="h-4 w-4" />
+                    Pickup Scheduled
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Pickup Date</p>
+                      <p className="font-medium">{format(new Date(selectedRequest.pickup_date), "PPP")}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Time Slot</p>
+                      <p className="font-medium">{selectedRequest.pickup_slot_name || "—"}</p>
+                    </div>
+                  </div>
+                  {selectedRequest.pickup_address && (
+                    <div>
+                      <p className="text-muted-foreground">Pickup Address</p>
+                      <p className="font-medium">
+                        {selectedRequest.pickup_address.full_name}, {selectedRequest.pickup_address.address_line1}, {selectedRequest.pickup_address.city}, {selectedRequest.pickup_address.state} - {selectedRequest.pickup_address.postal_code}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Update Status</label>
                 <Select value={newStatus} onValueChange={setNewStatus}>
@@ -363,7 +402,7 @@ export default function ReturnRequests() {
                 </Select>
               </div>
 
-              {(newStatus === "refunded" || selectedRequest.request_type === "refund") && (
+              {(newStatus === "completed" || selectedRequest.request_type === "refund") && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Refund Amount (₹)</label>
                   <Input
