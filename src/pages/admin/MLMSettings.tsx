@@ -32,6 +32,7 @@ const MLMSettings = () => {
     purchase_commission_rate: { percentage: 5 },
     welcome_bonus: { amount: 50, is_withdrawable: false },
     max_withdrawable_referrals: { count: 10 },
+    upline_commission: { master_amount: 50, founder_amount: 100, is_withdrawable: true },
   });
 
   const { data: mlmSettings, isLoading } = useQuery({
@@ -294,6 +295,75 @@ const MLMSettings = () => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Upline Commission */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Upline Commission (Tree Flow)
+              </CardTitle>
+              <CardDescription>
+                Commission credited to each upline member when a new user registers (flows up to the founder)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Master/Associate Commission</h4>
+                  <div className="space-y-2">
+                    <Label>Amount per Level (₹)</Label>
+                    <Input
+                      type="number"
+                      value={settings.upline_commission?.master_amount as number || 0}
+                      onChange={(e) => updateSetting("upline_commission", "master_amount", Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Amount credited to each master/associate in the upline chain
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 border rounded-lg bg-primary/5">
+                  <h4 className="font-medium">Founder Commission</h4>
+                  <div className="space-y-2">
+                    <Label>Amount (₹)</Label>
+                    <Input
+                      type="number"
+                      value={settings.upline_commission?.founder_amount as number || 0}
+                      onChange={(e) => updateSetting("upline_commission", "founder_amount", Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Final commission to the founder at the top of the tree
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Commission Type</h4>
+                  <div className="flex items-center justify-between pt-2">
+                    <Label>Withdrawable</Label>
+                    <Switch
+                      checked={settings.upline_commission?.is_withdrawable as boolean || false}
+                      onCheckedChange={(checked) => updateSetting("upline_commission", "is_withdrawable", checked)}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    If enabled, upline commission can be withdrawn. Otherwise, it's for purchases only.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <h4 className="font-medium mb-2">How Upline Commission Works</h4>
+                <p className="text-sm text-muted-foreground">
+                  When a new member registers, commission flows up the referral tree. Each master/associate in the chain 
+                  receives the Master Commission amount. The founder at the top receives the Founder Commission. 
+                  This continues until reaching a founder member (maximum 10 levels for safety).
+                </p>
               </div>
             </CardContent>
           </Card>
