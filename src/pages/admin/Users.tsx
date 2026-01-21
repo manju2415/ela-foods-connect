@@ -31,10 +31,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown, Plus, UserCog } from "lucide-react";
+import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
+import { AddUserDialog } from "@/components/AddUserDialog";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -61,9 +62,22 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
-  const [isAddUserOpen, setIsAddUserOpen] = useState(false);
-  const [newUserData, setNewUserData] = useState({ email: "", full_name: "", phone: "" });
+  const [selectedReferralCode, setSelectedReferralCode] = useState<string>("");
   const queryClient = useQueryClient();
+
+  // Fetch referral codes for the dropdown
+  const { data: referralCodes = [] } = useQuery({
+    queryKey: ["admin-referral-codes"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("referral_codes")
+        .select("code, user_id, profiles:user_id(full_name, email)")
+        .eq("is_active", true)
+        .order("code");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin-users"],
@@ -172,10 +186,37 @@ export default function UsersPage() {
     <SuperAdminGuard>
       <AdminLayout>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Users</h1>
               <p className="text-muted-foreground">Manage user accounts and roles</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedReferralCode} onValueChange={setSelectedReferralCode}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select referral code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {referralCodes.map((rc: any) => (
+                    <SelectItem key={rc.code} value={rc.code}>
+                      {rc.code} - {rc.profiles?.full_name || rc.profiles?.email || "Unknown"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <AddUserDialog
+                defaultReferralCode={selectedReferralCode}
+                onUserAdded={() => {
+                  queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+                  setSelectedReferralCode("");
+                }}
+                trigger={
+                  <Button disabled={!selectedReferralCode}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                }
+              />
             </div>
           </div>
 
