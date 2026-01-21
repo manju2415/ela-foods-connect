@@ -1174,6 +1174,10 @@ export type Database = {
         }
         Returns: string
       }
+      credit_founder_commission: {
+        Args: { p_new_user_id: string }
+        Returns: undefined
+      }
       credit_purchase_commission: {
         Args: { p_order_total: number; p_user_id: string }
         Returns: boolean
