@@ -1216,7 +1216,7 @@ export type Database = {
           p_referred_user_id: string
           p_registration_fee?: number
         }
-        Returns: Json
+        Returns: undefined
       }
       process_referral_incentive: {
         Args: { p_referral_code: string; p_referred_user_id: string }
