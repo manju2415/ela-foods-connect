@@ -12,7 +12,7 @@ interface CategoryCardProps {
 
 const CategoryCard = ({ name, slug, image, productCount }: CategoryCardProps) => {
   return (
-    <Link to={`/products?category=${slug}`}>
+    <Link to={`/category/${slug}`}>
       <Card className="group relative overflow-hidden cursor-pointer border-0 shadow-md hover:shadow-xl transition-all duration-300">
         <div className="aspect-[4/3] overflow-hidden">
           <OptimizedImage

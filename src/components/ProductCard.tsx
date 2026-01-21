@@ -21,6 +21,8 @@ interface ProductCardProps {
   isBestSeller?: boolean;
   unitType?: string | null;
   unitValue?: number | null;
+  gstPercentage?: number | null;
+  gstInclusive?: boolean | null;
 }
 
 const ProductCard = ({
@@ -36,6 +38,8 @@ const ProductCard = ({
   isBestSeller,
   unitType,
   unitValue,
+  gstPercentage,
+  gstInclusive,
 }: ProductCardProps) => {
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
@@ -47,6 +51,24 @@ const ProductCard = ({
   const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
   const memberDiscount = Math.round(((price - effectiveMemberPrice) / price) * 100);
   const inWishlist = isInWishlist(id);
+
+  // GST calculation
+  const gstRate = gstPercentage || 0;
+  const calculateGstBreakdown = (displayPrice: number) => {
+    if (gstRate === 0) return { basePrice: displayPrice, gstAmount: 0 };
+    if (gstInclusive) {
+      // Price includes GST, calculate base price
+      const basePrice = Math.round((displayPrice * 100) / (100 + gstRate));
+      const gstAmount = displayPrice - basePrice;
+      return { basePrice, gstAmount };
+    } else {
+      // Price excludes GST
+      const gstAmount = Math.round((displayPrice * gstRate) / 100);
+      return { basePrice: displayPrice, gstAmount };
+    }
+  };
+
+  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : price);
 
   // Format unit display
   const getUnitDisplay = () => {
@@ -166,6 +188,19 @@ const ProductCard = ({
               <Badge className="bg-green-600 text-white text-xs px-1.5 py-0.5">Your Price</Badge>
             )}
           </div>
+          {/* GST Breakdown */}
+          {gstRate > 0 && (
+            <div className="text-xs text-muted-foreground pt-1 border-t border-border/50 mt-1">
+              <div className="flex justify-between">
+                <span>Base Price:</span>
+                <span>₹{gstBreakdown.basePrice}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>GST ({gstRate}%){gstInclusive ? ' incl.' : ''}:</span>
+                <span>₹{gstBreakdown.gstAmount}</span>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
