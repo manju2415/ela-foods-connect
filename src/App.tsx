@@ -45,6 +45,7 @@ import DriverApp from "./pages/DriverApp";
 import CustomerApp from "./pages/CustomerApp";
 import MemberApp from "./pages/MemberApp";
 import MobileApps from "./pages/MobileApps";
+import CategoryPage from "./pages/CategoryPage";
 // Mobile Customer Pages
 import CustomerOrdersPage from "./pages/mobile/customer/OrdersPage";
 import CustomerOrderDetailPage from "./pages/mobile/customer/OrderDetailPage";
@@ -74,6 +75,8 @@ const App = () => (
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/products" element={<Products />} />
                 <Route path="/categories" element={<Products />} />
+                <Route path="/category/:slug" element={<CategoryPage />} />
+                <Route path="/category/:slug/:subSlug" element={<CategoryPage />} />
                 <Route path="/product/:slug" element={<ProductDetail />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/about" element={<About />} />
