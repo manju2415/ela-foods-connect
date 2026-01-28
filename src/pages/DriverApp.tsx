@@ -6,6 +6,8 @@ import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useOfflineStorage } from "@/hooks/useOfflineStorage";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PWABadge } from "@/components/pwa/PWABadge";
 import DeliveryDashboard from "./DeliveryDashboard";
 
 /**
@@ -60,6 +62,8 @@ export default function DriverApp() {
     <MobileAppLayout appType="driver">
       <OfflineIndicator />
       <DeliveryDashboard />
+      <InstallPrompt appName="ELA Delivery" appType="driver" themeColor="#16a34a" />
+      <PWABadge />
     </MobileAppLayout>
   );
 }

@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PWABadge } from "@/components/pwa/PWABadge";
 import Index from "./Index";
 
 /**
@@ -55,6 +57,8 @@ export default function CustomerApp() {
   return (
     <MobileAppLayout appType="customer">
       <Index />
+      <InstallPrompt appName="ELA Foods" appType="customer" themeColor="#f97316" />
+      <PWABadge />
     </MobileAppLayout>
   );
 }

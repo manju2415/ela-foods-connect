@@ -58,6 +58,10 @@ import DriverEarningsPage from "./pages/mobile/driver/EarningsPage";
 import DriverProfilePage from "./pages/mobile/driver/ProfilePage";
 // Mobile Member Pages
 import MemberNetworkPage from "./pages/mobile/member/NetworkPage";
+// PWA Install Pages
+import CustomerInstall from "./pages/install/CustomerInstall";
+import DriverInstall from "./pages/install/DriverInstall";
+import MemberInstall from "./pages/install/MemberInstall";
 
 const queryClient = new QueryClient();
 
@@ -124,6 +128,10 @@ const App = () => (
                 <Route path="/member-app/network" element={<MemberNetworkPage />} />
                 <Route path="/member-app/wallet" element={<CustomerWalletPage />} />
                 <Route path="/member-app/profile" element={<CustomerProfilePage />} />
+                {/* PWA Install Pages */}
+                <Route path="/install/customer" element={<CustomerInstall />} />
+                <Route path="/install/driver" element={<DriverInstall />} />
+                <Route path="/install/member" element={<MemberInstall />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
