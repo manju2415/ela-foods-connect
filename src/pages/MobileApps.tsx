@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Truck, ShoppingBag, Users } from "lucide-react";
+import { Truck, ShoppingBag, Users, Download } from "lucide-react";
 
 /**
  * Mobile App Selector
@@ -30,6 +30,9 @@ export default function MobileApps() {
               <CardDescription>
                 Browse products, place orders, and track your deliveries
               </CardDescription>
+              <Link to="/install/customer" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
+                <Download className="h-3 w-3" /> Install App
+              </Link>
             </CardContent>
           </Card>
         </Link>
@@ -48,6 +51,9 @@ export default function MobileApps() {
               <CardDescription>
                 Manage deliveries, track earnings, and navigate to customers
               </CardDescription>
+              <Link to="/install/driver" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
+                <Download className="h-3 w-3" /> Install App
+              </Link>
             </CardContent>
           </Card>
         </Link>
@@ -66,6 +72,9 @@ export default function MobileApps() {
               <CardDescription>
                 View your network, referrals, wallet, and earnings
               </CardDescription>
+              <Link to="/install/member" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
+                <Download className="h-3 w-3" /> Install App
+              </Link>
             </CardContent>
           </Card>
         </Link>

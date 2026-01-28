@@ -4,6 +4,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { PWABadge } from "@/components/pwa/PWABadge";
 import Dashboard from "./Dashboard";
 
 /**
@@ -56,6 +58,8 @@ export default function MemberApp() {
   return (
     <MobileAppLayout appType="member">
       <Dashboard />
+      <InstallPrompt appName="ELA Network" appType="member" themeColor="#7c3aed" />
+      <PWABadge />
     </MobileAppLayout>
   );
 }
