@@ -2,10 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -15,13 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { AddDeliveryPartnerDialog } from "@/components/admin/AddDeliveryPartnerDialog";
 import { Search, Plus, Truck, UserCheck, UserX } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -39,10 +32,6 @@ interface DeliveryPartner {
 export default function DeliveryPartners() {
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [email, setEmail] = useState("");
-  const [vehicleType, setVehicleType] = useState("");
-  const [vehicleNumber, setVehicleNumber] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
   const { data: partners = [], isLoading } = useQuery({
@@ -86,71 +75,6 @@ export default function DeliveryPartners() {
       toast.error("Failed to update availability");
     },
   });
-
-  const handleAddPartner = async () => {
-    if (!email.trim()) {
-      toast.error("Please enter an email");
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Find user by email
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-      if (!profile) {
-        toast.error("User not found with this email");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Check if already a delivery partner
-      const { data: existing } = await supabase
-        .from("delivery_partners")
-        .select("id")
-        .eq("user_id", profile.id)
-        .maybeSingle();
-
-      if (existing) {
-        toast.error("User is already a delivery partner");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Add delivery partner role
-      await supabase
-        .from("user_roles")
-        .insert({ user_id: profile.id, role: "delivery_partner" });
-
-      // Create delivery partner record
-      const { error } = await supabase
-        .from("delivery_partners")
-        .insert({
-          user_id: profile.id,
-          vehicle_type: vehicleType || null,
-          vehicle_number: vehicleNumber || null,
-        });
-
-      if (error) throw error;
-
-      toast.success("Delivery partner added successfully");
-      queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
-      setShowAddDialog(false);
-      setEmail("");
-      setVehicleType("");
-      setVehicleNumber("");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add delivery partner");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const filteredPartners = partners.filter(partner =>
     partner.profile?.email?.toLowerCase().includes(search.toLowerCase()) ||
@@ -267,47 +191,7 @@ export default function DeliveryPartners() {
           </CardContent>
         </Card>
 
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Delivery Partner</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label>User Email</Label>
-                <Input
-                  placeholder="Enter user email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Vehicle Type</Label>
-                <Input
-                  placeholder="e.g., Bike, Car, Van"
-                  value={vehicleType}
-                  onChange={(e) => setVehicleType(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Vehicle Number</Label>
-                <Input
-                  placeholder="e.g., MH-12-AB-1234"
-                  value={vehicleNumber}
-                  onChange={(e) => setVehicleNumber(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddPartner} disabled={isSubmitting}>
-                {isSubmitting ? "Adding..." : "Add Partner"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AddDeliveryPartnerDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
       </div>
     </AdminLayout>
   );

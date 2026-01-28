@@ -110,9 +110,10 @@ const Auth = () => {
     } else {
       toast({ 
         title: "Account created!", 
-        description: "Welcome to ELA Foods. You are now logged in." 
+        description: "Complete your registration to unlock all member benefits." 
       });
-      navigate("/");
+      // Redirect to registration payment instead of home
+      navigate("/registration-payment");
     }
   };
 

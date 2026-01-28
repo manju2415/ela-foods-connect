@@ -111,20 +111,22 @@ export default function OrderAssignments() {
     },
   });
 
-  const { data: availablePartners = [] } = useQuery({
-    queryKey: ["available-partners"],
+  // Fetch ALL delivery partners for dropdown (not just available ones)
+  const { data: allPartners = [] } = useQuery({
+    queryKey: ["all-delivery-partners"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("delivery_partners")
-        .select("id, user_id, is_available")
-        .eq("is_available", true);
+        .select("id, user_id, is_available");
 
       if (error) throw error;
+
+      if (data.length === 0) return [];
 
       const userIds = data.map(p => p.user_id);
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, full_name")
+        .select("id, full_name, email")
         .in("id", userIds);
 
       const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
@@ -132,7 +134,7 @@ export default function OrderAssignments() {
       return data.map(partner => ({
         ...partner,
         profile: profilesMap.get(partner.user_id) || null,
-      })) as DeliveryPartner[];
+      })) as (DeliveryPartner & { profile: { full_name: string | null; email?: string } | null })[];
     },
   });
 
@@ -280,17 +282,22 @@ export default function OrderAssignments() {
                 <SelectTrigger>
                   <SelectValue placeholder="Select delivery partner" />
                 </SelectTrigger>
-                <SelectContent>
-                  {availablePartners.map((partner) => (
+                <SelectContent className="bg-popover">
+                  {allPartners.map((partner) => (
                     <SelectItem key={partner.id} value={partner.id}>
-                      {partner.profile?.full_name || "Unknown Partner"}
+                      <div className="flex items-center gap-2">
+                        <span>{partner.profile?.full_name || partner.profile?.email || "Unknown Partner"}</span>
+                        {!partner.is_available && (
+                          <span className="text-xs text-muted-foreground">(Unavailable)</span>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {availablePartners.length === 0 && (
+              {allPartners.length === 0 && (
                 <p className="text-sm text-muted-foreground mt-2">
-                  No available delivery partners
+                  No delivery partners found. Add partners first.
                 </p>
               )}
             </div>

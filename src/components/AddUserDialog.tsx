@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ReferralCodeSelector } from "@/components/ReferralCodeSelector";
 import { UserPlus, Loader2, Check, X, Edit2 } from "lucide-react";
 
 const signupSchema = z.object({
@@ -30,14 +31,16 @@ interface AddUserDialogProps {
   defaultReferralCode?: string;
   onUserAdded?: () => void;
   trigger?: React.ReactNode;
+  showCodeSelector?: boolean; // Show searchable dropdown for super admin
 }
 
-export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger }: AddUserDialogProps) {
+export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showCodeSelector = false }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
   const [editingCode, setEditingCode] = useState(false);
+  const [selectedCode, setSelectedCode] = useState(defaultReferralCode || "");
   const { toast } = useToast();
 
   const form = useForm<SignupFormData>({
@@ -53,18 +56,22 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger }: Add
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      const initialCode = defaultReferralCode || "";
       form.reset({
         fullName: "",
         email: "",
         password: "",
-        referralCode: defaultReferralCode || "",
+        referralCode: initialCode,
       });
-      setEditingCode(!defaultReferralCode);
-      if (defaultReferralCode) {
-        validateReferralCode(defaultReferralCode);
+      setSelectedCode(initialCode);
+      setEditingCode(!defaultReferralCode && !showCodeSelector);
+      if (initialCode) {
+        validateReferralCode(initialCode);
+      } else {
+        setReferralCodeValid(null);
       }
     }
-  }, [open, defaultReferralCode]);
+  }, [open, defaultReferralCode, showCodeSelector]);
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
@@ -82,6 +89,12 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger }: Add
 
     setReferralCodeValid(!!data);
     setCheckingCode(false);
+  };
+
+  const handleCodeSelectorChange = (code: string) => {
+    setSelectedCode(code);
+    form.setValue("referralCode", code);
+    validateReferralCode(code);
   };
 
   const handleSubmit = async (data: SignupFormData) => {
@@ -160,54 +173,72 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger }: Add
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="referralCode">Referral Code</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  id="referralCode"
-                  placeholder="Enter referral code"
-                  disabled={!editingCode && !!defaultReferralCode}
-                  className={
-                    referralCodeValid === true
-                      ? "border-green-500 pr-10"
-                      : referralCodeValid === false
-                      ? "border-destructive pr-10"
-                      : "pr-10"
-                  }
-                  {...form.register("referralCode", {
-                    onChange: (e) => validateReferralCode(e.target.value),
-                  })}
+            {showCodeSelector && !defaultReferralCode ? (
+              // Searchable dropdown for super admins
+              <div>
+                <ReferralCodeSelector
+                  value={selectedCode}
+                  onChange={handleCodeSelectorChange}
+                  placeholder="Search and select referral code..."
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {checkingCode ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  ) : referralCodeValid === true ? (
-                    <Check className="h-4 w-4 text-green-600" />
-                  ) : referralCodeValid === false ? (
-                    <X className="h-4 w-4 text-destructive" />
-                  ) : null}
-                </div>
+                {referralCodeValid === true && (
+                  <p className="text-sm text-green-600 mt-1">Valid referral code</p>
+                )}
+                {referralCodeValid === false && (
+                  <p className="text-sm text-destructive mt-1">Invalid or inactive code</p>
+                )}
               </div>
-              {defaultReferralCode && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => {
-                    setEditingCode(!editingCode);
-                    if (editingCode) {
-                      form.setValue("referralCode", defaultReferralCode);
-                      validateReferralCode(defaultReferralCode);
+            ) : (
+              // Manual input for regular members
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    id="referralCode"
+                    placeholder="Enter referral code"
+                    disabled={!editingCode && !!defaultReferralCode}
+                    className={
+                      referralCodeValid === true
+                        ? "border-green-500 pr-10"
+                        : referralCodeValid === false
+                        ? "border-destructive pr-10"
+                        : "pr-10"
                     }
-                  }}
-                >
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            {referralCodeValid === true && (
+                    {...form.register("referralCode", {
+                      onChange: (e) => validateReferralCode(e.target.value),
+                    })}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {checkingCode ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : referralCodeValid === true ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : referralCodeValid === false ? (
+                      <X className="h-4 w-4 text-destructive" />
+                    ) : null}
+                  </div>
+                </div>
+                {defaultReferralCode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      setEditingCode(!editingCode);
+                      if (editingCode) {
+                        form.setValue("referralCode", defaultReferralCode);
+                        validateReferralCode(defaultReferralCode);
+                      }
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+            {referralCodeValid === true && !showCodeSelector && (
               <p className="text-sm text-green-600">Valid referral code</p>
             )}
-            {referralCodeValid === false && (
+            {referralCodeValid === false && !showCodeSelector && (
               <p className="text-sm text-destructive">Invalid or inactive code</p>
             )}
             {form.formState.errors.referralCode && (
