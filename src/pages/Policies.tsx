@@ -21,13 +21,21 @@ export default function Policies() {
   const { data: policies = [], isLoading } = useQuery({
     queryKey: ["public-policies"],
     queryFn: async () => {
-      // Default policies
-      const defaultPolicies: Policy[] = [
-        { id: "1", policy_type: "return", title: "Return Policy", content: "## Return Policy\n\n### Eligibility\n- Products must be returned within the specified return window\n- Items must be unused and in original packaging\n\n### Process\n1. Submit a return request from your order history\n2. Select pickup date and time slot\n3. Our delivery partner will collect the item\n4. Refund will be processed within 5-7 business days", is_active: true },
-        { id: "2", policy_type: "cancellation", title: "Cancellation Policy", content: "## Cancellation Policy\n\n### Before Dispatch\n- Orders can be cancelled anytime before dispatch\n- Full refund will be credited to your wallet\n\n### After Dispatch\n- Once dispatched, orders cannot be cancelled\n- You may request a return after delivery", is_active: true },
-        { id: "3", policy_type: "refund", title: "Refund Policy", content: "## Refund Policy\n\n### Refund Methods\n- **Wallet Credit**: Instant refund to your ELA Foods wallet\n- **Original Payment Method**: 5-7 business days\n\n### Conditions\n- Item must pass quality check\n- All tags and packaging must be intact", is_active: true },
-      ];
-      return defaultPolicies;
+      const { data, error } = await supabase
+        .from("site_policies")
+        .select("*")
+        .eq("is_active", true)
+        .order("policy_type");
+      
+      if (error || !data || data.length === 0) {
+        // Fallback defaults
+        return [
+          { id: "1", policy_type: "return", title: "Return Policy", content: "## Return Policy\n\n### Eligibility\n- Products must be returned within the specified return window\n- Items must be unused and in original packaging\n\n### Process\n1. Submit a return request from your order history\n2. Select pickup date and time slot\n3. Our delivery partner will collect the item\n4. Refund will be processed within 5-7 business days", is_active: true },
+          { id: "2", policy_type: "cancellation", title: "Cancellation Policy", content: "## Cancellation Policy\n\n### Before Dispatch\n- Orders can be cancelled anytime before dispatch\n- Full refund will be credited to your wallet\n\n### After Dispatch\n- Once dispatched, orders cannot be cancelled\n- You may request a return after delivery", is_active: true },
+          { id: "3", policy_type: "refund", title: "Refund Policy", content: "## Refund Policy\n\n### Refund Methods\n- **Wallet Credit**: Instant refund to your ELA Foods wallet\n- **Original Payment Method**: 5-7 business days\n\n### Conditions\n- Item must pass quality check\n- All tags and packaging must be intact", is_active: true },
+        ] as Policy[];
+      }
+      return data as Policy[];
     },
   });
 

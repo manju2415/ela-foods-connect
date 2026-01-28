@@ -27,7 +27,6 @@ interface Policy {
   title: string;
   content: string;
   is_active: boolean;
-  display_order: number;
   updated_at: string;
 }
 
@@ -41,13 +40,22 @@ export default function Policies() {
   const { data: policies = [], isLoading } = useQuery({
     queryKey: ["site-policies"],
     queryFn: async () => {
-      // Default policies until table types are regenerated
-      const defaultPolicies: Policy[] = [
-        { id: "1", policy_type: "return", title: "Return Policy", content: "## Return Policy\n\nProducts must be returned within the specified return window.", is_active: true, display_order: 1, updated_at: new Date().toISOString() },
-        { id: "2", policy_type: "cancellation", title: "Cancellation Policy", content: "## Cancellation Policy\n\nOrders can be cancelled anytime before dispatch.", is_active: true, display_order: 2, updated_at: new Date().toISOString() },
-        { id: "3", policy_type: "refund", title: "Refund Policy", content: "## Refund Policy\n\nRefunds are processed within 5-7 business days.", is_active: true, display_order: 3, updated_at: new Date().toISOString() },
-      ];
-      return defaultPolicies;
+      const { data, error } = await supabase
+        .from("site_policies")
+        .select("*")
+        .order("policy_type");
+      
+      if (error) {
+        console.error("Error fetching policies:", error);
+        // Return default policies as fallback
+        return [
+          { id: "1", policy_type: "return", title: "Return Policy", content: "## Return Policy\n\nProducts must be returned within the specified return window.", is_active: true, updated_at: new Date().toISOString() },
+          { id: "2", policy_type: "cancellation", title: "Cancellation Policy", content: "## Cancellation Policy\n\nOrders can be cancelled anytime before dispatch.", is_active: true, updated_at: new Date().toISOString() },
+          { id: "3", policy_type: "refund", title: "Refund Policy", content: "## Refund Policy\n\nRefunds are processed within 5-7 business days.", is_active: true, updated_at: new Date().toISOString() },
+        ] as Policy[];
+      }
+      
+      return (data || []) as Policy[];
     },
   });
 

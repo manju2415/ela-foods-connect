@@ -33,6 +33,7 @@ const MLMSettings = () => {
     welcome_bonus: { amount: 50, is_withdrawable: false },
     max_withdrawable_referrals: { count: 10 },
     upline_commission: { master_amount: 50, founder_amount: 100, is_withdrawable: true },
+    founder_registration_commission: { enabled: false, percentage: 5 },
   });
 
   const { data: mlmSettings, isLoading } = useQuery({
@@ -364,6 +365,39 @@ const MLMSettings = () => {
                   receives the Master Commission amount. The founder at the top receives the Founder Commission. 
                   This continues until reaching a founder member (maximum 10 levels for safety).
                 </p>
+              </div>
+
+              {/* Founder Registration Commission */}
+              <div className="p-4 border rounded-lg bg-amber-500/10 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Founder Registration Fee Commission</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Founders receive a percentage of the registration fee when new members join their network
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.founder_registration_commission?.enabled as boolean || false}
+                    onCheckedChange={(checked) => updateSetting("founder_registration_commission", "enabled", checked)}
+                  />
+                </div>
+                
+                {settings.founder_registration_commission?.enabled && (
+                  <div className="space-y-2 pt-2 border-t">
+                    <Label>Commission Percentage (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={settings.founder_registration_commission?.percentage as number || 5}
+                      onChange={(e) => updateSetting("founder_registration_commission", "percentage", Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Percentage of the new member's registration fee credited to the founder
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
