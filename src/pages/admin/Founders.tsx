@@ -142,19 +142,39 @@ export default function Founders() {
     setIsSearching(false);
   };
 
-  // Add founder mutation
+  // Add founder mutation - adds founding_member role
   const addFounderMutation = useMutation({
     mutationFn: async (userId: string) => {
       if (founders.length >= 4) {
         throw new Error("Maximum 4 founders allowed");
       }
       
-      const { error } = await supabase
+      // Check if already has founding_member role
+      const { data: existingRole } = await supabase
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("role", "founding_member")
+        .maybeSingle();
+      
+      if (existingRole) {
+        throw new Error("User is already a founder");
+      }
+      
+      // Add founding_member role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({ user_id: userId, role: "founding_member" });
+      
+      if (roleError) throw roleError;
+      
+      // Update profile user_level to founder
+      const { error: profileError } = await supabase
         .from("profiles")
-        .update({ is_designated_founder: true } as any)
+        .update({ user_level: "founder" })
         .eq("id", userId);
       
-      if (error) throw error;
+      if (profileError) throw profileError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["designated-founders"] });
@@ -169,15 +189,25 @@ export default function Founders() {
     },
   });
 
-  // Remove founder mutation
+  // Remove founder mutation - removes founding_member role
   const removeFounderMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase
+      // Remove founding_member role
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId)
+        .eq("role", "founding_member");
+      
+      if (roleError) throw roleError;
+      
+      // Update profile user_level back to master
+      const { error: profileError } = await supabase
         .from("profiles")
-        .update({ is_designated_founder: false } as any)
+        .update({ user_level: "master" })
         .eq("id", userId);
       
-      if (error) throw error;
+      if (profileError) throw profileError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["designated-founders"] });
