@@ -55,7 +55,7 @@ interface Category {
   is_active: boolean;
   display_order: number;
   created_at: string;
-  returns_enabled?: boolean;
+  return_enabled?: boolean;
   return_window_days?: number;
   exchange_enabled?: boolean;
 }
@@ -67,7 +67,7 @@ interface CategoryFormData {
   parent_id: string;
   is_active: boolean;
   display_order: string;
-  returns_enabled: boolean;
+  return_enabled: boolean;
   return_window_days: string;
   exchange_enabled: boolean;
 }
@@ -79,7 +79,7 @@ const initialFormData: CategoryFormData = {
   parent_id: "",
   is_active: true,
   display_order: "0",
-  returns_enabled: true,
+  return_enabled: true,
   return_window_days: "7",
   exchange_enabled: true,
 };
@@ -137,7 +137,7 @@ export default function Categories() {
         is_active: data.is_active,
         display_order: parseInt(data.display_order) || 0,
         image_url: imageUrl,
-        returns_enabled: data.returns_enabled,
+        return_enabled: data.return_enabled,
         return_window_days: parseInt(data.return_window_days) || 7,
         exchange_enabled: data.exchange_enabled,
       });
@@ -171,7 +171,7 @@ export default function Categories() {
           is_active: data.is_active,
           display_order: parseInt(data.display_order) || 0,
           image_url: imageUrl,
-          returns_enabled: data.returns_enabled,
+          return_enabled: data.return_enabled,
           return_window_days: parseInt(data.return_window_days) || 7,
           exchange_enabled: data.exchange_enabled,
         })
@@ -222,7 +222,7 @@ export default function Categories() {
       parent_id: category.parent_id || "",
       is_active: category.is_active,
       display_order: category.display_order?.toString() || "0",
-      returns_enabled: category.returns_enabled !== false,
+      return_enabled: category.return_enabled !== false,
       return_window_days: (category.return_window_days || 7).toString(),
       exchange_enabled: category.exchange_enabled !== false,
     });
@@ -516,14 +516,14 @@ export default function Categories() {
                 
                 <div className="flex items-center gap-2">
                   <Switch
-                    id="returns_enabled"
-                    checked={formData.returns_enabled}
-                    onCheckedChange={(checked) => setFormData({ ...formData, returns_enabled: checked })}
+                    id="return_enabled"
+                    checked={formData.return_enabled}
+                    onCheckedChange={(checked) => setFormData({ ...formData, return_enabled: checked })}
                   />
-                  <Label htmlFor="returns_enabled">Allow Returns</Label>
+                  <Label htmlFor="return_enabled">Allow Returns</Label>
                 </div>
 
-                {formData.returns_enabled && (
+                {formData.return_enabled && (
                   <div className="space-y-2 pl-6">
                     <Label htmlFor="return_window_days">Return Window (days)</Label>
                     <Input

@@ -211,6 +211,7 @@ export type Database = {
           name: string
           parent_id: string | null
           return_enabled: boolean | null
+          return_window_days: number | null
           slug: string
           updated_at: string
         }
@@ -225,6 +226,7 @@ export type Database = {
           name: string
           parent_id?: string | null
           return_enabled?: boolean | null
+          return_window_days?: number | null
           slug: string
           updated_at?: string
         }
@@ -239,6 +241,7 @@ export type Database = {
           name?: string
           parent_id?: string | null
           return_enabled?: boolean | null
+          return_window_days?: number | null
           slug?: string
           updated_at?: string
         }
@@ -768,6 +771,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_active: boolean | null
+          is_designated_founder: boolean | null
           phone: string | null
           referral_count: number | null
           referred_by: string | null
@@ -786,6 +790,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_active?: boolean | null
+          is_designated_founder?: boolean | null
           phone?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -804,6 +809,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_designated_founder?: boolean | null
           phone?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -983,6 +989,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_policies: {
+        Row: {
+          content: string
+          id: string
+          is_active: boolean | null
+          policy_type: string
+          title: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          content?: string
+          id?: string
+          is_active?: boolean | null
+          policy_type: string
+          title: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          content?: string
+          id?: string
+          is_active?: boolean | null
+          policy_type?: string
+          title?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       testimonials: {
         Row: {
