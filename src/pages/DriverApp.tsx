@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useOfflineStorage } from "@/hooks/useOfflineStorage";
+import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
@@ -21,6 +22,9 @@ export default function DriverApp() {
   const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('driver');
   const { isOnline } = useOfflineStorage();
+  
+  // Set up app-specific manifest
+  useAppManifest('driver');
 
   useEffect(() => {
     if (!loading && !user) {
