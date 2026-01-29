@@ -33,7 +33,7 @@ const MLMSettings = () => {
     welcome_bonus: { amount: 50, is_withdrawable: false },
     max_withdrawable_referrals: { count: 10 },
     upline_commission: { master_amount: 50, founder_amount: 100, is_withdrawable: true },
-    founder_registration_commission: { enabled: false, percentage: 5 },
+    founder_purchase_commission: { enabled: false, percentage: 5 },
   });
 
   const { data: mlmSettings, isLoading } = useQuery({
@@ -358,47 +358,6 @@ const MLMSettings = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium mb-2">How Upline Commission Works</h4>
-                <p className="text-sm text-muted-foreground">
-                  When a new member registers, commission flows up the referral tree. Each master/associate in the chain 
-                  receives the Master Commission amount. The founder at the top receives the Founder Commission. 
-                  This continues until reaching a founder member (maximum 10 levels for safety).
-                </p>
-              </div>
-
-              {/* Founder Registration Commission */}
-              <div className="p-4 border rounded-lg bg-amber-500/10 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-medium">Founder Registration Fee Commission</h4>
-                    <p className="text-xs text-muted-foreground">
-                      Founders receive a percentage of the registration fee when new members join their network
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.founder_registration_commission?.enabled as boolean || false}
-                    onCheckedChange={(checked) => updateSetting("founder_registration_commission", "enabled", checked)}
-                  />
-                </div>
-                
-                {settings.founder_registration_commission?.enabled && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <Label>Commission Percentage (%)</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.5"
-                      value={settings.founder_registration_commission?.percentage as number || 5}
-                      onChange={(e) => updateSetting("founder_registration_commission", "percentage", Number(e.target.value))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Percentage of the new member's registration fee credited to the founder
-                    </p>
-                  </div>
-                )}
-              </div>
             </CardContent>
           </Card>
 
@@ -409,23 +368,56 @@ const MLMSettings = () => {
                 <Percent className="h-5 w-5" />
                 Purchase Commission
               </CardTitle>
-              <CardDescription>Commission earned by masters from associate purchases</CardDescription>
+              <CardDescription>Commission earned from associate/member purchases</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Commission Rate (%)</Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    value={settings.purchase_commission_rate?.percentage as number || 5}
-                    onChange={(e) => updateSetting("purchase_commission_rate", "percentage", Number(e.target.value))}
-                  />
+                <div className="space-y-4 p-4 border rounded-lg">
+                  <h4 className="font-medium">Master Commission</h4>
+                  <div className="space-y-2">
+                    <Label>Commission Rate (%)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.5"
+                      value={settings.purchase_commission_rate?.percentage as number || 5}
+                      onChange={(e) => updateSetting("purchase_commission_rate", "percentage", Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Percentage of purchase amount credited to master's wallet (purchase only)
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-4 border rounded-lg bg-primary/5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Founder Commission</h4>
+                    <Switch
+                      checked={settings.founder_purchase_commission?.enabled as boolean || false}
+                      onCheckedChange={(checked) => updateSetting("founder_purchase_commission", "enabled", checked)}
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Percentage of purchase amount credited to master's wallet (purchase only)
+                    Enable to give founders a commission from purchases made by members in their network
                   </p>
+                  
+                  {settings.founder_purchase_commission?.enabled && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <Label>Commission Rate (%)</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        value={settings.founder_purchase_commission?.percentage as number || 5}
+                        onChange={(e) => updateSetting("founder_purchase_commission", "percentage", Number(e.target.value))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Percentage of purchase amount credited to founder's wallet
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
