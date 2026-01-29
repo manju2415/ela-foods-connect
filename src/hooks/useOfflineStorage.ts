@@ -63,14 +63,25 @@ export function useOfflineStorage() {
   }, []);
 
   const countPendingItems = async (database: IDBDatabase) => {
-    const transaction = database.transaction(["offline_data"], "readonly");
-    const store = transaction.objectStore("offline_data");
-    const index = store.index("synced");
-    const request = index.count(IDBKeyRange.only(false));
-    
-    request.onsuccess = () => {
-      setPendingSync(request.result);
-    };
+    try {
+      const transaction = database.transaction(["offline_data"], "readonly");
+      const store = transaction.objectStore("offline_data");
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        // Filter items where synced is false (boolean keys don't work with IDBKeyRange)
+        const pendingItems = (request.result || []).filter((item: OfflineData) => item.synced === false);
+        setPendingSync(pendingItems.length);
+      };
+      
+      request.onerror = () => {
+        console.error("Failed to count pending items");
+        setPendingSync(0);
+      };
+    } catch (error) {
+      console.error("IndexedDB error in countPendingItems:", error);
+      setPendingSync(0);
+    }
   };
 
   // Save data for offline use
@@ -104,13 +115,21 @@ export function useOfflineStorage() {
     if (!db) return [];
 
     return new Promise((resolve, reject) => {
-      const transaction = db.transaction(["offline_data"], "readonly");
-      const store = transaction.objectStore("offline_data");
-      const index = store.index("synced");
-      const request = index.getAll(IDBKeyRange.only(false));
+      try {
+        const transaction = db.transaction(["offline_data"], "readonly");
+        const store = transaction.objectStore("offline_data");
+        const request = store.getAll();
 
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          // Filter items where synced is false (boolean keys don't work with IDBKeyRange)
+          const pendingItems = (request.result || []).filter((item: OfflineData) => item.synced === false);
+          resolve(pendingItems);
+        };
+        request.onerror = () => reject(request.error);
+      } catch (error) {
+        console.error("IndexedDB error in getPendingItems:", error);
+        resolve([]);
+      }
     });
   }, [db]);
 
