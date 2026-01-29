@@ -115,45 +115,24 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
   const handleNewUser = async (data: NewUserData) => {
     setIsSubmitting(true);
     try {
-      // Create new user account
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            full_name: data.fullName,
-          },
+      // Use edge function to create user with admin API (auto-confirmed)
+      const { data: result, error } = await supabase.functions.invoke('create-delivery-partner', {
+        body: {
+          email: data.email,
+          password: data.password,
+          fullName: data.fullName,
+          vehicleType: data.vehicleType,
+          vehicleNumber: data.vehicleNumber,
         },
       });
 
-      if (signUpError) throw signUpError;
-
-      if (!signUpData.user) {
-        toast.error("Failed to create user account");
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Wait briefly for the user profile to be created by trigger
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Add delivery partner role
-      await supabase
-        .from("user_roles")
-        .insert({ user_id: signUpData.user.id, role: "delivery_partner" });
-
-      // Create delivery partner record
-      const { error } = await supabase
-        .from("delivery_partners")
-        .insert({
-          user_id: signUpData.user.id,
-          vehicle_type: data.vehicleType || null,
-          vehicle_number: data.vehicleNumber || null,
-        });
-
       if (error) throw error;
+      if (result?.error) throw new Error(result.error);
 
-      toast.success("New user created and added as delivery partner!");
+      toast.success(
+        `Delivery partner created! Login: ${data.email} / ${data.password}`,
+        { duration: 10000 }
+      );
       queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
       onOpenChange(false);
       newUserForm.reset();
