@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
+import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWABadge } from "@/components/pwa/PWABadge";
@@ -18,6 +19,9 @@ export default function CustomerApp() {
   const navigate = useNavigate();
   const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('customer');
+  
+  // Set up app-specific manifest
+  useAppManifest('customer');
 
   useEffect(() => {
     // Customer app can work without login (for browsing)
