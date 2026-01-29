@@ -290,11 +290,13 @@ export default function DeliveryDashboard() {
 
           {/* Assignments Tabs */}
           <Tabs defaultValue="active">
-            <TabsList>
-              <TabsTrigger value="active">Active ({activeAssignments.length})</TabsTrigger>
-              <TabsTrigger value="completed">Completed ({completedAssignments.length})</TabsTrigger>
-              <TabsTrigger value="earnings">Earnings</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-4 px-4 pb-2">
+              <TabsList className="inline-flex w-max gap-1">
+                <TabsTrigger value="active" className="px-4">Active ({activeAssignments.length})</TabsTrigger>
+                <TabsTrigger value="completed" className="px-4">Completed ({completedAssignments.length})</TabsTrigger>
+                <TabsTrigger value="earnings" className="px-4">Earnings</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="active" className="space-y-4">
               {isLoading ? (

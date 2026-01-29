@@ -334,36 +334,38 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="overview" className="gap-2">
-              <User className="h-4 w-4 hidden sm:block" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2">
-              <Package className="h-4 w-4 hidden sm:block" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="network" className="gap-2">
-              <Gift className="h-4 w-4 hidden sm:block" />
-              Network
-            </TabsTrigger>
-            <TabsTrigger value="wishlist" className="gap-2">
-              <Heart className="h-4 w-4 hidden sm:block" />
-              Wishlist
-            </TabsTrigger>
-            <TabsTrigger value="addresses" className="gap-2">
-              <MapPin className="h-4 w-4 hidden sm:block" />
-              Addresses
-            </TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-2">
-              <Wallet className="h-4 w-4 hidden sm:block" />
-              Wallet
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
-              <Settings className="h-4 w-4 hidden sm:block" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 pb-2">
+            <TabsList className="inline-flex w-max gap-1">
+              <TabsTrigger value="overview" className="gap-2 px-3">
+                <User className="h-4 w-4 hidden sm:block" />
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="gap-2 px-3">
+                <Package className="h-4 w-4 hidden sm:block" />
+                Orders
+              </TabsTrigger>
+              <TabsTrigger value="network" className="gap-2 px-3">
+                <Gift className="h-4 w-4 hidden sm:block" />
+                Network
+              </TabsTrigger>
+              <TabsTrigger value="wishlist" className="gap-2 px-3">
+                <Heart className="h-4 w-4 hidden sm:block" />
+                Wishlist
+              </TabsTrigger>
+              <TabsTrigger value="addresses" className="gap-2 px-3">
+                <MapPin className="h-4 w-4 hidden sm:block" />
+                Addresses
+              </TabsTrigger>
+              <TabsTrigger value="wallet" className="gap-2 px-3">
+                <Wallet className="h-4 w-4 hidden sm:block" />
+                Wallet
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-2 px-3">
+                <Settings className="h-4 w-4 hidden sm:block" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
