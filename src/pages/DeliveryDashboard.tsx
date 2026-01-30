@@ -54,7 +54,11 @@ interface Assignment {
   };
 }
 
-export default function DeliveryDashboard() {
+interface DeliveryDashboardProps {
+  hideChrome?: boolean; // Hide Header/Footer when used in mobile app
+}
+
+export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashboardProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -223,9 +227,9 @@ export default function DeliveryDashboard() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Header />
+      {!hideChrome && <Header />}
       
-      <main className="flex-1 container mx-auto px-4 py-8">
+      <main className={`flex-1 container mx-auto px-4 ${hideChrome ? 'pt-4 pb-20' : 'py-8'}`}>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -378,7 +382,7 @@ export default function DeliveryDashboard() {
         </div>
       </main>
 
-      <Footer />
+      {!hideChrome && <Footer />}
 
       {/* Assignment Details Dialog */}
       <Dialog open={!!selectedAssignment} onOpenChange={() => setSelectedAssignment(null)}>
