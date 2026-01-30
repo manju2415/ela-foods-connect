@@ -4,8 +4,11 @@ const config: CapacitorConfig = {
   appId: 'app.lovable.aab01a9c384445a1bae56f4a0a52a33f.driver',
   appName: 'ELA Delivery',
   webDir: 'dist',
+  // For local development: replace YOUR_LOCAL_IP with your machine's IP (e.g., 192.168.1.100)
+  // Find it with: ipconfig (Windows) or ifconfig (Mac/Linux)
+  // Your phone must be on the same WiFi network
   server: {
-    url: 'https://aab01a9c-3844-45a1-bae5-6f4a0a52a33f.lovableproject.com/driver-app?forceHideBadge=true',
+    url: 'http://YOUR_LOCAL_IP:8080/driver-app',
     cleartext: true,
   },
   plugins: {
