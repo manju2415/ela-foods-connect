@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'ELA Delivery',
   webDir: 'dist',
   server: {
-    url: 'http://192.168.0.102:8080/driver-app',
+    url: 'https://aab01a9c-3844-45a1-bae5-6f4a0a52a33f.lovableproject.com/driver-app?forceHideBadge=true',
     cleartext: true,
   },
   plugins: {
