@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useMemo, useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,7 +41,16 @@ const Auth = () => {
   
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+
+  // Supports flows like: /auth?redirect=/driver-app
+  const redirectTo = useMemo(() => {
+    const redirectParam = new URLSearchParams(location.search).get("redirect")?.trim();
+    // Prevent open-redirects: only allow internal paths
+    if (redirectParam && redirectParam.startsWith("/")) return redirectParam;
+    return null;
+  }, [location.search]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -55,9 +64,9 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      navigate(redirectTo ?? "/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, redirectTo]);
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
@@ -92,7 +101,7 @@ const Auth = () => {
       });
     } else {
       toast({ title: "Welcome back!", description: "You have logged in successfully." });
-      navigate("/");
+      navigate(redirectTo ?? "/");
     }
   };
 
