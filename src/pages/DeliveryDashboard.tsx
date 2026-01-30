@@ -59,21 +59,28 @@ interface DeliveryDashboardProps {
 }
 
 export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashboardProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [partnerId, setPartnerId] = useState<string | null>(null);
+  const [isCheckingPartner, setIsCheckingPartner] = useState(true);
 
-  // Check if user is a delivery partner
+  // Check if user is a delivery partner - wait for auth to finish loading first
   useEffect(() => {
+    // Don't do anything until auth loading is complete
+    if (authLoading) return;
+    
     if (!user) {
-      navigate("/auth");
+      // Preserve the current path for redirect after login
+      const currentPath = window.location.pathname;
+      navigate(`/auth?redirect=${encodeURIComponent(currentPath)}`);
       return;
     }
 
     const checkPartner = async () => {
+      setIsCheckingPartner(true);
       const { data } = await supabase
         .from("delivery_partners")
         .select("id, is_available")
@@ -87,11 +94,12 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
       }
 
       setPartnerId(data.id);
-      setIsAvailable(data.is_available);
+      setIsAvailable(data.is_available ?? true);
+      setIsCheckingPartner(false);
     };
 
     checkPartner();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["delivery-assignments", partnerId],
@@ -217,10 +225,14 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     }
   };
 
-  if (!user || !partnerId) {
+  // Show loading state while auth is loading or partner check is in progress
+  if (authLoading || isCheckingPartner || !partnerId) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: hideChrome ? '#16a34a' : undefined }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4" />
+          {hideChrome && <p className="text-white/80 text-sm">Loading dashboard...</p>}
+        </div>
       </div>
     );
   }
