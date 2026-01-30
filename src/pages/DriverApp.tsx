@@ -29,7 +29,8 @@ export default function DriverApp() {
   useEffect(() => {
     // Wait for auth to finish loading before making any redirect decision
     if (!loading && !user) {
-      navigate("/auth?redirect=/driver-app");
+      // Redirect to auth with the driver-app as the return destination
+      navigate("/auth?redirect=/driver-app", { replace: true });
     }
   }, [user, loading, navigate]);
 
