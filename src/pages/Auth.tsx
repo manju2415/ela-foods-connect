@@ -62,11 +62,16 @@ const Auth = () => {
     defaultValues: { fullName: "", email: "", password: "", confirmPassword: "", referralCode: "" },
   });
 
+  // Only auto-redirect if user is already logged in when they land on this page
+  // This prevents the useEffect from racing with handleLogin's navigation
+  const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  
   useEffect(() => {
-    if (user) {
-      navigate(redirectTo ?? "/");
+    // If user is logged in and hasn't just attempted login (meaning they arrived already logged in)
+    if (user && !hasAttemptedLogin) {
+      navigate(redirectTo ?? "/dashboard", { replace: true });
     }
-  }, [user, navigate, redirectTo]);
+  }, [user, navigate, redirectTo, hasAttemptedLogin]);
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
@@ -88,10 +93,12 @@ const Auth = () => {
 
   const handleLogin = async (data: LoginFormData) => {
     setIsSubmitting(true);
+    setHasAttemptedLogin(true);
     const { error } = await signIn(data.email, data.password);
     setIsSubmitting(false);
 
     if (error) {
+      setHasAttemptedLogin(false);
       toast({
         title: "Login failed",
         description: error.message === "Invalid login credentials" 
@@ -101,7 +108,9 @@ const Auth = () => {
       });
     } else {
       toast({ title: "Welcome back!", description: "You have logged in successfully." });
-      navigate(redirectTo ?? "/");
+      // Navigate to the redirect URL or default to dashboard
+      const destination = redirectTo ?? "/dashboard";
+      navigate(destination, { replace: true });
     }
   };
 
