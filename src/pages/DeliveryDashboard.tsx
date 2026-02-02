@@ -59,13 +59,15 @@ interface DeliveryDashboardProps {
 }
 
 export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashboardProps) {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null);
   const [isAvailable, setIsAvailable] = useState(true);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [isCheckingPartner, setIsCheckingPartner] = useState(true);
+  const [partnerError, setPartnerError] = useState<string | null>(null);
+  const [partnerCheckKey, setPartnerCheckKey] = useState(0);
 
   // Check if user is a delivery partner - wait for auth to finish loading first
   useEffect(() => {
@@ -81,15 +83,28 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
     const checkPartner = async () => {
       setIsCheckingPartner(true);
-      const { data } = await supabase
+      setPartnerError(null);
+
+      const { data, error } = await supabase
         .from("delivery_partners")
         .select("id, is_available")
         .eq("user_id", user.id)
         .maybeSingle();
 
+      if (error) {
+        console.error("Error loading delivery partner record:", error);
+        setPartnerId(null);
+        setPartnerError("We couldn't load your delivery partner profile. Please check your connection and try again.");
+        setIsCheckingPartner(false);
+        return;
+      }
+
       if (!data) {
-        toast.error("You are not registered as a delivery partner");
-        navigate("/dashboard");
+        // IMPORTANT: Don't bounce the user into the customer dashboard.
+        // In the driver app, keep them here and show a clear explanation.
+        setPartnerId(null);
+        setPartnerError("This account is not registered as a delivery partner.");
+        setIsCheckingPartner(false);
         return;
       }
 
@@ -99,7 +114,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     };
 
     checkPartner();
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, partnerCheckKey]);
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["delivery-assignments", partnerId],
@@ -226,13 +241,50 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
   };
 
   // Show loading state while auth is loading or partner check is in progress
-  if (authLoading || isCheckingPartner || !partnerId) {
+  if (authLoading || isCheckingPartner) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: hideChrome ? '#16a34a' : undefined }}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4" />
           {hideChrome && <p className="text-white/80 text-sm">Loading dashboard...</p>}
         </div>
+      </div>
+    );
+  }
+
+  // If auth is resolved but user is missing, DriverApp / this page will redirect to /auth.
+  if (!user) return null;
+
+  // Auth is ready, partner check finished, but we couldn't resolve a delivery partner.
+  if (!partnerId) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        {!hideChrome && <Header />}
+        <main className={`flex-1 container mx-auto px-4 ${hideChrome ? 'pt-4 pb-20' : 'py-8'}`}>
+          <Card className="max-w-lg mx-auto">
+            <CardHeader>
+              <CardTitle>Unable to open Driver Dashboard</CardTitle>
+              <CardDescription>
+                {partnerError ?? "We couldn't verify your delivery partner access."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={() => setPartnerCheckKey((k) => k + 1)}>
+                Retry
+              </Button>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await signOut();
+                  navigate("/auth?redirect=/driver-app", { replace: true });
+                }}
+              >
+                Sign in with another account
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+        {!hideChrome && <Footer />}
       </div>
     );
   }
