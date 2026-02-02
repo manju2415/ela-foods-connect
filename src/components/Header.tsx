@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, User, Menu, X, Search, LogOut, Shield, Truck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,7 @@ const Header = () => {
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -54,6 +55,13 @@ const Header = () => {
     await signOut();
     navigate("/");
   };
+
+  // When a delivery partner is logged in (especially inside the driver app),
+  // the primary "Dashboard" action should take them to the driver dashboard.
+  // We still keep access to the customer dashboard as a separate entry.
+  const driverDashboardPath = "/driver-app";
+  const customerDashboardPath = "/dashboard";
+  const dashboardPath = isDeliveryPartner ? driverDashboardPath : customerDashboardPath;
 
   return (
     <>
@@ -124,16 +132,21 @@ const Header = () => {
                     )}
                     {isDeliveryPartner && (
                       <>
-                        <DropdownMenuItem onClick={() => navigate("/delivery")}>
+                        <DropdownMenuItem onClick={() => navigate(driverDashboardPath)}>
                           <Truck className="h-4 w-4 mr-2" />
                           Delivery Dashboard
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>
                     )}
-                    <DropdownMenuItem onClick={() => navigate("/dashboard")}>
+                    <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
                       Dashboard
                     </DropdownMenuItem>
+                    {isDeliveryPartner && (
+                      <DropdownMenuItem onClick={() => navigate(customerDashboardPath)}>
+                        Customer Dashboard
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
                       My Orders
                     </DropdownMenuItem>
@@ -193,7 +206,7 @@ const Header = () => {
                 <div className="flex gap-3 pt-4 border-t border-border">
                   {user ? (
                     <>
-                      <Button variant="outline" className="flex-1" onClick={() => navigate("/dashboard")}>
+                      <Button variant="outline" className="flex-1" onClick={() => navigate(dashboardPath)}>
                         Dashboard
                       </Button>
                       <Button variant="destructive" className="flex-1" onClick={handleSignOut}>
