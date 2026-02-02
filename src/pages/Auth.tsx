@@ -94,7 +94,13 @@ const Auth = () => {
   const handleLogin = async (data: LoginFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
-    const { error } = await signIn(data.email, data.password);
+    
+    // Call supabase directly to get the user data for redirect logic
+    const { error, data: authData } = await supabase.auth.signInWithPassword({
+      email: data.email,
+      password: data.password,
+    });
+    
     setIsSubmitting(false);
 
     if (error) {
@@ -108,9 +114,29 @@ const Auth = () => {
       });
     } else {
       toast({ title: "Welcome back!", description: "You have logged in successfully." });
-      // Navigate to the redirect URL or default to dashboard
-      const destination = redirectTo ?? "/dashboard";
-      navigate(destination, { replace: true });
+      
+      // If there's a specific redirect, use it
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+      
+      // Otherwise, check if user is a delivery partner and redirect accordingly
+      if (authData?.user?.id) {
+        const { data: partnerData } = await supabase
+          .from("delivery_partners")
+          .select("id")
+          .eq("user_id", authData.user.id)
+          .maybeSingle();
+        
+        if (partnerData) {
+          navigate("/driver-app", { replace: true });
+          return;
+        }
+      }
+      
+      // Default to dashboard for regular users
+      navigate("/dashboard", { replace: true });
     }
   };
 
