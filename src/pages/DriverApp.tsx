@@ -34,12 +34,15 @@ export default function DriverApp() {
     }
   }, [user, loading, navigate]);
 
-  // Request push notification permission on first load
+  // Request push notification permission after dashboard loads (delayed to prevent crash)
   useEffect(() => {
-    if (isSupported && permissionStatus === 'prompt' && user) {
-      requestPermission();
+    if (!loading && user && isSupported && permissionStatus === 'prompt') {
+      const timer = setTimeout(() => {
+        requestPermission();
+      }, 2000); // Wait 2 seconds after dashboard loads
+      return () => clearTimeout(timer);
     }
-  }, [isSupported, permissionStatus, user, requestPermission]);
+  }, [loading, user, isSupported, permissionStatus, requestPermission]);
 
   // Hide splash screen when app is ready
   useEffect(() => {
