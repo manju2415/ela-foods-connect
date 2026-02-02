@@ -29,12 +29,20 @@ export default function MemberApp() {
     }
   }, [user, loading, navigate]);
 
-  // Request push notification permission after dashboard loads (delayed to prevent crash)
+  // Request push notification permission after dashboard is fully loaded and functional
   useEffect(() => {
     if (!loading && user && isSupported && permissionStatus === 'prompt') {
-      const timer = setTimeout(() => {
-        requestPermission();
-      }, 2000);
+      const scheduleRegistration = () => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(() => {
+            setTimeout(() => requestPermission(), 1000);
+          }, { timeout: 5000 });
+        } else {
+          setTimeout(() => requestPermission(), 3000);
+        }
+      };
+      
+      const timer = setTimeout(scheduleRegistration, 1000);
       return () => clearTimeout(timer);
     }
   }, [loading, user, isSupported, permissionStatus, requestPermission]);
