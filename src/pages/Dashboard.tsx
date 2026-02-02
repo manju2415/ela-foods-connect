@@ -119,6 +119,7 @@ const Dashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [isFoundingMember, setIsFoundingMember] = useState(false);
+  const [isDeliveryPartner, setIsDeliveryPartner] = useState(false);
   const [referralStats, setReferralStats] = useState<ReferralStats>({ total_referrals: 0, total_earnings: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -176,12 +177,13 @@ const Dashboard = () => {
     setLoading(true);
     
     // Fetch profile, wallet, orders, referral codes, and founding member status in parallel
-    const [profileRes, walletRes, ordersRes, referralRes, foundingRes] = await Promise.all([
+    const [profileRes, walletRes, ordersRes, referralRes, foundingRes, partnerRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
       supabase.from("referral_codes").select("*").eq("user_id", user.id),
       supabase.rpc("is_founding_member", { _user_id: user.id }),
+      supabase.from("delivery_partners").select("id").eq("user_id", user.id).maybeSingle(),
     ]);
 
     if (profileRes.data) {
@@ -212,6 +214,7 @@ const Dashboard = () => {
     }
     
     setIsFoundingMember(!!foundingRes.data);
+    setIsDeliveryPartner(!!partnerRes.data);
 
     // Fetch referral stats for founding members
     if (foundingRes.data) {
@@ -319,7 +322,7 @@ const Dashboard = () => {
               Manage your account, orders, and wallet
             </p>
           </div>
-          {referralCodes.length > 0 && (
+          {referralCodes.length > 0 && !isDeliveryPartner && (
             <AddUserDialog 
               defaultReferralCode={referralCodes[0]?.code}
               onUserAdded={fetchData}
