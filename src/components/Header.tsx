@@ -133,12 +133,26 @@ const Header = () => {
                     <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
                       Dashboard
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
-                      My Orders
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
-                      Wallet
-                    </DropdownMenuItem>
+                    {!isDeliveryPartner && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
+                          My Orders
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
+                          Wallet
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isDeliveryPartner && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/driver-app/orders")}>
+                          My Deliveries
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/driver-app/earnings")}>
+                          Earnings
+                        </DropdownMenuItem>
+                      </>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                       <LogOut className="h-4 w-4 mr-2" />
