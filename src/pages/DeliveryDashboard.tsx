@@ -463,12 +463,12 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
       {!hideChrome && <Footer />}
 
       {/* Assignment Details Dialog */}
-      <Dialog open={!!selectedAssignment} onOpenChange={() => setSelectedAssignment(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Order {selectedAssignment?.order.order_number}</DialogTitle>
-          </DialogHeader>
-          {selectedAssignment && (
+      {selectedAssignment && (
+        <Dialog open onOpenChange={() => setSelectedAssignment(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Order {selectedAssignment.order.order_number}</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Status</span>
@@ -545,9 +545,9 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                 )}
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
