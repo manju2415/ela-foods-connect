@@ -34,12 +34,22 @@ export default function DriverApp() {
     }
   }, [user, loading, navigate]);
 
-  // Request push notification permission after dashboard loads (delayed to prevent crash)
+  // Request push notification permission after dashboard is fully loaded and functional
   useEffect(() => {
     if (!loading && user && isSupported && permissionStatus === 'prompt') {
-      const timer = setTimeout(() => {
-        requestPermission();
-      }, 2000); // Wait 2 seconds after dashboard loads
+      // Use requestIdleCallback to wait until browser is idle (dashboard fully rendered)
+      const scheduleRegistration = () => {
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(() => {
+            setTimeout(() => requestPermission(), 1000);
+          }, { timeout: 5000 });
+        } else {
+          // Fallback for browsers without requestIdleCallback
+          setTimeout(() => requestPermission(), 3000);
+        }
+      };
+      
+      const timer = setTimeout(scheduleRegistration, 1000);
       return () => clearTimeout(timer);
     }
   }, [loading, user, isSupported, permissionStatus, requestPermission]);
