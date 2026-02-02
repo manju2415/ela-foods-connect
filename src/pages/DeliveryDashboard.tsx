@@ -85,32 +85,39 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
       setIsCheckingPartner(true);
       setPartnerError(null);
 
-      const { data, error } = await supabase
-        .from("delivery_partners")
-        .select("id, is_available")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("delivery_partners")
+          .select("id, is_available")
+          .eq("user_id", user.id)
+          .maybeSingle();
 
-      if (error) {
-        console.error("Error loading delivery partner record:", error);
-        setPartnerId(null);
-        setPartnerError("We couldn't load your delivery partner profile. Please check your connection and try again.");
+        if (error) {
+          console.error("Error loading delivery partner record:", error);
+          setPartnerId(null);
+          setPartnerError("We couldn't load your delivery partner profile. Please check your connection and try again.");
+          setIsCheckingPartner(false);
+          return;
+        }
+
+        if (!data) {
+          // IMPORTANT: Don't bounce the user into the customer dashboard.
+          // In the driver app, keep them here and show a clear explanation.
+          setPartnerId(null);
+          setPartnerError("This account is not registered as a delivery partner.");
+          setIsCheckingPartner(false);
+          return;
+        }
+
+        setPartnerId(data.id);
+        setIsAvailable(data.is_available ?? true);
         setIsCheckingPartner(false);
-        return;
-      }
-
-      if (!data) {
-        // IMPORTANT: Don't bounce the user into the customer dashboard.
-        // In the driver app, keep them here and show a clear explanation.
+      } catch (err) {
+        console.error("Unexpected error checking partner:", err);
         setPartnerId(null);
-        setPartnerError("This account is not registered as a delivery partner.");
+        setPartnerError("An unexpected error occurred. Please try again.");
         setIsCheckingPartner(false);
-        return;
       }
-
-      setPartnerId(data.id);
-      setIsAvailable(data.is_available ?? true);
-      setIsCheckingPartner(false);
     };
 
     checkPartner();
@@ -121,38 +128,45 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     queryFn: async () => {
       if (!partnerId) return [];
 
-      const { data, error } = await supabase
-        .from("order_assignments")
-        .select(`
-          id,
-          order_id,
-          status,
-          assigned_at,
-          picked_up_at,
-          delivered_at
-        `)
-        .eq("delivery_partner_id", partnerId)
-        .order("assigned_at", { ascending: false });
+      try {
+        const { data, error } = await supabase
+          .from("order_assignments")
+          .select(`
+            id,
+            order_id,
+            status,
+            assigned_at,
+            picked_up_at,
+            delivered_at
+          `)
+          .eq("delivery_partner_id", partnerId)
+          .order("assigned_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Get order details
-      const orderIds = data.map(a => a.order_id);
-      const { data: orders } = await supabase
-        .from("orders")
-        .select("id, order_number, total_amount, shipping_address")
-        .in("id", orderIds);
+        // Get order details - handle empty orderIds
+        const orderIds = data?.map(a => a.order_id) || [];
+        if (orderIds.length === 0) return [];
+        
+        const { data: orders } = await supabase
+          .from("orders")
+          .select("id, order_number, total_amount, shipping_address")
+          .in("id", orderIds);
 
-      const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
+        const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
 
-      return data.map(assignment => ({
-        ...assignment,
-        order: ordersMap.get(assignment.order_id) || {
-          order_number: "N/A",
-          total_amount: 0,
-          shipping_address: {},
-        },
-      })) as Assignment[];
+        return data.map(assignment => ({
+          ...assignment,
+          order: ordersMap.get(assignment.order_id) || {
+            order_number: "N/A",
+            total_amount: 0,
+            shipping_address: {},
+          },
+        })) as Assignment[];
+      } catch (err) {
+        console.error("Error fetching assignments:", err);
+        return [];
+      }
     },
     enabled: !!partnerId,
   });
