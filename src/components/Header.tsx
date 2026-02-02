@@ -142,11 +142,6 @@ const Header = () => {
                     <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
                       Dashboard
                     </DropdownMenuItem>
-                    {isDeliveryPartner && (
-                      <DropdownMenuItem onClick={() => navigate(customerDashboardPath)}>
-                        Customer Dashboard
-                      </DropdownMenuItem>
-                    )}
                     <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
                       My Orders
                     </DropdownMenuItem>
