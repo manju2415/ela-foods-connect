@@ -66,7 +66,7 @@ interface OrderItem {
   total_price: number;
 }
 
-const ORDER_STATUSES: OrderStatus[] = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled"];
+const ORDER_STATUSES: OrderStatus[] = ["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered", "cancelled", "undelivered", "return_initiated", "return_in_transit", "returned"];
 const PAYMENT_STATUSES: PaymentStatus[] = ["pending", "completed", "failed", "refunded"];
 
 const statusColors: Record<OrderStatus, string> = {
@@ -77,6 +77,10 @@ const statusColors: Record<OrderStatus, string> = {
   out_for_delivery: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  undelivered: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  return_initiated: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  return_in_transit: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+  returned: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200",
 };
 
 const paymentColors: Record<PaymentStatus, string> = {
