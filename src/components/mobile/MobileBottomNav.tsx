@@ -42,8 +42,10 @@ interface MobileBottomNavProps {
   appType: AppType;
 }
 
-export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(
-  ({ appType }, ref) => {
+export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(function MobileBottomNav(
+  { appType },
+  ref
+) {
   const location = useLocation();
   const navigate = useNavigate();
   const navItems = getNavItems(appType);
@@ -63,25 +65,18 @@ export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.path);
-          
+
           return (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
-                active 
-                  ? "text-primary" 
-                  : "text-muted-foreground hover:text-foreground"
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
               <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-              <span className={cn(
-                "text-xs",
-                active && "font-medium"
-              )}>
-                {item.label}
-              </span>
+              <span className={cn("text-xs", active && "font-medium")}>{item.label}</span>
             </button>
           );
         })}
