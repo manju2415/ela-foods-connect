@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AddressManager from "@/components/AddressManager";
@@ -108,18 +109,18 @@ interface WishlistProduct {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
   const { addToCart } = useCart();
+  const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
   
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [isFoundingMember, setIsFoundingMember] = useState(false);
-  const [isDeliveryPartner, setIsDeliveryPartner] = useState(false);
   const [referralStats, setReferralStats] = useState<ReferralStats>({ total_referrals: 0, total_earnings: 0 });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -140,12 +141,27 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
+    if (authLoading || onboardingLoading) return;
+    
     if (!user) {
       navigate("/auth");
       return;
     }
+    
+    // Redirect based on onboarding status (delivery partners skip this)
+    if (!isDeliveryPartner && !isFullyOnboarded) {
+      if (!isProfileComplete) {
+        navigate("/complete-registration", { replace: true });
+        return;
+      }
+      if (!isPaymentComplete) {
+        navigate("/registration-payment", { replace: true });
+        return;
+      }
+    }
+    
     fetchData();
-  }, [user, navigate]);
+  }, [user, authLoading, onboardingLoading, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
 
   useEffect(() => {
     if (wishlistItems.length > 0) {
@@ -177,13 +193,12 @@ const Dashboard = () => {
     setLoading(true);
     
     // Fetch profile, wallet, orders, referral codes, and founding member status in parallel
-    const [profileRes, walletRes, ordersRes, referralRes, foundingRes, partnerRes] = await Promise.all([
+    const [profileRes, walletRes, ordersRes, referralRes, foundingRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
       supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle(),
       supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
       supabase.from("referral_codes").select("*").eq("user_id", user.id),
       supabase.rpc("is_founding_member", { _user_id: user.id }),
-      supabase.from("delivery_partners").select("id").eq("user_id", user.id).maybeSingle(),
     ]);
 
     if (profileRes.data) {
@@ -214,7 +229,6 @@ const Dashboard = () => {
     }
     
     setIsFoundingMember(!!foundingRes.data);
-    setIsDeliveryPartner(!!partnerRes.data);
 
     // Fetch referral stats for founding members
     if (foundingRes.data) {

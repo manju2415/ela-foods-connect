@@ -41,6 +41,7 @@ import Policies from "./pages/Policies";
 import AdminAdvertisements from "./pages/admin/Advertisements";
 import GuestCheckout from "./pages/GuestCheckout";
 import RegistrationPayment from "./pages/RegistrationPayment";
+import CompleteRegistration from "./pages/CompleteRegistration";
 import NotFound from "./pages/NotFound";
 import DriverApp from "./pages/DriverApp";
 import CustomerApp from "./pages/CustomerApp";
@@ -112,6 +113,7 @@ const App = () => (
                 <Route path="/admin/policies" element={<AdminPolicies />} />
                 <Route path="/policies" element={<Policies />} />
                 <Route path="/policies/:slug" element={<Policies />} />
+                <Route path="/complete-registration" element={<CompleteRegistration />} />
                 <Route path="/registration-payment" element={<RegistrationPayment />} />
                 {/* Mobile App Entry Points */}
                 <Route path="/mobile-apps" element={<MobileApps />} />
