@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Home, Package, User, Wallet, Truck, Users, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,7 +42,8 @@ interface MobileBottomNavProps {
   appType: AppType;
 }
 
-export function MobileBottomNav({ appType }: MobileBottomNavProps) {
+export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(
+  ({ appType }, ref) => {
   const location = useLocation();
   const navigate = useNavigate();
   const navItems = getNavItems(appType);
@@ -56,7 +58,7 @@ export function MobileBottomNav({ appType }: MobileBottomNavProps) {
   };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
+    <nav ref={ref} className="fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border safe-area-pb">
       <div className="flex items-center justify-around h-16">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -86,4 +88,5 @@ export function MobileBottomNav({ appType }: MobileBottomNavProps) {
       </div>
     </nav>
   );
-}
+});
+MobileBottomNav.displayName = "MobileBottomNav";
