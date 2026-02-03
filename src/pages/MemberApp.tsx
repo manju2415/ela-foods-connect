@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { PWABadge } from "@/components/pwa/PWABadge";
@@ -15,23 +16,44 @@ import Dashboard from "./Dashboard";
  * It provides access to referral network, wallet, and earnings tracking.
  */
 export default function MemberApp() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('member');
+  const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
   
   // Set up app-specific manifest
   useAppManifest('member');
 
+  const isLoading = authLoading || onboardingLoading;
+
   useEffect(() => {
-    if (!loading && !user) {
+    if (authLoading) return;
+    
+    if (!user) {
       navigate("/auth?redirect=/member-app");
+      return;
     }
-  }, [user, loading, navigate]);
+  }, [user, authLoading, navigate]);
+
+  // Redirect based on onboarding status (delivery partners skip this)
+  useEffect(() => {
+    if (isLoading || !user || isDeliveryPartner) return;
+    
+    if (!isProfileComplete) {
+      navigate("/complete-registration", { replace: true });
+      return;
+    }
+    
+    if (!isPaymentComplete) {
+      navigate("/registration-payment", { replace: true });
+      return;
+    }
+  }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, navigate]);
 
   // Request push notification permission after dashboard is fully loaded and functional
   useEffect(() => {
-    if (!loading && user && isSupported && permissionStatus === 'prompt') {
+    if (!isLoading && user && isFullyOnboarded && isSupported && permissionStatus === 'prompt') {
       const scheduleRegistration = () => {
         if ('requestIdleCallback' in window) {
           (window as any).requestIdleCallback(() => {
@@ -45,16 +67,16 @@ export default function MemberApp() {
       const timer = setTimeout(scheduleRegistration, 1000);
       return () => clearTimeout(timer);
     }
-  }, [loading, user, isSupported, permissionStatus, requestPermission]);
+  }, [isLoading, user, isFullyOnboarded, isSupported, permissionStatus, requestPermission]);
 
   // Hide splash screen when app is ready
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       hideSplash();
     }
-  }, [loading, hideSplash]);
+  }, [isLoading, hideSplash]);
 
-  if (loading) {
+  if (isLoading || !isFullyOnboarded) {
     return (
       <MobileAppLayout appType="member" hideNav>
         <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#7c3aed' }}>

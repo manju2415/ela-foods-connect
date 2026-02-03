@@ -1,0 +1,465 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, MapPin, Building2, User, Phone, CheckCircle2 } from "lucide-react";
+
+const registrationSchema = z.object({
+  full_name: z.string().trim().min(2, "Name must be at least 2 characters"),
+  phone: z.string().trim().min(10, "Enter a valid 10-digit phone number").max(15),
+  address_line1: z.string().trim().min(5, "Address is required"),
+  address_line2: z.string().optional(),
+  city: z.string().trim().min(2, "City is required"),
+  state: z.string().trim().min(2, "State is required"),
+  postal_code: z.string().trim().min(6, "Enter a valid 6-digit PIN code").max(6),
+  bank_name: z.string().trim().min(2, "Bank name is required"),
+  bank_account_number: z.string().trim().min(8, "Enter a valid account number"),
+  bank_ifsc: z.string().trim().min(11, "Enter a valid 11-character IFSC code").max(11),
+  bank_account_holder: z.string().trim().min(2, "Account holder name is required"),
+});
+
+type RegistrationFormData = z.infer<typeof registrationSchema>;
+
+const CompleteRegistration = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [profileComplete, setProfileComplete] = useState(false);
+
+  const form = useForm<RegistrationFormData>({
+    resolver: zodResolver(registrationSchema),
+    defaultValues: {
+      full_name: "",
+      phone: "",
+      address_line1: "",
+      address_line2: "",
+      city: "",
+      state: "",
+      postal_code: "",
+      bank_name: "",
+      bank_account_number: "",
+      bank_ifsc: "",
+      bank_account_holder: "",
+    },
+  });
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    checkProfileStatus();
+  }, [user, authLoading, navigate]);
+
+  const checkProfileStatus = async () => {
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, phone, bank_account_number, registration_fee_paid")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      // Check if profile is already complete
+      const hasPhone = !!profile.phone;
+      const hasBankDetails = !!profile.bank_account_number;
+      const hasPaid = (profile.registration_fee_paid || 0) > 0;
+
+      if (hasPhone && hasBankDetails) {
+        setProfileComplete(true);
+        // If profile is complete but payment pending, go to payment
+        if (!hasPaid) {
+          navigate("/registration-payment", { replace: true });
+        } else {
+          // Everything is complete, go to dashboard
+          navigate("/dashboard", { replace: true });
+        }
+        return;
+      }
+
+      // Pre-fill form with existing data
+      form.setValue("full_name", profile.full_name || "");
+    }
+
+    // Check for existing address
+    const { data: addresses } = await supabase
+      .from("addresses")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_default", true)
+      .maybeSingle();
+
+    if (addresses) {
+      form.setValue("address_line1", addresses.address_line1 || "");
+      form.setValue("address_line2", addresses.address_line2 || "");
+      form.setValue("city", addresses.city || "");
+      form.setValue("state", addresses.state || "");
+      form.setValue("postal_code", addresses.postal_code || "");
+      form.setValue("phone", addresses.phone || "");
+      form.setValue("full_name", addresses.full_name || form.getValues("full_name"));
+    }
+
+    setIsLoading(false);
+  };
+
+  const handleSubmit = async (data: RegistrationFormData) => {
+    if (!user) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // Update profile with phone and bank details
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({
+          full_name: data.full_name,
+          phone: data.phone,
+          bank_name: data.bank_name,
+          bank_account_number: data.bank_account_number,
+          bank_ifsc: data.bank_ifsc,
+          bank_account_holder: data.bank_account_holder,
+        })
+        .eq("id", user.id);
+
+      if (profileError) throw profileError;
+
+      // Check if default address exists
+      const { data: existingAddress } = await supabase
+        .from("addresses")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("is_default", true)
+        .maybeSingle();
+
+      if (existingAddress) {
+        // Update existing address
+        const { error: addressError } = await supabase
+          .from("addresses")
+          .update({
+            full_name: data.full_name,
+            phone: data.phone,
+            address_line1: data.address_line1,
+            address_line2: data.address_line2 || null,
+            city: data.city,
+            state: data.state,
+            postal_code: data.postal_code,
+          })
+          .eq("id", existingAddress.id);
+
+        if (addressError) throw addressError;
+      } else {
+        // Create new default address
+        const { error: addressError } = await supabase.from("addresses").insert({
+          user_id: user.id,
+          full_name: data.full_name,
+          phone: data.phone,
+          address_line1: data.address_line1,
+          address_line2: data.address_line2 || null,
+          city: data.city,
+          state: data.state,
+          postal_code: data.postal_code,
+          country: "India",
+          is_default: true,
+          label: "Home",
+        });
+
+        if (addressError) throw addressError;
+      }
+
+      toast({
+        title: "Registration details saved!",
+        description: "Now complete your payment to activate your membership.",
+      });
+
+      // Navigate to payment page
+      navigate("/registration-payment");
+    } catch (error) {
+      console.error("Registration error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save details. Please try again.",
+        variant: "destructive",
+      });
+    }
+
+    setIsSubmitting(false);
+  };
+
+  if (authLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-16 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (profileComplete) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-16">
+          <Card className="max-w-md mx-auto">
+            <CardContent className="pt-8 text-center">
+              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Profile Complete!</h2>
+              <p className="text-muted-foreground mb-6">Redirecting...</p>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-2">Complete Your Registration</h1>
+            <p className="text-muted-foreground">
+              Please provide your details to activate your ELA Foods membership
+            </p>
+          </div>
+
+          {/* Progress Steps */}
+          <div className="flex items-center justify-center mb-8">
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                1
+              </div>
+              <span className="ml-2 text-sm font-medium">Details</span>
+            </div>
+            <div className="w-12 h-0.5 bg-muted mx-2" />
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
+                2
+              </div>
+              <span className="ml-2 text-sm text-muted-foreground">Payment</span>
+            </div>
+            <div className="w-12 h-0.5 bg-muted mx-2" />
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm font-medium">
+                3
+              </div>
+              <span className="ml-2 text-sm text-muted-foreground">Dashboard</span>
+            </div>
+          </div>
+
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+            {/* Personal Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Personal Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name *</Label>
+                    <Input
+                      id="full_name"
+                      placeholder="Your full name"
+                      {...form.register("full_name")}
+                    />
+                    {form.formState.errors.full_name && (
+                      <p className="text-sm text-destructive">{form.formState.errors.full_name.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <div className="flex">
+                      <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                        +91
+                      </span>
+                      <Input
+                        id="phone"
+                        placeholder="9876543210"
+                        className="rounded-l-none"
+                        {...form.register("phone")}
+                      />
+                    </div>
+                    {form.formState.errors.phone && (
+                      <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Address Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5" />
+                  Delivery Address
+                </CardTitle>
+                <CardDescription>This will be your default delivery address</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address_line1">Address Line 1 *</Label>
+                  <Input
+                    id="address_line1"
+                    placeholder="House/Flat No., Building Name, Street"
+                    {...form.register("address_line1")}
+                  />
+                  {form.formState.errors.address_line1 && (
+                    <p className="text-sm text-destructive">{form.formState.errors.address_line1.message}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_line2">Address Line 2 (Optional)</Label>
+                  <Input
+                    id="address_line2"
+                    placeholder="Landmark, Area"
+                    {...form.register("address_line2")}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="city">City *</Label>
+                    <Input
+                      id="city"
+                      placeholder="City"
+                      {...form.register("city")}
+                    />
+                    {form.formState.errors.city && (
+                      <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="state">State *</Label>
+                    <Input
+                      id="state"
+                      placeholder="State"
+                      {...form.register("state")}
+                    />
+                    {form.formState.errors.state && (
+                      <p className="text-sm text-destructive">{form.formState.errors.state.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="postal_code">PIN Code *</Label>
+                    <Input
+                      id="postal_code"
+                      placeholder="6-digit PIN"
+                      maxLength={6}
+                      {...form.register("postal_code")}
+                    />
+                    {form.formState.errors.postal_code && (
+                      <p className="text-sm text-destructive">{form.formState.errors.postal_code.message}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bank Details */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Building2 className="h-5 w-5" />
+                  Bank Account Details
+                </CardTitle>
+                <CardDescription>Required for withdrawal of earnings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_name">Bank Name *</Label>
+                    <Input
+                      id="bank_name"
+                      placeholder="e.g., State Bank of India"
+                      {...form.register("bank_name")}
+                    />
+                    {form.formState.errors.bank_name && (
+                      <p className="text-sm text-destructive">{form.formState.errors.bank_name.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_ifsc">IFSC Code *</Label>
+                    <Input
+                      id="bank_ifsc"
+                      placeholder="e.g., SBIN0001234"
+                      maxLength={11}
+                      className="uppercase"
+                      {...form.register("bank_ifsc")}
+                    />
+                    {form.formState.errors.bank_ifsc && (
+                      <p className="text-sm text-destructive">{form.formState.errors.bank_ifsc.message}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_account_number">Account Number *</Label>
+                    <Input
+                      id="bank_account_number"
+                      placeholder="Account number"
+                      {...form.register("bank_account_number")}
+                    />
+                    {form.formState.errors.bank_account_number && (
+                      <p className="text-sm text-destructive">{form.formState.errors.bank_account_number.message}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bank_account_holder">Account Holder Name *</Label>
+                    <Input
+                      id="bank_account_holder"
+                      placeholder="Name as per bank records"
+                      {...form.register("bank_account_holder")}
+                    />
+                    {form.formState.errors.bank_account_holder && (
+                      <p className="text-sm text-destructive">{form.formState.errors.bank_account_holder.message}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Continue to Payment"
+              )}
+            </Button>
+          </form>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default CompleteRegistration;

@@ -115,13 +115,7 @@ const Auth = () => {
     } else {
       toast({ title: "Welcome back!", description: "You have logged in successfully." });
       
-      // If there's a specific redirect, use it
-      if (redirectTo) {
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-      
-      // Otherwise, check if user is a delivery partner and redirect accordingly
+      // Check if user is a delivery partner first
       if (authData?.user?.id) {
         const { data: partnerData } = await supabase
           .from("delivery_partners")
@@ -130,12 +124,44 @@ const Auth = () => {
           .maybeSingle();
         
         if (partnerData) {
-          navigate("/driver-app", { replace: true });
+          // Delivery partners skip onboarding flow
+          navigate(redirectTo || "/driver-app", { replace: true });
           return;
+        }
+        
+        // Check onboarding status for regular members
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("phone, bank_account_number, registration_fee_paid")
+          .eq("id", authData.user.id)
+          .single();
+        
+        if (profile) {
+          const hasPhone = !!profile.phone;
+          const hasBankDetails = !!profile.bank_account_number;
+          const hasPaid = (profile.registration_fee_paid || 0) > 0;
+          
+          // If profile incomplete, go to complete registration
+          if (!hasPhone || !hasBankDetails) {
+            navigate("/complete-registration", { replace: true });
+            return;
+          }
+          
+          // If profile complete but payment pending
+          if (!hasPaid) {
+            navigate("/registration-payment", { replace: true });
+            return;
+          }
         }
       }
       
-      // Default to dashboard for regular users
+      // If there's a specific redirect and user is fully onboarded, use it
+      if (redirectTo) {
+        navigate(redirectTo, { replace: true });
+        return;
+      }
+      
+      // Default to dashboard for fully onboarded users
       navigate("/dashboard", { replace: true });
     }
   };
