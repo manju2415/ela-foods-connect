@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useOfflineStorage } from "@/hooks/useOfflineStorage";
 import { useAppManifest } from "@/hooks/useAppManifest";
@@ -19,7 +18,6 @@ import DeliveryDashboard from "./DeliveryDashboard";
 export default function DriverApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('driver');
   const { isOnline } = useOfflineStorage();
   
@@ -34,25 +32,9 @@ export default function DriverApp() {
     }
   }, [user, loading, navigate]);
 
-  // Request push notification permission after dashboard is fully loaded and functional
-  useEffect(() => {
-    if (!loading && user && isSupported && permissionStatus === 'prompt') {
-      // Use requestIdleCallback to wait until browser is idle (dashboard fully rendered)
-      const scheduleRegistration = () => {
-        if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(() => {
-            setTimeout(() => requestPermission(), 1000);
-          }, { timeout: 5000 });
-        } else {
-          // Fallback for browsers without requestIdleCallback
-          setTimeout(() => requestPermission(), 3000);
-        }
-      };
-      
-      const timer = setTimeout(scheduleRegistration, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, user, isSupported, permissionStatus, requestPermission]);
+  // NOTE: Push notifications are intentionally disabled for DriverApp right now.
+  // We were seeing Android WebView process exits during early PushNotifications initialization,
+  // which prevents the dashboard from loading at all.
 
   // Hide splash screen when app is ready
   useEffect(() => {
