@@ -6,10 +6,13 @@ import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useOfflineStorage } from "@/hooks/useOfflineStorage";
+import { useUndeliveryFlow } from "@/hooks/useUndeliveryFlow";
+import { UndeliveryDialog, type UndeliveryReason } from "@/components/delivery/UndeliveryDialog";
+import { ReturnConfirmDialog } from "@/components/delivery/ReturnConfirmDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, MapPin, Phone, Navigation, ChevronRight } from "lucide-react";
+import { Package, Clock, MapPin, Phone, Navigation, ChevronRight, AlertTriangle, RotateCcw, Warehouse } from "lucide-react";
 import { format } from "date-fns";
 import { maskPhoneNumber } from "@/utils/phoneMasking";
 import { toast } from "sonner";
@@ -19,9 +22,12 @@ interface Assignment {
   order_id: string;
   status: string;
   assigned_at: string;
+  undelivery_reason?: string;
   order: {
     order_number: string;
     total_amount: number;
+    is_cod?: boolean;
+    status?: string;
     shipping_address: {
       full_name?: string;
       phone?: string;
@@ -35,12 +41,17 @@ interface Assignment {
 
 export default function DriverOrdersPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const { isOnline, cacheAssignments, getCachedAssignments, saveOffline } = useOfflineStorage();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [partnerId, setPartnerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  
+  // Undelivery flow state
+  const [undeliveryDialogOpen, setUndeliveryDialogOpen] = useState(false);
+  const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
+  const [processingReturn, setProcessingReturn] = useState(false);
 
   const fetchAssignments = useCallback(async () => {
     if (!user) return;
@@ -60,18 +71,19 @@ export default function DriverOrdersPage() {
     setPartnerId(partner.id);
 
     if (isOnline) {
+      // Fetch active assignments (excluding completed deliveries and returns)
       const { data } = await supabase
         .from("order_assignments")
-        .select("id, order_id, status, assigned_at")
+        .select("id, order_id, status, assigned_at, undelivery_reason")
         .eq("delivery_partner_id", partner.id)
-        .neq("status", "delivered")
+        .not("status", "in", '("delivered","returned")')
         .order("assigned_at", { ascending: false });
 
       if (data) {
         const orderIds = data.map(a => a.order_id);
         const { data: orders } = await supabase
           .from("orders")
-          .select("id, order_number, total_amount, shipping_address")
+          .select("id, order_number, total_amount, shipping_address, is_cod, status")
           .in("id", orderIds);
 
         const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
@@ -105,6 +117,8 @@ export default function DriverOrdersPage() {
     onRefresh: fetchAssignments,
   });
 
+  const { markAsUndelivered, markReturnCompleted } = useUndeliveryFlow(partnerId, fetchAssignments);
+
   const updateStatus = async (assignment: Assignment, newStatus: string) => {
     const updates: any = { status: newStatus };
     if (newStatus === "picked_up") updates.picked_up_at = new Date().toISOString();
@@ -127,10 +141,34 @@ export default function DriverOrdersPage() {
         return;
       }
 
-      await supabase
-        .from("orders")
-        .update({ status: orderStatusMap[newStatus] })
-        .eq("id", assignment.order_id);
+      // Update order status
+      if (orderStatusMap[newStatus]) {
+        await supabase
+          .from("orders")
+          .update({ status: orderStatusMap[newStatus] })
+          .eq("id", assignment.order_id);
+
+        // Log status history (cast to any to handle types before regeneration)
+        await supabase.from("order_status_history").insert({
+          order_id: assignment.order_id,
+          previous_status: (assignment.order.status || "processing") as any,
+          new_status: orderStatusMap[newStatus] as any,
+          changed_by_type: "delivery_partner",
+          delivery_partner_id: partnerId,
+          notes: `Status updated to ${newStatus}`,
+        } as any);
+      }
+
+      // Handle COD collection on delivery
+      if (newStatus === "delivered" && assignment.order.is_cod) {
+        await supabase
+          .from("orders")
+          .update({ 
+            cod_collected: true,
+            cod_collected_at: new Date().toISOString()
+          })
+          .eq("id", assignment.order_id);
+      }
 
       toast.success("Status updated");
       fetchAssignments();
@@ -155,22 +193,59 @@ export default function DriverOrdersPage() {
     setSelectedId(null);
   };
 
-  const getStatusBadge = (status: string) => {
+  const handleUndeliveryConfirm = async (reason: UndeliveryReason, notes: string) => {
+    const selected = assignments.find(a => a.id === selectedId);
+    if (!selected) return;
+    
+    await markAsUndelivered(selected, reason, notes);
+    setUndeliveryDialogOpen(false);
+    setSelectedId(null);
+  };
+
+  const handleReturnConfirm = async () => {
+    const selected = assignments.find(a => a.id === selectedId);
+    if (!selected) return;
+    
+    setProcessingReturn(true);
+    await markReturnCompleted(selected);
+    setProcessingReturn(false);
+    setReturnConfirmOpen(false);
+    setSelectedId(null);
+  };
+
+  const getStatusBadge = (status: string, orderStatus?: string) => {
+    // Check if this is a return flow
+    if (orderStatus === "return_initiated" || orderStatus === "return_in_transit") {
+      return <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">Return Pending</Badge>;
+    }
+    
     switch (status) {
       case "assigned": return <Badge className="bg-blue-100 text-blue-800">Assigned</Badge>;
       case "picked_up": return <Badge className="bg-purple-100 text-purple-800">Picked Up</Badge>;
       case "out_for_delivery": return <Badge className="bg-cyan-100 text-cyan-800">Out for Delivery</Badge>;
+      case "undelivered": return <Badge className="bg-orange-100 text-orange-800">Undelivered</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
 
-  const getNextAction = (status: string) => {
+  const getNextAction = (status: string, orderStatus?: string) => {
+    // If order is in return flow
+    if (orderStatus === "return_initiated" || orderStatus === "return_in_transit") {
+      return { label: "Return to Warehouse", next: "return", icon: Warehouse };
+    }
+    
     switch (status) {
       case "assigned": return { label: "Pick Up", next: "picked_up" };
       case "picked_up": return { label: "Out for Delivery", next: "out_for_delivery" };
       case "out_for_delivery": return { label: "Delivered", next: "delivered" };
       default: return null;
     }
+  };
+
+  const isReturnFlow = (assignment: Assignment) => {
+    return assignment.order.status === "return_initiated" || 
+           assignment.order.status === "return_in_transit" ||
+           assignment.status === "undelivered";
   };
 
   const selected = assignments.find(a => a.id === selectedId);
@@ -218,14 +293,24 @@ export default function DriverOrdersPage() {
             assignments.map((assignment) => (
               <Card 
                 key={assignment.id}
-                className="cursor-pointer active:bg-muted/50 transition-colors"
+                className={`cursor-pointer active:bg-muted/50 transition-colors ${isReturnFlow(assignment) ? 'border-amber-300 dark:border-amber-700' : ''}`}
                 onClick={() => setSelectedId(assignment.id)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-semibold">{assignment.order.order_number}</p>
-                      {getStatusBadge(assignment.status)}
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{assignment.order.order_number}</p>
+                        {isReturnFlow(assignment) && (
+                          <RotateCcw className="h-4 w-4 text-amber-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        {getStatusBadge(assignment.status, assignment.order.status)}
+                        {assignment.order.is_cod && (
+                          <Badge variant="outline" className="text-xs">COD</Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="font-medium">₹{assignment.order.total_amount.toFixed(0)}</span>
@@ -260,11 +345,41 @@ export default function DriverOrdersPage() {
             
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-semibold text-lg">{selected.order.order_number}</h3>
-                {getStatusBadge(selected.status)}
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-lg">{selected.order.order_number}</h3>
+                  {isReturnFlow(selected) && (
+                    <Badge className="bg-amber-100 text-amber-800">
+                      <RotateCcw className="h-3 w-3 mr-1" />
+                      Return
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {getStatusBadge(selected.status, selected.order.status)}
+                  {selected.order.is_cod && (
+                    <Badge variant="outline" className="text-xs">COD ₹{selected.order.total_amount}</Badge>
+                  )}
+                </div>
               </div>
               <p className="text-xl font-bold">₹{selected.order.total_amount.toFixed(2)}</p>
             </div>
+
+            {/* Return flow info */}
+            {isReturnFlow(selected) && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+                <p className="text-sm text-amber-800 dark:text-amber-200 flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    This order could not be delivered. Please return the parcel to the warehouse.
+                    {selected.undelivery_reason && (
+                      <span className="block mt-1 text-xs opacity-80">
+                        Reason: {selected.undelivery_reason.replace(/_/g, " ")}
+                      </span>
+                    )}
+                  </span>
+                </p>
+              </div>
+            )}
 
             <div className="p-4 bg-muted rounded-lg mb-4 space-y-2">
               <p className="font-medium">{selected.order.shipping_address?.full_name}</p>
@@ -287,37 +402,87 @@ export default function DriverOrdersPage() {
               )}
             </div>
 
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => {
-                  const addr = selected.order.shipping_address;
-                  const query = encodeURIComponent(
-                    `${addr?.address_line1}, ${addr?.city}, ${addr?.state} ${addr?.postal_code}`
-                  );
-                  window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank");
-                }}
-              >
-                <Navigation className="h-4 w-4 mr-2" />
-                Navigate
-              </Button>
-              
-              {getNextAction(selected.status) && (
+            <div className="flex flex-col gap-2">
+              {/* Navigation button - always show for delivery, not for return */}
+              {!isReturnFlow(selected) && (
                 <Button
-                  className="flex-1"
+                  variant="outline"
+                  className="w-full"
                   onClick={() => {
-                    const action = getNextAction(selected.status);
-                    if (action) updateStatus(selected, action.next);
+                    const addr = selected.order.shipping_address;
+                    const query = encodeURIComponent(
+                      `${addr?.address_line1}, ${addr?.city}, ${addr?.state} ${addr?.postal_code}`
+                    );
+                    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank");
                   }}
                 >
-                  {getNextAction(selected.status)?.label}
+                  <Navigation className="h-4 w-4 mr-2" />
+                  Navigate
                 </Button>
               )}
+
+              {/* Main action buttons */}
+              <div className="flex gap-2">
+                {/* Unable to deliver button - only for out_for_delivery status */}
+                {selected.status === "out_for_delivery" && !isReturnFlow(selected) && (
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => setUndeliveryDialogOpen(true)}
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Unable to Deliver
+                  </Button>
+                )}
+                
+                {/* Return to warehouse button */}
+                {isReturnFlow(selected) && (
+                  <Button
+                    className="flex-1"
+                    onClick={() => setReturnConfirmOpen(true)}
+                  >
+                    <Warehouse className="h-4 w-4 mr-2" />
+                    Return to Warehouse
+                  </Button>
+                )}
+                
+                {/* Normal flow actions */}
+                {getNextAction(selected.status, selected.order.status) && !isReturnFlow(selected) && (
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      const action = getNextAction(selected.status, selected.order.status);
+                      if (action && action.next !== "return") {
+                        updateStatus(selected, action.next);
+                      }
+                    }}
+                  >
+                    {getNextAction(selected.status, selected.order.status)?.label}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Undelivery Dialog */}
+      <UndeliveryDialog
+        open={undeliveryDialogOpen}
+        onOpenChange={setUndeliveryDialogOpen}
+        orderNumber={selected?.order.order_number || ""}
+        isCOD={selected?.order.is_cod}
+        onConfirm={handleUndeliveryConfirm}
+      />
+
+      {/* Return Confirm Dialog */}
+      <ReturnConfirmDialog
+        open={returnConfirmOpen}
+        onOpenChange={setReturnConfirmOpen}
+        orderNumber={selected?.order.order_number || ""}
+        onConfirm={handleReturnConfirm}
+        isProcessing={processingReturn}
+      />
     </div>
   );
 }

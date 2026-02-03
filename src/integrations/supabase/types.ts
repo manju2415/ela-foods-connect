@@ -445,10 +445,15 @@ export type Database = {
           delivered_at: string | null
           delivery_partner_id: string
           id: string
+          is_return_assignment: boolean | null
           notes: string | null
           order_id: string
+          original_assignment_id: string | null
           picked_up_at: string | null
           status: string
+          undelivery_reason:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
           updated_at: string
         }
         Insert: {
@@ -457,10 +462,15 @@ export type Database = {
           delivered_at?: string | null
           delivery_partner_id: string
           id?: string
+          is_return_assignment?: boolean | null
           notes?: string | null
           order_id: string
+          original_assignment_id?: string | null
           picked_up_at?: string | null
           status?: string
+          undelivery_reason?:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -469,10 +479,15 @@ export type Database = {
           delivered_at?: string | null
           delivery_partner_id?: string
           id?: string
+          is_return_assignment?: boolean | null
           notes?: string | null
           order_id?: string
+          original_assignment_id?: string | null
           picked_up_at?: string | null
           status?: string
+          undelivery_reason?:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
           updated_at?: string
         }
         Relationships: [
@@ -488,6 +503,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: true
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assignments_original_assignment_id_fkey"
+            columns: ["original_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "order_assignments"
             referencedColumns: ["id"]
           },
         ]
@@ -540,12 +562,72 @@ export type Database = {
           },
         ]
       }
+      order_status_history: {
+        Row: {
+          changed_by: string | null
+          changed_by_type: string
+          created_at: string
+          delivery_partner_id: string | null
+          id: string
+          metadata: Json | null
+          new_status: Database["public"]["Enums"]["order_status"]
+          notes: string | null
+          order_id: string
+          previous_status: Database["public"]["Enums"]["order_status"] | null
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_type?: string
+          created_at?: string
+          delivery_partner_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status: Database["public"]["Enums"]["order_status"]
+          notes?: string | null
+          order_id: string
+          previous_status?: Database["public"]["Enums"]["order_status"] | null
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_type?: string
+          created_at?: string
+          delivery_partner_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_status?: Database["public"]["Enums"]["order_status"]
+          notes?: string | null
+          order_id?: string
+          previous_status?: Database["public"]["Enums"]["order_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_delivery_partner_id_fkey"
+            columns: ["delivery_partner_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
+          cod_amount: number | null
+          cod_collected: boolean | null
+          cod_collected_at: string | null
+          cod_settled: boolean | null
+          cod_settled_at: string | null
           coupon_code: string | null
           created_at: string
           discount_amount: number | null
           id: string
+          is_cod: boolean | null
           notes: string | null
           order_number: string
           payment_status: Database["public"]["Enums"]["payment_status"]
@@ -561,10 +643,16 @@ export type Database = {
           wallet_amount_used: number | null
         }
         Insert: {
+          cod_amount?: number | null
+          cod_collected?: boolean | null
+          cod_collected_at?: string | null
+          cod_settled?: boolean | null
+          cod_settled_at?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
           id?: string
+          is_cod?: boolean | null
           notes?: string | null
           order_number: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -580,10 +668,16 @@ export type Database = {
           wallet_amount_used?: number | null
         }
         Update: {
+          cod_amount?: number | null
+          cod_collected?: boolean | null
+          cod_collected_at?: string | null
+          cod_settled?: boolean | null
+          cod_settled_at?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
           id?: string
+          is_cod?: boolean | null
           notes?: string | null
           order_number?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -1073,6 +1167,76 @@ export type Database = {
           },
         ]
       }
+      undelivery_logs: {
+        Row: {
+          attempt_number: number
+          created_at: string
+          delivery_partner_id: string
+          id: string
+          order_assignment_id: string
+          order_id: string
+          reason: Database["public"]["Enums"]["undelivery_reason"]
+          reason_notes: string | null
+          return_completed_at: string | null
+          return_initiated_at: string | null
+          return_received_by: string | null
+          undelivered_at: string
+          updated_at: string
+        }
+        Insert: {
+          attempt_number?: number
+          created_at?: string
+          delivery_partner_id: string
+          id?: string
+          order_assignment_id: string
+          order_id: string
+          reason: Database["public"]["Enums"]["undelivery_reason"]
+          reason_notes?: string | null
+          return_completed_at?: string | null
+          return_initiated_at?: string | null
+          return_received_by?: string | null
+          undelivered_at?: string
+          updated_at?: string
+        }
+        Update: {
+          attempt_number?: number
+          created_at?: string
+          delivery_partner_id?: string
+          id?: string
+          order_assignment_id?: string
+          order_id?: string
+          reason?: Database["public"]["Enums"]["undelivery_reason"]
+          reason_notes?: string | null
+          return_completed_at?: string | null
+          return_initiated_at?: string | null
+          return_received_by?: string | null
+          undelivered_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "undelivery_logs_delivery_partner_id_fkey"
+            columns: ["delivery_partner_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "undelivery_logs_order_assignment_id_fkey"
+            columns: ["order_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "order_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "undelivery_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1391,7 +1555,20 @@ export type Database = {
         | "out_for_delivery"
         | "delivered"
         | "cancelled"
+        | "undelivered"
+        | "return_initiated"
+        | "return_in_transit"
+        | "returned"
       payment_status: "pending" | "completed" | "failed" | "refunded"
+      undelivery_reason:
+        | "customer_unavailable"
+        | "wrong_address"
+        | "customer_refused"
+        | "payment_issue"
+        | "incomplete_address"
+        | "area_inaccessible"
+        | "customer_rescheduled"
+        | "other"
       user_level: "founder" | "master" | "associate"
       wallet_transaction_type:
         | "credit"
@@ -1542,8 +1719,22 @@ export const Constants = {
         "out_for_delivery",
         "delivered",
         "cancelled",
+        "undelivered",
+        "return_initiated",
+        "return_in_transit",
+        "returned",
       ],
       payment_status: ["pending", "completed", "failed", "refunded"],
+      undelivery_reason: [
+        "customer_unavailable",
+        "wrong_address",
+        "customer_refused",
+        "payment_issue",
+        "incomplete_address",
+        "area_inaccessible",
+        "customer_rescheduled",
+        "other",
+      ],
       user_level: ["founder", "master", "associate"],
       wallet_transaction_type: [
         "credit",
