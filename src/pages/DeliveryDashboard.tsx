@@ -25,12 +25,16 @@ import {
   CheckCircle2,
   Truck,
   Navigation,
-  IndianRupee,
+  AlertTriangle,
+  Warehouse,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { maskPhoneNumber } from "@/utils/phoneMasking";
 import EarningsSummary from "@/components/delivery/EarningsSummary";
+import { UndeliveryDialog, type UndeliveryReason } from "@/components/delivery/UndeliveryDialog";
+import { ReturnConfirmDialog } from "@/components/delivery/ReturnConfirmDialog";
+import { useUndeliveryFlow } from "@/hooks/useUndeliveryFlow";
 
 interface Assignment {
   id: string;
@@ -42,6 +46,8 @@ interface Assignment {
   order: {
     order_number: string;
     total_amount: number;
+    is_cod?: boolean;
+    status?: string;
     shipping_address: {
       full_name?: string;
       phone?: string;
@@ -68,6 +74,16 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
   const [isCheckingPartner, setIsCheckingPartner] = useState(true);
   const [partnerError, setPartnerError] = useState<string | null>(null);
   const [partnerCheckKey, setPartnerCheckKey] = useState(0);
+  
+  // Undelivery flow state
+  const [undeliveryDialogOpen, setUndeliveryDialogOpen] = useState(false);
+  const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
+  const [processingReturn, setProcessingReturn] = useState(false);
+  
+  // Undelivery flow hook
+  const { markAsUndelivered, markReturnCompleted } = useUndeliveryFlow(partnerId, () => {
+    queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
+  });
 
   // Check if user is a delivery partner - wait for auth to finish loading first
   useEffect(() => {
@@ -150,7 +166,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
         
         const { data: orders } = await supabase
           .from("orders")
-          .select("id, order_number, total_amount, shipping_address")
+          .select("id, order_number, total_amount, shipping_address, is_cod, status")
           .in("id", orderIds);
 
         const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
@@ -232,8 +248,12 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     },
   });
 
-  const activeAssignments = assignments.filter(a => a.status !== "delivered");
-  const completedAssignments = assignments.filter(a => a.status === "delivered");
+  const activeAssignments = assignments.filter(a => 
+    a.status !== "delivered" && a.status !== "returned"
+  );
+  const completedAssignments = assignments.filter(a => 
+    a.status === "delivered" || a.status === "returned"
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -241,6 +261,10 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
       case "picked_up": return <Badge className="bg-purple-100 text-purple-800">Picked Up</Badge>;
       case "out_for_delivery": return <Badge className="bg-cyan-100 text-cyan-800">Out for Delivery</Badge>;
       case "delivered": return <Badge className="bg-green-100 text-green-800">Delivered</Badge>;
+      case "undelivered": return <Badge className="bg-amber-100 text-amber-800">Undelivered</Badge>;
+      case "return_initiated": return <Badge className="bg-orange-100 text-orange-800">Return Pending</Badge>;
+      case "return_in_transit": return <Badge className="bg-yellow-100 text-yellow-800">Returning</Badge>;
+      case "returned": return <Badge className="bg-slate-100 text-slate-800">Returned</Badge>;
       default: return <Badge variant="secondary">{status}</Badge>;
     }
   };
@@ -250,7 +274,32 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
       case "assigned": return { label: "Mark as Picked Up", nextStatus: "picked_up" };
       case "picked_up": return { label: "Out for Delivery", nextStatus: "out_for_delivery" };
       case "out_for_delivery": return { label: "Mark as Delivered", nextStatus: "delivered" };
+      case "return_initiated": 
+      case "undelivered": 
+        return { label: "Return to Warehouse", nextStatus: "return_in_transit" };
+      case "return_in_transit": return { label: "Confirm Return", nextStatus: "returned" };
       default: return null;
+    }
+  };
+  
+  // Handler for undelivery confirmation
+  const handleUndeliveryConfirm = async (reason: UndeliveryReason, notes: string) => {
+    if (!selectedAssignment) return;
+    await markAsUndelivered(selectedAssignment, reason, notes);
+    setUndeliveryDialogOpen(false);
+    setSelectedAssignment(null);
+  };
+  
+  // Handler for return confirmation
+  const handleReturnConfirm = async () => {
+    if (!selectedAssignment) return;
+    setProcessingReturn(true);
+    try {
+      await markReturnCompleted(selectedAssignment);
+      setReturnConfirmOpen(false);
+      setSelectedAssignment(null);
+    } finally {
+      setProcessingReturn(false);
     }
   };
 
@@ -508,11 +557,22 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                 <span className="text-muted-foreground">Order Amount</span>
                 <span className="text-xl font-bold">₹{Number(selectedAssignment.order.total_amount).toFixed(2)}</span>
               </div>
+              
+              {/* COD indicator */}
+              {selectedAssignment.order.is_cod && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <p className="text-sm text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                    <Package className="h-4 w-4" />
+                    COD Order - Collect ₹{Number(selectedAssignment.order.total_amount).toFixed(2)} on delivery
+                  </p>
+                </div>
+              )}
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
+                {/* Navigation button */}
                 <Button
                   variant="outline"
-                  className="flex-1"
+                  className="w-full"
                   onClick={() => {
                     const addr = selectedAssignment.order.shipping_address;
                     const query = encodeURIComponent(
@@ -525,28 +585,100 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                   Navigate
                 </Button>
                 
-                {getNextAction(selectedAssignment.status) && (
-                  <Button
-                    className="flex-1"
-                    onClick={() => {
-                      const action = getNextAction(selectedAssignment.status);
-                      if (action) {
+                {/* Action buttons row */}
+                <div className="flex gap-2">
+                  {/* Undelivered button - only show for out_for_delivery status */}
+                  {selectedAssignment.status === "out_for_delivery" && (
+                    <Button
+                      variant="outline"
+                      className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                      onClick={() => setUndeliveryDialogOpen(true)}
+                    >
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Undelivered
+                    </Button>
+                  )}
+                  
+                  {/* Return to warehouse button - for return_initiated or undelivered */}
+                  {(selectedAssignment.status === "return_initiated" || 
+                    selectedAssignment.status === "undelivered") && (
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
                         updateAssignmentStatus.mutate({
                           assignmentId: selectedAssignment.id,
-                          status: action.nextStatus,
+                          status: "return_in_transit",
                           orderId: selectedAssignment.order_id,
                         });
-                      }
-                    }}
-                    disabled={updateAssignmentStatus.isPending}
-                  >
-                    {updateAssignmentStatus.isPending ? "Updating..." : getNextAction(selectedAssignment.status)?.label}
-                  </Button>
-                )}
+                      }}
+                      disabled={updateAssignmentStatus.isPending}
+                    >
+                      <Truck className="h-4 w-4 mr-2" />
+                      {updateAssignmentStatus.isPending ? "Updating..." : "Return to Warehouse"}
+                    </Button>
+                  )}
+                  
+                  {/* Confirm return button */}
+                  {selectedAssignment.status === "return_in_transit" && (
+                    <Button
+                      className="flex-1"
+                      onClick={() => setReturnConfirmOpen(true)}
+                    >
+                      <Warehouse className="h-4 w-4 mr-2" />
+                      Confirm Return
+                    </Button>
+                  )}
+                  
+                  {/* Standard next action button */}
+                  {getNextAction(selectedAssignment.status) && 
+                   selectedAssignment.status !== "return_initiated" &&
+                   selectedAssignment.status !== "undelivered" &&
+                   selectedAssignment.status !== "return_in_transit" && (
+                    <Button
+                      className="flex-1"
+                      onClick={() => {
+                        const action = getNextAction(selectedAssignment.status);
+                        if (action) {
+                          updateAssignmentStatus.mutate({
+                            assignmentId: selectedAssignment.id,
+                            status: action.nextStatus,
+                            orderId: selectedAssignment.order_id,
+                          });
+                        }
+                      }}
+                      disabled={updateAssignmentStatus.isPending}
+                    >
+                      {updateAssignmentStatus.isPending ? "Updating..." : getNextAction(selectedAssignment.status)?.label}
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+      )}
+      
+      {/* Undelivery Dialog */}
+      {selectedAssignment && (
+        <UndeliveryDialog
+          open={undeliveryDialogOpen}
+          onOpenChange={setUndeliveryDialogOpen}
+          orderNumber={selectedAssignment.order.order_number}
+          isCOD={selectedAssignment.order.is_cod}
+          onConfirm={handleUndeliveryConfirm}
+        />
+      )}
+      
+      {/* Return Confirm Dialog */}
+      {selectedAssignment && (
+        <ReturnConfirmDialog
+          open={returnConfirmOpen}
+          onOpenChange={setReturnConfirmOpen}
+          orderNumber={selectedAssignment.order.order_number}
+          onConfirm={handleReturnConfirm}
+          isProcessing={processingReturn}
+        />
       )}
     </div>
   );
