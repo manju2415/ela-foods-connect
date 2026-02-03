@@ -27,100 +27,118 @@ export function useFCMPushNotifications() {
   useEffect(() => {
     // Check if running on native platform
     const platform = Capacitor.getPlatform();
-    setIsSupported(platform === 'ios' || platform === 'android');
+    const native = platform === 'ios' || platform === 'android';
+    // Extra guard: plugin might not be available in some builds
+    const pluginAvailable = (Capacitor as any).isPluginAvailable
+      ? (Capacitor as any).isPluginAvailable('PushNotifications')
+      : true;
+
+    setIsSupported(native && pluginAvailable);
   }, []);
 
   useEffect(() => {
     if (!isSupported || !user) return;
 
-    const setupPushNotifications = async () => {
+    // Register listeners first, but keep everything guarded so native plugin issues don't crash the app.
+    const listenerPromises: Array<Promise<{ remove: () => void }>> = [];
+
+    try {
+      // Registration success - token received
+      listenerPromises.push(
+        PushNotifications.addListener('registration', async (tokenData: Token) => {
+          console.log('[push] registration token received');
+          setToken(tokenData.value);
+
+          // Store token in database for later use
+          if (user) {
+            try {
+              await supabase
+                .from('profiles')
+                .update({
+                  push_token: tokenData.value,
+                  push_token_updated_at: new Date().toISOString(),
+                } as any)
+                .eq('id', user.id);
+
+              console.log('[push] token saved');
+            } catch (error) {
+              console.error('[push] error saving token:', error);
+            }
+          }
+        })
+      );
+
+      // Registration error
+      listenerPromises.push(
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('[push] registration error:', error);
+        })
+      );
+
+      // Notification received while app is open
+      listenerPromises.push(
+        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
+          console.log('[push] notification received');
+          setNotifications((prev) => [...prev, notification]);
+        })
+      );
+
+      // Notification tapped
+      listenerPromises.push(
+        PushNotifications.addListener('pushNotificationActionPerformed', (action: ActionPerformed) => {
+          console.log('[push] notification action performed');
+
+          const data = action.notification.data;
+          if (data?.type === 'new_delivery') {
+            window.location.href = '/driver-app';
+          } else if (data?.type === 'order_update') {
+            window.location.href = '/customer-app/orders';
+          } else if (data?.type === 'referral_bonus') {
+            window.location.href = '/member-app/wallet';
+          } else if (data?.orderId) {
+            window.location.href = `/dashboard`;
+          }
+        })
+      );
+    } catch (error) {
+      // Some native failures can throw synchronously here.
+      console.error('[push] listener setup failed:', error);
+    }
+
+    const checkPermissionsAndMaybeRegister = async () => {
       try {
-        // Check permissions
-        let permStatus = await PushNotifications.checkPermissions();
+        const permStatus = await PushNotifications.checkPermissions();
         setPermissionStatus(permStatus.receive);
-        
-        if (permStatus.receive === 'prompt') {
-          permStatus = await PushNotifications.requestPermissions();
-          setPermissionStatus(permStatus.receive);
-        }
 
-        if (permStatus.receive !== 'granted') {
-          console.log('Push notification permission not granted');
-          return;
-        }
+        // IMPORTANT: Do NOT request permission or register immediately on mount.
+        // We let the app (DriverApp/MemberApp/CustomerApp) request it after the UI is stable.
+        if (permStatus.receive !== 'granted') return;
 
-        // Register with FCM
-        await PushNotifications.register();
+        // If already granted, register once the browser is idle (reduces native startup crashes).
+        const registerLater = () => {
+          try {
+            PushNotifications.register();
+          } catch (e) {
+            console.error('[push] register threw synchronously:', e);
+          }
+        };
+
+        if ('requestIdleCallback' in window) {
+          (window as any).requestIdleCallback(() => setTimeout(registerLater, 500), { timeout: 5000 });
+        } else {
+          setTimeout(registerLater, 1500);
+        }
       } catch (error) {
-        console.error('Error setting up push notifications:', error);
+        console.error('[push] checkPermissions failed:', error);
       }
     };
 
-    // Registration success - token received
-    const registrationListener = PushNotifications.addListener('registration', async (tokenData: Token) => {
-      console.log('FCM Registration success, token:', tokenData.value);
-      setToken(tokenData.value);
-      
-      // Store token in database for later use
-      if (user) {
-        try {
-          // Store the FCM token in profiles table
-          await supabase
-            .from('profiles')
-            .update({ 
-              push_token: tokenData.value,
-              push_token_updated_at: new Date().toISOString()
-            } as any)
-            .eq('id', user.id);
-          
-          console.log('FCM token saved to database');
-        } catch (error) {
-          console.error('Error saving FCM token:', error);
-        }
-      }
-    });
-
-    // Registration error
-    const registrationErrorListener = PushNotifications.addListener('registrationError', (error) => {
-      console.error('FCM Registration error:', error);
-    });
-
-    // Notification received while app is open
-    const notificationReceivedListener = PushNotifications.addListener(
-      'pushNotificationReceived', 
-      (notification: PushNotificationSchema) => {
-        console.log('Push notification received:', notification);
-        setNotifications(prev => [...prev, notification]);
-      }
-    );
-
-    // Notification tapped
-    const notificationActionListener = PushNotifications.addListener(
-      'pushNotificationActionPerformed', 
-      (action: ActionPerformed) => {
-        console.log('Push notification action performed:', action);
-        
-        // Handle notification tap - navigate based on type
-        const data = action.notification.data;
-        if (data?.type === 'new_delivery') {
-          window.location.href = '/driver-app';
-        } else if (data?.type === 'order_update') {
-          window.location.href = '/customer-app/orders';
-        } else if (data?.type === 'referral_bonus') {
-          window.location.href = '/member-app/wallet';
-        } else if (data?.orderId) {
-          window.location.href = `/dashboard`;
-        }
-      }
-    );
-
-    setupPushNotifications();
+    checkPermissionsAndMaybeRegister();
 
     return () => {
-      registrationListener.then(l => l.remove());
-      registrationErrorListener.then(l => l.remove());
-      notificationReceivedListener.then(l => l.remove());
-      notificationActionListener.then(l => l.remove());
+      listenerPromises.forEach((p) => {
+        p.then((l) => l.remove()).catch(() => undefined);
+      });
     };
   }, [isSupported, user]);
 
