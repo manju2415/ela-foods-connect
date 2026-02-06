@@ -356,27 +356,53 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     <div className="min-h-screen flex flex-col bg-background">
       {!hideChrome && <Header />}
       
+      {/* Mobile app header with safe area padding for status bar */}
+      {hideChrome && (
+        <div className="bg-green-600 pt-[env(safe-area-inset-top,24px)] px-4 pb-4">
+          <h1 className="text-xl font-bold text-white">Delivery Dashboard</h1>
+          <p className="text-white/80 text-sm">Manage your assigned deliveries</p>
+        </div>
+      )}
+      
       <main className={`flex-1 container mx-auto px-4 ${hideChrome ? 'pt-4 pb-20' : 'py-8'}`}>
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Delivery Dashboard</h1>
-              <p className="text-muted-foreground">Manage your assigned deliveries</p>
+          {/* Header - only show when not in mobile app mode */}
+          {!hideChrome && (
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold">Delivery Dashboard</h1>
+                <p className="text-muted-foreground">Manage your assigned deliveries</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="availability"
+                    checked={isAvailable}
+                    onCheckedChange={(checked) => toggleAvailability.mutate(checked)}
+                  />
+                  <Label htmlFor="availability">
+                    {isAvailable ? "Available" : "Offline"}
+                  </Label>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-4">
+          )}
+          
+          {/* Availability toggle for mobile app mode */}
+          {hideChrome && (
+            <div className="flex items-center justify-end">
               <div className="flex items-center space-x-2">
                 <Switch
-                  id="availability"
+                  id="availability-mobile"
                   checked={isAvailable}
                   onCheckedChange={(checked) => toggleAvailability.mutate(checked)}
                 />
-                <Label htmlFor="availability">
+                <Label htmlFor="availability-mobile">
                   {isAvailable ? "Available" : "Offline"}
                 </Label>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
