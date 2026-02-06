@@ -35,11 +35,11 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
 
   const checkOnboardingStatus = async (uid: string) => {
     try {
-      // Check profile and delivery partner status in parallel
-      const [profileRes, partnerRes] = await Promise.all([
+      // Check profile, delivery partner, and founder status in parallel
+      const [profileRes, partnerRes, founderRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("phone, bank_account_number, registration_fee_paid")
+          .select("phone, bank_account_number, registration_fee_paid, user_level")
           .eq("id", uid)
           .single(),
         supabase
@@ -47,19 +47,26 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
           .select("id")
           .eq("user_id", uid)
           .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", uid)
+          .in("role", ["founding_member", "super_admin", "admin"])
+          .maybeSingle(),
       ]);
 
       const profile = profileRes.data;
       const isDeliveryPartner = !!partnerRes.data;
+      const isFounderOrAdmin = !!founderRes.data || profile?.user_level === "founder";
 
-      // Delivery partners skip onboarding flow
-      if (isDeliveryPartner) {
+      // Delivery partners and founders/admins skip onboarding flow
+      if (isDeliveryPartner || isFounderOrAdmin) {
         setStatus({
           isLoading: false,
           isProfileComplete: true,
           isPaymentComplete: true,
           isFullyOnboarded: true,
-          isDeliveryPartner: true,
+          isDeliveryPartner: isDeliveryPartner,
         });
         return;
       }
