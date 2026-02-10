@@ -129,30 +129,8 @@ const Auth = () => {
           return;
         }
         
-        // Check onboarding status for regular members
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("phone, bank_account_number, registration_fee_paid")
-          .eq("id", authData.user.id)
-          .single();
-        
-        if (profile) {
-          const hasPhone = !!profile.phone;
-          const hasBankDetails = !!profile.bank_account_number;
-          const hasPaid = (profile.registration_fee_paid || 0) > 0;
-          
-          // If profile incomplete, go to complete registration
-          if (!hasPhone || !hasBankDetails) {
-            navigate("/complete-registration", { replace: true });
-            return;
-          }
-          
-          // If profile complete but payment pending
-          if (!hasPaid) {
-            navigate("/registration-payment", { replace: true });
-            return;
-          }
-        }
+      // Normal users can proceed without completing registration
+      // Registration is optional - only needed to become a member
       }
       
       // If there's a specific redirect and user is fully onboarded, use it
@@ -180,10 +158,10 @@ const Auth = () => {
     } else {
       toast({ 
         title: "Account created!", 
-        description: "Complete your registration to unlock all member benefits." 
+        description: "Complete your registration to unlock member benefits and discounted prices." 
       });
-      // Redirect to registration payment instead of home
-      navigate("/registration-payment");
+      // Let the user browse; they can complete registration later from dashboard
+      navigate("/complete-registration");
     }
   };
 

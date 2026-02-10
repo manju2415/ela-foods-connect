@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -58,9 +59,13 @@ interface Coupon {
 
 const Checkout = () => {
   const { user } = useAuth();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice, memberTotalPrice, clearCart } = useCart();
+  const { isMember } = useUserRole();
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Use member price for members, MRP for normal users
+  const effectiveTotalPrice = isMember ? memberTotalPrice : totalPrice;
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
@@ -204,7 +209,7 @@ const Checkout = () => {
       return;
     }
 
-    if (data.min_order_amount && totalPrice < data.min_order_amount) {
+    if (data.min_order_amount && effectiveTotalPrice < data.min_order_amount) {
       setCouponError(`Minimum order amount is ₹${data.min_order_amount}`);
       setCouponLoading(false);
       return;
@@ -240,14 +245,14 @@ const Checkout = () => {
     if (!appliedCoupon) return 0;
     let discount = 0;
     if (appliedCoupon.discount_type === "percentage") {
-      discount = (totalPrice * appliedCoupon.discount_value) / 100;
+      discount = (effectiveTotalPrice * appliedCoupon.discount_value) / 100;
     } else {
       discount = appliedCoupon.discount_value;
     }
     if (appliedCoupon.max_discount_amount) {
       discount = Math.min(discount, appliedCoupon.max_discount_amount);
     }
-    return Math.min(discount, totalPrice);
+    return Math.min(discount, effectiveTotalPrice);
   };
 
   const handlePlaceOrder = async () => {
@@ -268,7 +273,7 @@ const Checkout = () => {
     const discountAmount = calculateDiscount();
     
     // Calculate wallet usage: purchase-only first, then withdrawable
-    const amountAfterDiscount = totalPrice - discountAmount;
+    const amountAfterDiscount = effectiveTotalPrice - discountAmount;
     const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
     const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
     const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
@@ -286,7 +291,7 @@ const Checkout = () => {
         order_number: orderNumber,
         status: "pending",
         payment_status: "pending",
-        subtotal: totalPrice,
+        subtotal: effectiveTotalPrice,
         shipping_amount: 0,
         discount_amount: discountAmount,
         wallet_amount_used: totalWalletUsed,
@@ -319,15 +324,20 @@ const Checkout = () => {
       return;
     }
 
-    // Create order items
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      product_name: item.product.name,
-      product_price: item.product.price,
-      quantity: item.quantity,
-      total_price: item.product.price * item.quantity,
-    }));
+    // Create order items with correct pricing based on member status
+    const orderItems = items.map((item) => {
+      const itemPrice = isMember 
+        ? (item.product.member_price || item.product.price) 
+        : item.product.price;
+      return {
+        order_id: order.id,
+        product_id: item.product_id,
+        product_name: item.product.name,
+        product_price: itemPrice,
+        quantity: item.quantity,
+        total_price: itemPrice * item.quantity,
+      };
+    });
 
     const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
 
@@ -374,7 +384,7 @@ const Checkout = () => {
   const totalWalletBalance = wallet.balance;
   
   // Calculate wallet usage for display: purchase-only first, then withdrawable
-  const amountAfterDiscount = totalPrice - discountAmount;
+  const amountAfterDiscount = effectiveTotalPrice - discountAmount;
   const purchaseOnlyUsed = useWallet ? Math.min(purchaseOnlyBalance, amountAfterDiscount) : 0;
   const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
   const withdrawableUsed = useWallet ? Math.min(withdrawableBalance, remainingAfterPurchaseOnly) : 0;
@@ -619,7 +629,7 @@ const Checkout = () => {
                         <p className="font-medium text-sm line-clamp-2">{item.product.name}</p>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                         <p className="text-sm font-semibold">
-                          ₹{(item.product.price * item.quantity).toFixed(2)}
+                          ₹{((isMember ? (item.product.member_price || item.product.price) : item.product.price) * item.quantity).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -632,7 +642,7 @@ const Checkout = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{totalPrice.toFixed(2)}</span>
+                    <span>₹{effectiveTotalPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Shipping</span>
