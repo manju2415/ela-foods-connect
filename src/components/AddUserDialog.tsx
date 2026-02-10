@@ -109,7 +109,11 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
 
     setIsSubmitting(true);
 
-    // Create user through edge function or direct signup
+    // Save the current session before signing up the new user
+    const { data: currentSessionData } = await supabase.auth.getSession();
+    const currentSession = currentSessionData?.session;
+
+    // Create user through direct signup
     const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
@@ -142,6 +146,14 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       } catch (err) {
         console.error("Error processing MLM referral:", err);
       }
+    }
+
+    // Restore the original user's session so the founder/member stays logged in
+    if (currentSession?.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: currentSession.access_token,
+        refresh_token: currentSession.refresh_token,
+      });
     }
 
     setIsSubmitting(false);
