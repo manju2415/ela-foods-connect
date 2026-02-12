@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { ShoppingCart, Heart } from "lucide-react";
+import { ShoppingCart, Heart, Zap } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -41,7 +41,7 @@ const ProductCard = ({
   gstPercentage,
   gstInclusive,
 }: ProductCardProps) => {
-  const { addToCart } = useCart();
+  const { addToCart, buyNow } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
   
@@ -98,6 +98,12 @@ const ProductCard = ({
     addToCart(id);
   };
 
+  const handleBuyNow = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    buyNow(id);
+  };
+
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -143,10 +149,14 @@ const ProductCard = ({
         </Button>
 
         {/* Quick Add Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-          <Button className="w-full gap-2" size="sm" onClick={handleAddToCart}>
+        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-2">
+          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart}>
             <ShoppingCart className="h-4 w-4" />
-            Add to Cart
+            Cart
+          </Button>
+          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow}>
+            <Zap className="h-4 w-4" />
+            Buy Now
           </Button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +27,7 @@ interface CartContextType {
   items: CartItem[];
   loading: boolean;
   addToCart: (productId: string, quantity?: number) => Promise<void>;
+  buyNow: (productId: string, quantity?: number) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -236,6 +238,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const navigate = useNavigate();
+
+  const buyNow = async (productId: string, quantity = 1) => {
+    await addToCart(productId, quantity);
+    if (user) {
+      navigate("/checkout");
+    } else {
+      navigate("/guest-checkout");
+    }
+  };
+
   const updateQuantity = async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
       await removeFromCart(itemId);
@@ -346,6 +359,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         items,
         loading,
         addToCart,
+        buyNow,
         updateQuantity,
         removeFromCart,
         clearCart,
