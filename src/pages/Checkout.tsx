@@ -94,7 +94,7 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate("/auth");
+      navigate("/auth?redirect=/checkout");
       return;
     }
     if (items.length === 0) {

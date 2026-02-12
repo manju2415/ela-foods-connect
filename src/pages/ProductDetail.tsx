@@ -22,7 +22,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 interface Product {
@@ -51,12 +51,13 @@ interface Category {
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { addToCart } = useCart();
+  const { addToCart, buyNow } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isBuyingNow, setIsBuyingNow] = useState(false);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],
@@ -115,6 +116,18 @@ export default function ProductDetail() {
       toast.error("Failed to add to cart");
     } finally {
       setIsAddingToCart(false);
+    }
+  };
+
+  const handleBuyNow = async () => {
+    if (!product) return;
+    setIsBuyingNow(true);
+    try {
+      await buyNow(product.id, quantity);
+    } catch {
+      toast.error("Failed to process. Please try again.");
+    } finally {
+      setIsBuyingNow(false);
     }
   };
 
@@ -355,6 +368,16 @@ export default function ProductDetail() {
                 >
                   <ShoppingCart className="mr-2 h-5 w-5" />
                   {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  onClick={handleBuyNow}
+                  disabled={isBuyingNow || product.stock_quantity === 0}
+                  className="flex-1"
+                >
+                  <Zap className="mr-2 h-5 w-5" />
+                  Buy Now
                 </Button>
                 <Button
                   size="lg"
