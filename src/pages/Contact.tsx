@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 const Contact = () => {
+  const { storeSettings } = useStoreSettings();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -111,75 +113,52 @@ const Contact = () => {
               <div className="space-y-6">
                 {/* Quick Contact */}
                 <Card className="border-none shadow-lg">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Phone className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">Call Us</h3>
-                        <a href="tel:+919148831300" className="text-primary hover:underline">
-                          +91 91 4883 1300
-                        </a>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Mail className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">Email Us</h3>
-                        <div className="space-y-1">
-                          <a href="mailto:info@elafoods.in" className="text-primary hover:underline block">
-                            info@elafoods.in
-                          </a>
-                          <a href="mailto:cs@elafoods.in" className="text-primary hover:underline block">
-                            cs@elafoods.in
+                  <CardContent className="pt-6 space-y-4">
+                    {storeSettings.store_phone && (
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                          <Phone className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground">Call Us</h3>
+                          <a href={`tel:${storeSettings.store_phone}`} className="text-primary hover:underline">
+                            {storeSettings.store_phone}
                           </a>
                         </div>
                       </div>
-                    </div>
+                    )}
+                    {storeSettings.store_email && (
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                          <Mail className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground">Email Us</h3>
+                          <a href={`mailto:${storeSettings.store_email}`} className="text-primary hover:underline block">
+                            {storeSettings.store_email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
-                {/* Locations */}
-                <Card className="border-none shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-primary" />
-                      Our Locations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div>
-                      <h4 className="font-semibold text-foreground mb-1">Unit 1</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Ela Foods and Snacks Pvt Ltd<br />
-                        No.162, Kashyapa, 4th Cross<br />
-                        Lakkappa Layout, Bangalore – 560097<br />
-                        <span className="text-xs">FSSAI – 11220302000676</span>
+                {/* Address */}
+                {storeSettings.store_address && (
+                  <Card className="border-none shadow-lg">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        Our Address
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line">
+                        {storeSettings.store_address}
                       </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground mb-1">Unit 2</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Ela Foods and Snacks Pvt Ltd<br />
-                        No. 127/2, Kalathammanahalli Village<br />
-                        Hesaraghatta Hobli, Bangalore – 560088<br />
-                        <span className="text-xs">FSSAI No. 11220302000676</span>
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground mb-1">Registered Office</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Ela Foods and Snacks Pvt Ltd<br />
-                        No.195, 196, 1st Cross<br />
-                        Singapura Garden, Abbiggere<br />
-                        Bangalore – 560090
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </div>
           </div>

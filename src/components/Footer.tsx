@@ -2,16 +2,19 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
+import { useStoreSettings } from "@/hooks/useStoreSettings";
 
 const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   ({ className, ...props }, ref) => {
+    const { storeSettings } = useStoreSettings();
+
     return (
       <footer ref={ref} className={`bg-foreground text-card ${className || ""}`} {...props}>
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* Brand */}
             <div className="space-y-4">
-              <img src={elaLogo} alt="ELA Foods" className="h-20 w-auto brightness-110" />
+              <img src={elaLogo} alt={storeSettings.store_name} className="h-20 w-auto brightness-110" />
               <p className="text-card/70 text-sm leading-relaxed">
                 Bringing the authentic taste of homemade snacks to your doorstep. 
                 Made with love, just like mother's touch.
@@ -67,25 +70,31 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div>
               <h4 className="font-semibold text-lg mb-4 text-secondary">Contact Us</h4>
               <ul className="space-y-3">
-                <li className="flex items-start gap-3 text-sm text-card/70">
-                  <MapPin className="h-5 w-5 shrink-0 text-secondary" />
-                  <span>123 Snack Street, Food City, FC 12345</span>
-                </li>
-                <li className="flex items-center gap-3 text-sm text-card/70">
-                  <Phone className="h-5 w-5 shrink-0 text-secondary" />
-                  <span>+91 98765 43210</span>
-                </li>
-                <li className="flex items-center gap-3 text-sm text-card/70">
-                  <Mail className="h-5 w-5 shrink-0 text-secondary" />
-                  <span>hello@elafoods.com</span>
-                </li>
+                {storeSettings.store_address && (
+                  <li className="flex items-start gap-3 text-sm text-card/70">
+                    <MapPin className="h-5 w-5 shrink-0 text-secondary" />
+                    <span>{storeSettings.store_address}</span>
+                  </li>
+                )}
+                {storeSettings.store_phone && (
+                  <li className="flex items-center gap-3 text-sm text-card/70">
+                    <Phone className="h-5 w-5 shrink-0 text-secondary" />
+                    <span>{storeSettings.store_phone}</span>
+                  </li>
+                )}
+                {storeSettings.store_email && (
+                  <li className="flex items-center gap-3 text-sm text-card/70">
+                    <Mail className="h-5 w-5 shrink-0 text-secondary" />
+                    <span>{storeSettings.store_email}</span>
+                  </li>
+                )}
               </ul>
             </div>
           </div>
 
           <div className="border-t border-card/20 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-card/60 text-sm">
-              © 2026 ELA Foods. All rights reserved.
+              © 2026 {storeSettings.store_name}. All rights reserved.
             </p>
             <div className="flex gap-6 text-sm flex-wrap">
               <Link to="/policies/return" className="text-card/60 hover:text-secondary transition-colors">
