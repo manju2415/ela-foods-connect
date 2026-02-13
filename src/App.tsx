@@ -121,6 +121,7 @@ function App() {
                       <Route path="/category/:slug/:subSlug" element={<CategoryPage />} />
                       <Route path="/product/:slug" element={<ProductDetail />} />
                       <Route path="/checkout" element={<Checkout />} />
+                      <Route path="/guest-checkout" element={<GuestCheckout />} />
                       <Route path="/about" element={<About />} />
                       <Route path="/contact" element={<Contact />} />
                       <Route path="/delivery" element={<DeliveryDashboard />} />
