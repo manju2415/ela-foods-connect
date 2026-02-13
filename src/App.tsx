@@ -105,12 +105,12 @@ function App() {
       <AppErrorBoundary>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <TooltipProvider>
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <CartProvider>
+                  <WishlistProvider>
                     <Routes>
                       <Route path="/" element={<Index />} />
                       <Route path="/auth" element={<Auth />} />
@@ -172,10 +172,10 @@ function App() {
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                  </BrowserRouter>
-                </TooltipProvider>
-              </WishlistProvider>
-            </CartProvider>
+                  </WishlistProvider>
+                </CartProvider>
+              </BrowserRouter>
+            </TooltipProvider>
           </AuthProvider>
         </ThemeProvider>
       </AppErrorBoundary>
