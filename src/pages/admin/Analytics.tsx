@@ -3,8 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,7 +23,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays } from "date-fns";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"];
 
@@ -34,14 +32,14 @@ export default function Analytics() {
     queryKey: ["admin-analytics"],
     queryFn: async () => {
       const today = new Date();
-      const last30Days = subDays(today, 30);
+      const last90Days = subDays(today, 90);
       const last7Days = subDays(today, 7);
 
       // Get orders for last 30 days
       const { data: orders } = await supabase
         .from("orders")
         .select("id, total_amount, status, created_at")
-        .gte("created_at", last30Days.toISOString())
+        .gte("created_at", last90Days.toISOString())
         .order("created_at", { ascending: true });
 
       // Get user count
@@ -184,7 +182,7 @@ export default function Analytics() {
           <Card>
             <CardHeader>
               <CardTitle>Revenue Trend</CardTitle>
-              <CardDescription>Daily revenue for the last 30 days</CardDescription>
+              <CardDescription>Daily revenue for the last 90 days</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-80">
