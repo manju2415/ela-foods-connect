@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,7 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
   const [checkingCode, setCheckingCode] = useState(false);
   const [editingCode, setEditingCode] = useState(false);
   const [selectedCode, setSelectedCode] = useState(defaultReferralCode || "");
+  const { suppressAuthChanges } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<SignupFormData>({
@@ -113,47 +115,56 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
     const { data: currentSessionData } = await supabase.auth.getSession();
     const currentSession = currentSessionData?.session;
 
-    // Create user through direct signup
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          full_name: data.fullName,
-          referral_code: data.referralCode.toUpperCase(),
+    // Suppress auth state changes so the current user isn't navigated away
+    suppressAuthChanges(true);
+
+    try {
+      // Create user through direct signup
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
+        options: {
+          data: {
+            full_name: data.fullName,
+            referral_code: data.referralCode.toUpperCase(),
+          },
         },
-      },
-    });
-
-    if (signUpError) {
-      setIsSubmitting(false);
-      toast({
-        title: "Registration failed",
-        description: signUpError.message,
-        variant: "destructive",
       });
-      return;
-    }
 
-    // Process MLM referral
-    if (signUpData.user) {
-      try {
-        await supabase.rpc("process_mlm_referral", {
-          p_referral_code: data.referralCode.toUpperCase(),
-          p_referred_user_id: signUpData.user.id,
-          p_registration_fee: 0,
+      if (signUpError) {
+        setIsSubmitting(false);
+        suppressAuthChanges(false);
+        toast({
+          title: "Registration failed",
+          description: signUpError.message,
+          variant: "destructive",
         });
-      } catch (err) {
-        console.error("Error processing MLM referral:", err);
+        return;
       }
-    }
 
-    // Restore the original user's session so the founder/member stays logged in
-    if (currentSession?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: currentSession.access_token,
-        refresh_token: currentSession.refresh_token,
-      });
+      // Process MLM referral
+      if (signUpData.user) {
+        try {
+          await supabase.rpc("process_mlm_referral", {
+            p_referral_code: data.referralCode.toUpperCase(),
+            p_referred_user_id: signUpData.user.id,
+            p_registration_fee: 0,
+          });
+        } catch (err) {
+          console.error("Error processing MLM referral:", err);
+        }
+      }
+
+      // Restore the original user's session so the founder/member stays logged in
+      if (currentSession?.refresh_token) {
+        await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
+      }
+    } finally {
+      // Re-enable auth state changes after session is restored
+      suppressAuthChanges(false);
     }
 
     setIsSubmitting(false);
