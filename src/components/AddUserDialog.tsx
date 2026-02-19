@@ -161,6 +161,8 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
           access_token: currentSession.access_token,
           refresh_token: currentSession.refresh_token,
         });
+        // Small delay to let session restoration propagate before re-enabling auth listener
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     } finally {
       // Re-enable auth state changes after session is restored

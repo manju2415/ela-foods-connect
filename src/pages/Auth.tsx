@@ -129,11 +129,42 @@ const Auth = () => {
           return;
         }
         
-      // Normal users can proceed without completing registration
-      // Registration is optional - only needed to become a member
+      }
+
+      // Check if user needs to complete onboarding (no phone or bank details)
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("phone, bank_account_number, registration_fee_paid, user_level")
+        .eq("id", authData.user.id)
+        .single();
+
+      // Check if user is a founder/admin (they skip onboarding)
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authData.user.id)
+        .in("role", ["founding_member", "super_admin", "admin"])
+        .maybeSingle();
+
+      const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
+      const hasPhone = !!profileData?.phone;
+      const hasBankDetails = !!profileData?.bank_account_number;
+      const isProfileComplete = hasPhone && hasBankDetails;
+      const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
+
+      // If not a founder/admin and profile is incomplete, send to registration
+      if (!isFounderOrAdmin && !isProfileComplete) {
+        navigate("/complete-registration", { replace: true });
+        return;
+      }
+
+      // If profile complete but payment pending, send to payment
+      if (!isFounderOrAdmin && isProfileComplete && !isPaymentComplete) {
+        navigate("/registration-payment", { replace: true });
+        return;
       }
       
-      // If there's a specific redirect and user is fully onboarded, use it
+      // If there's a specific redirect, use it
       if (redirectTo) {
         navigate(redirectTo, { replace: true });
         return;
