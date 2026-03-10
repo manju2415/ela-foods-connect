@@ -394,25 +394,45 @@ const CompleteRegistration = () => {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="city">City *</Label>
-                    <Input
-                      id="city"
-                      placeholder="City"
-                      {...form.register("city")}
-                    />
-                    {form.formState.errors.city && (
-                      <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>
+                    <Label htmlFor="state">State *</Label>
+                    <Select
+                      value={form.watch("state")}
+                      onValueChange={(value) => {
+                        form.setValue("state", value, { shouldValidate: true });
+                        form.setValue("city", "", { shouldValidate: false });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select State" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDIAN_STATES.map((state) => (
+                          <SelectItem key={state} value={state}>{state}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.state && (
+                      <p className="text-sm text-destructive">{form.formState.errors.state.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="state">State *</Label>
-                    <Input
-                      id="state"
-                      placeholder="State"
-                      {...form.register("state")}
-                    />
-                    {form.formState.errors.state && (
-                      <p className="text-sm text-destructive">{form.formState.errors.state.message}</p>
+                    <Label htmlFor="city">City *</Label>
+                    <Select
+                      value={form.watch("city")}
+                      onValueChange={(value) => form.setValue("city", value, { shouldValidate: true })}
+                      disabled={!form.watch("state")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={form.watch("state") ? "Select City" : "Select state first"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(INDIAN_CITIES[form.watch("state")] || []).map((city) => (
+                          <SelectItem key={city} value={city}>{city}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {form.formState.errors.city && (
+                      <p className="text-sm text-destructive">{form.formState.errors.city.message}</p>
                     )}
                   </div>
                   <div className="space-y-2">
