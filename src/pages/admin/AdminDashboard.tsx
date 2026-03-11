@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Ticket, Package, ShoppingCart } from "lucide-react";
+import { Package, ShoppingCart, FolderTree, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stats {
