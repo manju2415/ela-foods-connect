@@ -138,16 +138,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Store signup metadata for after OTP verification
     pendingSignupRef.current = { fullName, referralCode };
 
-    // Send OTP (signInWithOtp auto-creates user if not exists)
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: {
-        data: {
-          full_name: fullName,
-          referral_code: referralCode.toUpperCase(),
-        },
-      },
-    });
+    // Mock OTP send — real SMS gateway to be added later
+    console.log("[Auth] Mock OTP sent for signup to", phone);
+    const error = null;
 
     if (error) {
       pendingSignupRef.current = null;
