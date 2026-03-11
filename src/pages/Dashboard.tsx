@@ -148,8 +148,17 @@ const Dashboard = () => {
       return;
     }
     
-    // Normal users can access dashboard without completing registration
-    // Registration is optional - only needed to become a member with discounted prices
+    // Redirect users who haven't completed registration
+    if (!isFullyOnboarded && !isDeliveryPartner) {
+      if (!isProfileComplete) {
+        navigate("/complete-registration", { replace: true });
+        return;
+      }
+      if (!isPaymentComplete) {
+        navigate("/registration-payment", { replace: true });
+        return;
+      }
+    }
     
     fetchData();
   }, [user, authLoading, onboardingLoading, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
