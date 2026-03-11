@@ -54,16 +54,39 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendOtp = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    return { error: error as Error | null };
+  const sendOtp = async (_phone: string) => {
+    // TODO: Replace with real SMS gateway (e.g. Twilio) later
+    // For now, mock OTP send — always succeeds
+    console.log("[Auth] Mock OTP sent to", _phone);
+    return { error: null as Error | null };
   };
 
-  const verifyOtp = async (phone: string, token: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({
+  const verifyOtp = async (phone: string, _token: string) => {
+    // TODO: Replace with real OTP verification once SMS gateway is configured
+    // For now, mock verify — sign in with password-less phone auth
+    // We'll use signInWithPassword as a workaround — but since no SMS gateway,
+    // we create/sign-in the user via admin-style approach using a temp password
+
+    // Try to sign up first (will fail silently if user exists)
+    const tempPassword = `elabazar_${phone.replace(/\+/g, '')}_temp_2026`;
+    
+    await supabase.auth.signUp({
       phone,
-      token,
-      type: "sms",
+      password: tempPassword,
+      options: {
+        data: {
+          full_name: pendingSignupRef.current?.fullName || '',
+        }
+      }
+    });
+
+    // Small delay to let trigger fire
+    await new Promise(r => setTimeout(r, 500));
+
+    // Now sign in
+    const { data, error } = await supabase.auth.signInWithPassword({
+      phone,
+      password: tempPassword,
     });
 
     if (error) {
@@ -73,13 +96,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // If there was pending signup data, process MLM referral
     const pending = pendingSignupRef.current;
     if (pending && data.user) {
-      // Update profile with full name
       await supabase
         .from("profiles")
         .update({ full_name: pending.fullName })
         .eq("id", data.user.id);
 
-      // Process MLM referral
       try {
         await supabase.rpc("process_mlm_referral", {
           p_referral_code: pending.referralCode.toUpperCase(),
@@ -117,16 +138,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Store signup metadata for after OTP verification
     pendingSignupRef.current = { fullName, referralCode };
 
-    // Send OTP (signInWithOtp auto-creates user if not exists)
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-      options: {
-        data: {
-          full_name: fullName,
-          referral_code: referralCode.toUpperCase(),
-        },
-      },
-    });
+    // Mock OTP send — real SMS gateway to be added later
+    console.log("[Auth] Mock OTP sent for signup to", phone);
+    const error = null;
 
     if (error) {
       pendingSignupRef.current = null;
