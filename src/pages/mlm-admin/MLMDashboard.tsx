@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+import { MLMAdminLayout } from "@/components/mlm-admin/MLMAdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Ticket, Network, Banknote, Crown, Star, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";

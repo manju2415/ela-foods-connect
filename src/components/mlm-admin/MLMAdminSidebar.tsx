@@ -33,12 +33,12 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/mlm-admin", icon: LayoutDashboard },
   { title: "Network Analytics", url: "/mlm-admin/network-analytics", icon: BarChart3 },
-  { title: "Users", url: "/mlm-admin/users", icon: UserCog, superAdminOnly: true },
-  { title: "Founding Members", url: "/mlm-admin/founding-members", icon: Users, superAdminOnly: true },
-  { title: "Referral Codes", url: "/mlm-admin/referral-codes", icon: Ticket, superAdminOnly: true },
-  { title: "Founders", url: "/mlm-admin/founders", icon: Crown, superAdminOnly: true },
-  { title: "MLM Settings", url: "/mlm-admin/mlm-settings", icon: Network, superAdminOnly: true },
-  { title: "Withdrawals", url: "/mlm-admin/withdrawals", icon: Banknote, superAdminOnly: true },
+  { title: "Users", url: "/mlm-admin/users", icon: UserCog },
+  { title: "Founding Members", url: "/mlm-admin/founding-members", icon: Users },
+  { title: "Referral Codes", url: "/mlm-admin/referral-codes", icon: Ticket },
+  { title: "Founders", url: "/mlm-admin/founders", icon: Crown },
+  { title: "MLM Settings", url: "/mlm-admin/mlm-settings", icon: Network },
+  { title: "Withdrawals", url: "/mlm-admin/withdrawals", icon: Banknote },
 ];
 
 export function MLMAdminSidebar() {
