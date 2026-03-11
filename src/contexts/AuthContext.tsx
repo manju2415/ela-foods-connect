@@ -54,9 +54,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendOtp = async (phone: string) => {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    return { error: error as Error | null };
+  const sendOtp = async (_phone: string) => {
+    // TODO: Replace with real SMS gateway (e.g. Twilio) later
+    // For now, mock OTP send — always succeeds
+    console.log("[Auth] Mock OTP sent to", _phone);
+    return { error: null as Error | null };
   };
 
   const verifyOtp = async (phone: string, token: string) => {
