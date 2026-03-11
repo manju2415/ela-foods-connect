@@ -80,6 +80,9 @@ const Checkout = () => {
   const [couponError, setCouponError] = useState("");
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<Date | null>(null);
   const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState<string | null>(null);
+  const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
+  const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
+  const [pickupStores, setPickupStores] = useState<any[]>([]);
 
   const [newAddress, setNewAddress] = useState({
     full_name: "",
