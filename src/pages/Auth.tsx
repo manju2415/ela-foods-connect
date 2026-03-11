@@ -121,27 +121,95 @@ const Auth = () => {
     setCheckingCode(false);
   };
 
+  const handlePostVerifyRedirect = async (isNewUser: boolean) => {
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (!verifiedUser) return;
+
+    const { data: partnerData } = await supabase
+      .from("delivery_partners")
+      .select("id")
+      .eq("user_id", verifiedUser.id)
+      .maybeSingle();
+
+    if (partnerData) {
+      navigate(redirectTo || "/driver-app", { replace: true });
+      return;
+    }
+
+    if (isNewUser) {
+      navigate("/complete-registration");
+      return;
+    }
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("phone, bank_account_number, registration_fee_paid, user_level")
+      .eq("id", verifiedUser.id)
+      .single();
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", verifiedUser.id)
+      .in("role", ["founding_member", "super_admin", "admin"])
+      .maybeSingle();
+
+    const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
+    const hasBankDetails = !!profileData?.bank_account_number;
+    const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
+
+    if (!isFounderOrAdmin && !hasBankDetails) {
+      navigate("/complete-registration", { replace: true });
+      return;
+    }
+
+    if (!isFounderOrAdmin && hasBankDetails && !isPaymentComplete) {
+      navigate("/registration-payment", { replace: true });
+      return;
+    }
+
+    if (redirectTo) {
+      navigate(redirectTo, { replace: true });
+      return;
+    }
+
+    const dest = await resolveRoleRedirect(verifiedUser.id);
+    navigate(dest, { replace: true });
+  };
+
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await sendOtp(fullPhone);
-    setIsSubmitting(false);
 
     if (error) {
+      setIsSubmitting(false);
       setHasAttemptedLogin(false);
       toast({
         title: "Failed to send OTP",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
+      return;
     }
+
+    // Auto-verify with mock code (skip OTP screen)
+    const { error: verifyError, isNewUser } = await verifyOtp(fullPhone, "000000");
+    setIsSubmitting(false);
+
+    if (verifyError) {
+      toast({
+        title: "Login failed",
+        description: verifyError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
+    await handlePostVerifyRedirect(isNewUser || false);
   };
 
   const handleSendSignupOtp = async (data: SignupFormData) => {
@@ -154,20 +222,32 @@ const Auth = () => {
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await signUpWithOtp(fullPhone, data.fullName, data.referralCode);
-    setIsSubmitting(false);
 
     if (error) {
+      setIsSubmitting(false);
       toast({
         title: "Signup failed",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
+      return;
     }
+
+    // Auto-verify with mock code (skip OTP screen)
+    const { error: verifyError, isNewUser } = await verifyOtp(fullPhone, "000000");
+    setIsSubmitting(false);
+
+    if (verifyError) {
+      toast({
+        title: "Signup failed",
+        description: verifyError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Account created!", description: "You have logged in successfully." });
+    await handlePostVerifyRedirect(isNewUser || true);
   };
 
   const handleVerifyOtp = async () => {
