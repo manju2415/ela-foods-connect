@@ -62,30 +62,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const verifyOtp = async (phone: string, _token: string) => {
-    // TODO: Replace with real OTP verification once SMS gateway is configured
-    // For now, mock verify — sign in with password-less phone auth
-    // We'll use signInWithPassword as a workaround — but since no SMS gateway,
-    // we create/sign-in the user via admin-style approach using a temp password
+    // Mock OTP: use email-based auth behind the scenes since phone provider needs Twilio
+    // Generate a deterministic email from the phone number
+    const cleanPhone = phone.replace(/\+/g, '');
+    const mockEmail = `${cleanPhone}@elabazar.local`;
+    const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
 
     // Try to sign up first (will fail silently if user exists)
-    const tempPassword = `elabazar_${phone.replace(/\+/g, '')}_temp_2026`;
-    
-    await supabase.auth.signUp({
-      phone,
+    const { error: signUpError } = await supabase.auth.signUp({
+      email: mockEmail,
       password: tempPassword,
       options: {
         data: {
           full_name: pendingSignupRef.current?.fullName || '',
+          phone: phone,
         }
       }
     });
 
-    // Small delay to let trigger fire
+    // If signup failed for reason other than "user already exists", that's ok - we'll try sign in
+    if (signUpError && !signUpError.message.includes('already registered')) {
+      console.log("[Auth] Signup attempt:", signUpError.message);
+    }
+
+    // Small delay to let trigger fire for new users
     await new Promise(r => setTimeout(r, 500));
 
     // Now sign in
     const { data, error } = await supabase.auth.signInWithPassword({
-      phone,
+      email: mockEmail,
       password: tempPassword,
     });
 
@@ -93,12 +98,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: error as Error };
     }
 
-    // If there was pending signup data, process MLM referral
+    // If there was pending signup data, process MLM referral and update profile
     const pending = pendingSignupRef.current;
     if (pending && data.user) {
       await supabase
         .from("profiles")
-        .update({ full_name: pending.fullName })
+        .update({ full_name: pending.fullName, phone: phone })
         .eq("id", data.user.id);
 
       try {
@@ -113,6 +118,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       pendingSignupRef.current = null;
       return { error: null, isNewUser: true };
+    }
+
+    // Update phone on profile if not set
+    if (data.user) {
+      await supabase
+        .from("profiles")
+        .update({ phone: phone })
+        .eq("id", data.user.id);
     }
 
     return { error: null, isNewUser: false };
