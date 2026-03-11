@@ -17,6 +17,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
+  const LayoutOverride = useLayoutOverride();
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -66,7 +67,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     return null;
   }
 
-  const LayoutOverride = useLayoutOverride();
   if (LayoutOverride) {
     return <LayoutOverride>{children}</LayoutOverride>;
   }
