@@ -68,22 +68,6 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
             </Button>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground" />
-            <p className="text-muted-foreground text-center">
-              Your cart is empty
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-                navigate("/products");
-              }}
-            >
-              Continue Shopping
-            </Button>
-          </div>
-        ) : (
           <>
             <div className="flex-1 overflow-y-auto py-4 space-y-4">
               {items.map((item) => (
