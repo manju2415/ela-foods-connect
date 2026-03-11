@@ -154,6 +154,8 @@ function App() {
                       <Route path="/admin/founders" element={<AdminFounders />} />
                       <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                       <Route path="/admin/policies" element={<AdminPolicies />} />
+                      <Route path="/admin/stores" element={<AdminStores />} />
+                      <Route path="/admin/stores/:id/inventory" element={<AdminStoreInventory />} />
                       {/* MLM Admin Routes */}
                       <Route path="/mlm-login" element={<MLMLogin />} />
                       <Route path="/mlm-admin" element={<MLMDashboard />} />
