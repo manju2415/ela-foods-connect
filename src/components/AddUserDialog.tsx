@@ -3,7 +3,6 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,6 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
   const [checkingCode, setCheckingCode] = useState(false);
   const [editingCode, setEditingCode] = useState(false);
   const [selectedCode, setSelectedCode] = useState(defaultReferralCode || "");
-  const { suppressAuthChanges } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<SignupFormData>({
@@ -107,55 +105,51 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
 
     setIsSubmitting(true);
 
-    const currentSessionData = await supabase.auth.getSession();
-    const currentSession = currentSessionData.data?.session;
-
-    suppressAuthChanges(true);
-
     try {
-      const fullPhone = `+91${data.phone}`;
-      
-      // Use signInWithOtp to create/register the user via phone
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone: fullPhone,
-        options: {
-          data: {
-            full_name: data.fullName,
-            referral_code: data.referralCode.toUpperCase(),
-          },
+      const { data: result, error } = await supabase.functions.invoke("add-network-user", {
+        body: {
+          phone: data.phone,
+          full_name: data.fullName,
+          referral_code: data.referralCode.toUpperCase(),
         },
       });
 
-      if (otpError) {
-        setIsSubmitting(false);
-        suppressAuthChanges(false);
+      if (error) {
         toast({
-          title: "Registration failed",
-          description: otpError.message,
+          title: "Failed to add user",
+          description: "An error occurred. Please try again.",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
-      // Restore the original user's session
-      if (currentSession?.refresh_token) {
-        await supabase.auth.setSession({
-          access_token: currentSession.access_token,
-          refresh_token: currentSession.refresh_token,
+      if (result?.error) {
+        toast({
+          title: "Failed to add user",
+          description: result.error,
+          variant: "destructive",
         });
-        await new Promise(resolve => setTimeout(resolve, 500));
+        setIsSubmitting(false);
+        return;
       }
-    } finally {
-      suppressAuthChanges(false);
+
+      toast({
+        title: "User Added Successfully!",
+        description: `${data.fullName} can now login with +91 ${data.phone}. They will be directed to complete registration on first login.`,
+      });
+      setOpen(false);
+      onUserAdded?.();
+    } catch (err) {
+      console.error("Add user error:", err);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     }
 
     setIsSubmitting(false);
-    toast({
-      title: "OTP sent to user!",
-      description: `${data.fullName} will receive an OTP on +91 ${data.phone} to complete registration.`,
-    });
-    setOpen(false);
-    onUserAdded?.();
   };
 
   return (
@@ -170,9 +164,9 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Register New User</DialogTitle>
+          <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
-            Add a new user to your network. They will receive an OTP to verify their phone number.
+            Add a new user to your network. They can login with their mobile number and will be asked to complete registration.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -296,7 +290,7 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
               disabled={isSubmitting || referralCodeValid !== true}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Register User
+              Add User
             </Button>
           </div>
         </form>
