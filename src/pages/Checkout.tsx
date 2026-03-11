@@ -439,7 +439,68 @@ const Checkout = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Address & Payment */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Delivery Address */}
+            {/* Fulfillment Type Toggle */}
+            {pickupStores.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Store className="h-5 w-5" />
+                    Fulfillment Type
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup
+                    value={fulfillmentType}
+                    onValueChange={(v) => {
+                      setFulfillmentType(v as "delivery" | "store_pickup");
+                      if (v === "delivery") setPickupStoreId(null);
+                    }}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    <div className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${fulfillmentType === "delivery" ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <RadioGroupItem value="delivery" id="delivery" />
+                      <label htmlFor="delivery" className="cursor-pointer">
+                        <p className="font-medium">Home Delivery</p>
+                        <p className="text-sm text-muted-foreground">Delivered to your address</p>
+                      </label>
+                    </div>
+                    <div className={`flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${fulfillmentType === "store_pickup" ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <RadioGroupItem value="store_pickup" id="store_pickup" />
+                      <label htmlFor="store_pickup" className="cursor-pointer">
+                        <p className="font-medium">Store Pickup</p>
+                        <p className="text-sm text-muted-foreground">Pick up from a store</p>
+                      </label>
+                    </div>
+                  </RadioGroup>
+
+                  {fulfillmentType === "store_pickup" && (
+                    <div className="mt-4 space-y-3">
+                      <Label className="text-sm font-medium">Select Store</Label>
+                      <RadioGroup value={pickupStoreId || ""} onValueChange={setPickupStoreId}>
+                        {pickupStores.map((s: any) => (
+                          <div
+                            key={s.id}
+                            className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${pickupStoreId === s.id ? "border-primary bg-primary/5" : "border-border"}`}
+                          >
+                            <RadioGroupItem value={s.id} id={s.id} className="mt-1" />
+                            <label htmlFor={s.id} className="flex-1 cursor-pointer">
+                              <p className="font-semibold">{s.name}</p>
+                              <p className="text-sm text-muted-foreground">{s.address_line1}, {s.city}, {s.state}</p>
+                              {s.opening_time && s.closing_time && (
+                                <p className="text-xs text-muted-foreground mt-1">Hours: {s.opening_time.slice(0, 5)} - {s.closing_time.slice(0, 5)}</p>
+                              )}
+                            </label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Delivery Address - only shown for home delivery */}
+            {fulfillmentType === "delivery" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
