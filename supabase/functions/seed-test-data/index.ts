@@ -6,39 +6,44 @@ const corsHeaders = {
 };
 
 interface TestUser {
-  phone: string;
+  phone: string; // 10-digit Indian number (without +91)
   fullName: string;
   roles: string[];
+  isDeliveryPartner?: boolean;
   referralCode?: string;
+  userLevel?: string;
 }
 
 const TEST_USERS: TestUser[] = [
   {
-    phone: '+919999000001',
-    fullName: 'Super Admin User',
-    roles: ['super_admin', 'admin']
+    phone: '9999000001',
+    fullName: 'Super Admin',
+    roles: ['super_admin', 'admin', 'member'],
+    userLevel: 'founder',
   },
   {
-    phone: '+919999000002',
+    phone: '9999000002',
     fullName: 'Admin User',
-    roles: ['admin']
+    roles: ['admin', 'member'],
   },
   {
-    phone: '+919999000003',
-    fullName: 'Test Founding Member',
+    phone: '9999000003',
+    fullName: 'Founding Member',
     roles: ['founding_member', 'member'],
-    referralCode: 'ELAFOUND01'
+    referralCode: 'ELAFOUND01',
+    userLevel: 'founder',
   },
   {
-    phone: '+919999000004',
+    phone: '9999000004',
     fullName: 'Delivery Partner',
-    roles: ['delivery_partner', 'member']
+    roles: ['delivery_partner', 'member'],
+    isDeliveryPartner: true,
   },
   {
-    phone: '+919999000005',
-    fullName: 'Regular Member',
-    roles: ['member']
-  }
+    phone: '9999000005',
+    fullName: 'Regular Customer',
+    roles: ['member'],
+  },
 ];
 
 Deno.serve(async (req) => {
@@ -53,63 +58,65 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const results: { phone: string; roles: string[]; referralCode?: string; status: string }[] = [];
+    const results: { phone: string; email: string; roles: string[]; status: string; referralCode?: string }[] = [];
 
     for (const testUser of TEST_USERS) {
+      // Match the mock auth email format used by AuthContext
+      const mockEmail = `91${testUser.phone}@elabazar.local`;
+      const tempPassword = `elabazar_91${testUser.phone}_temp_2026`;
+
+      // Check if user already exists by email
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      let user = existingUsers?.users?.find(u => u.phone === testUser.phone);
+      let user = existingUsers?.users?.find(u => u.email === mockEmail);
 
       if (!user) {
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          phone: testUser.phone,
-          phone_confirm: true,
-          user_metadata: { full_name: testUser.fullName }
+          email: mockEmail,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: { full_name: testUser.fullName, phone: `+91${testUser.phone}` }
         });
 
         if (createError) {
           console.error(`Error creating user ${testUser.phone}:`, createError);
-          results.push({
-            phone: testUser.phone,
-            roles: testUser.roles,
-            status: `Error: ${createError.message}`
-          });
+          results.push({ phone: testUser.phone, email: mockEmail, roles: testUser.roles, status: `Error: ${createError.message}` });
           continue;
         }
         user = newUser.user;
-        console.log('Created test user:', user.id);
+        console.log('Created test user:', user.id, mockEmail);
       }
 
-      // Add roles
-      for (const role of testUser.roles) {
-        const { error: roleError } = await supabaseAdmin
-          .from('user_roles')
-          .upsert({
-            user_id: user.id,
-            role: role
-          }, {
-            onConflict: 'user_id,role'
-          });
+      // Update profile with phone and user_level
+      const profileUpdate: Record<string, unknown> = {
+        full_name: testUser.fullName,
+        phone: `+91${testUser.phone}`,
+      };
+      if (testUser.userLevel) {
+        profileUpdate.user_level = testUser.userLevel;
+      }
+      await supabaseAdmin.from('profiles').update(profileUpdate).eq('id', user.id);
 
-        if (roleError) {
-          console.error(`Error adding role ${role} to ${testUser.phone}:`, roleError);
-        }
+      // Add roles (delete existing first to avoid conflicts, then insert)
+      await supabaseAdmin.from('user_roles').delete().eq('user_id', user.id);
+      for (const role of testUser.roles) {
+        await supabaseAdmin.from('user_roles').insert({ user_id: user.id, role });
       }
 
       // Create delivery partner record if needed
-      if (testUser.roles.includes('delivery_partner')) {
-        const { error: dpError } = await supabaseAdmin
+      if (testUser.isDeliveryPartner) {
+        const { data: existingDp } = await supabaseAdmin
           .from('delivery_partners')
-          .upsert({
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!existingDp) {
+          await supabaseAdmin.from('delivery_partners').insert({
             user_id: user.id,
             vehicle_type: 'Motorcycle',
             vehicle_number: 'KA01AB1234',
-            is_available: true
-          }, {
-            onConflict: 'user_id'
+            is_available: true,
           });
-
-        if (dpError) {
-          console.error(`Error creating delivery partner for ${testUser.phone}:`, dpError);
         }
       }
 
@@ -120,43 +127,48 @@ Deno.serve(async (req) => {
           .from('referral_codes')
           .select('code')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!existingCode) {
-          const { error: codeError } = await supabaseAdmin
-            .from('referral_codes')
-            .insert({
-              code: referralCode,
-              user_id: user.id,
-              max_uses: 100,
-              is_active: true
-            });
-
-          if (codeError) {
-            console.error(`Error creating referral code for ${testUser.phone}:`, codeError);
-          }
+          await supabaseAdmin.from('referral_codes').insert({
+            code: referralCode,
+            user_id: user.id,
+            max_uses: 100,
+            is_active: true,
+          });
         } else {
           referralCode = existingCode.code;
         }
       }
 
+      // Ensure wallet exists
+      const { data: existingWallet } = await supabaseAdmin
+        .from('wallets')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!existingWallet) {
+        await supabaseAdmin.from('wallets').insert({ user_id: user.id, balance: 0 });
+      }
+
       results.push({
         phone: testUser.phone,
+        email: mockEmail,
         roles: testUser.roles,
         referralCode,
-        status: 'Success'
+        status: 'Success',
       });
     }
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Test users seeded successfully',
-        users: results
+        message: 'Test users seeded. Use these phone numbers to login:',
+        users: results,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
     console.error('Seed error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
