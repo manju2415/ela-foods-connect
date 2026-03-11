@@ -153,7 +153,7 @@ function App() {
                       <Route path="/admin/policies" element={<AdminPolicies />} />
                       {/* MLM Admin Routes */}
                       <Route path="/mlm-login" element={<MLMLogin />} />
-                      <Route path="/mlm-admin" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMDashboard /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin" element={<MLMDashboard />} />
                       <Route path="/mlm-admin/network-analytics" element={<LayoutOverrideProvider value={MLMAdminLayout}><NetworkAnalytics /></LayoutOverrideProvider>} />
                       <Route path="/mlm-admin/users" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminUsers /></LayoutOverrideProvider>} />
                       <Route path="/mlm-admin/founding-members" element={<LayoutOverrideProvider value={MLMAdminLayout}><FoundingMembers /></LayoutOverrideProvider>} />
