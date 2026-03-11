@@ -151,70 +151,37 @@ const GuestCheckout = () => {
   // ──── Place Order ────
   const handlePlaceOrder = async () => {
     setPlacing(true);
-    const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: "00000000-0000-0000-0000-000000000000",
-        order_number: orderNumber,
-        status: "pending",
-        payment_status: "pending",
-        subtotal: totalPrice,
-        shipping_amount: 0,
-        discount_amount: discountAmount,
-        wallet_amount_used: 0,
-        total_amount: finalAmount,
-        coupon_code: appliedCoupon?.code || null,
-        is_cod: paymentMethod === "cod",
-        cod_amount: paymentMethod === "cod" ? finalAmount : 0,
-        notes: `Guest Order - Phone: ${guestDetails.phone}`,
-        shipping_address: {
-          full_name: guestDetails.full_name,
-          email: guestDetails.email,
-          phone: guestDetails.phone,
-          address_line1: guestDetails.address_line1,
-          address_line2: guestDetails.address_line2,
-          city: guestDetails.city,
-          state: guestDetails.state,
-          postal_code: guestDetails.postal_code,
-          country: "India",
-          is_guest: true,
+    try {
+      const { data, error } = await supabase.functions.invoke("place-guest-order", {
+        body: {
+          guest_details: guestDetails,
+          items: items.map((item) => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+          })),
+          coupon_code: appliedCoupon?.code || null,
+          discount_amount: discountAmount,
+          payment_method: paymentMethod,
         },
-      })
-      .select()
-      .single();
+      });
 
-    if (orderError) {
-      console.error("Order error:", orderError);
+      if (error || !data?.success) {
+        console.error("Guest order error:", error || data?.error);
+        toast({ title: "Error", description: data?.error || "Failed to place order. Please try again.", variant: "destructive" });
+        setPlacing(false);
+        return;
+      }
+
+      // Clear guest cart
+      localStorage.removeItem("ela_guest_cart");
+
+      setOrderResult({ orderNumber: data.order_number });
+      setStep("confirmation");
+    } catch (err) {
+      console.error("Guest order error:", err);
       toast({ title: "Error", description: "Failed to place order. Please try again.", variant: "destructive" });
-      setPlacing(false);
-      return;
     }
-
-    const orderItems = items.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      product_name: item.product.name,
-      product_price: item.product.price,
-      quantity: item.quantity,
-      total_price: item.product.price * item.quantity,
-    }));
-
-    await supabase.from("order_items").insert(orderItems);
-
-    if (appliedCoupon) {
-      await supabase
-        .from("coupons")
-        .update({ usage_count: (appliedCoupon.usage_count || 0) + 1 })
-        .eq("id", appliedCoupon.id);
-    }
-
-    // Clear guest cart via context
-    localStorage.removeItem("ela_guest_cart");
-
-    setOrderResult({ orderNumber });
-    setStep("confirmation");
     setPlacing(false);
   };
 
