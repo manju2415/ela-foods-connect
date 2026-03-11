@@ -93,7 +93,7 @@ const MLMDashboard = () => {
           ))}
         </div>
       </div>
-    </AdminLayout>
+    </MLMAdminLayout>
   );
 };
 
