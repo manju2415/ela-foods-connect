@@ -1,38 +1,40 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Ticket, Package, ShoppingCart } from "lucide-react";
+import { Package, ShoppingCart, FolderTree, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stats {
-  foundingMembers: number;
-  referralCodes: number;
+  categories: number;
   products: number;
   orders: number;
+  revenue: number;
 }
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<Stats>({
-    foundingMembers: 0,
-    referralCodes: 0,
+    categories: 0,
     products: 0,
     orders: 0,
+    revenue: 0,
   });
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [membersRes, codesRes, productsRes, ordersRes] = await Promise.all([
-        supabase.from("user_roles").select("id", { count: "exact" }).eq("role", "founding_member"),
-        supabase.from("referral_codes").select("id", { count: "exact" }),
+      const [categoriesRes, productsRes, ordersRes, revenueRes] = await Promise.all([
+        supabase.from("categories").select("id", { count: "exact" }).eq("is_active", true),
         supabase.from("products").select("id", { count: "exact" }),
         supabase.from("orders").select("id", { count: "exact" }),
+        supabase.from("orders").select("total_amount").eq("status", "delivered"),
       ]);
 
+      const totalRevenue = (revenueRes.data || []).reduce((sum, o) => sum + Number(o.total_amount), 0);
+
       setStats({
-        foundingMembers: membersRes.count || 0,
-        referralCodes: codesRes.count || 0,
+        categories: categoriesRes.count || 0,
         products: productsRes.count || 0,
         orders: ordersRes.count || 0,
+        revenue: totalRevenue,
       });
     };
 
@@ -40,10 +42,10 @@ const AdminDashboard = () => {
   }, []);
 
   const statCards = [
-    { title: "Founding Members", value: stats.foundingMembers, icon: Users, color: "text-primary" },
-    { title: "Referral Codes", value: stats.referralCodes, icon: Ticket, color: "text-secondary" },
+    { title: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: IndianRupee, color: "text-green-600" },
+    { title: "Orders", value: stats.orders, icon: ShoppingCart, color: "text-primary" },
     { title: "Products", value: stats.products, icon: Package, color: "text-accent" },
-    { title: "Orders", value: stats.orders, icon: ShoppingCart, color: "text-green-600" },
+    { title: "Categories", value: stats.categories, icon: FolderTree, color: "text-secondary" },
   ];
 
   return (

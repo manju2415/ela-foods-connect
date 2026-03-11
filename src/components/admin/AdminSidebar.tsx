@@ -47,13 +47,6 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
   { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-  { title: "Network Analytics", url: "/admin/network-analytics", icon: Network },
-  { title: "Users", url: "/admin/users", icon: UserCog, superAdminOnly: true },
-  { title: "Founding Members", url: "/admin/founding-members", icon: Users, superAdminOnly: true },
-  { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
-  { title: "Founders", url: "/admin/founders", icon: Crown, superAdminOnly: true },
-  { title: "MLM Settings", url: "/admin/mlm-settings", icon: Network, superAdminOnly: true },
-  { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
   { title: "Banners", url: "/admin/banners", icon: Image },
   { title: "Advertisements", url: "/admin/advertisements", icon: Megaphone },
   { title: "Categories", url: "/admin/categories", icon: FolderTree },

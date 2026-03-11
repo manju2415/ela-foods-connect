@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, LogOut, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLayoutOverride } from "@/contexts/AdminLayoutContext";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -63,6 +64,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!user || !isAdmin) {
     return null;
+  }
+
+  const LayoutOverride = useLayoutOverride();
+  if (LayoutOverride) {
+    return <LayoutOverride>{children}</LayoutOverride>;
   }
 
   return (
