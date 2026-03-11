@@ -304,6 +304,30 @@ const Checkout = () => {
     // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
+    const shippingAddress = fulfillmentType === "store_pickup" && selectedStore
+      ? {
+          full_name: "Store Pickup",
+          phone: selectedStore.phone || "",
+          address_line1: selectedStore.address_line1,
+          address_line2: selectedStore.address_line2,
+          city: selectedStore.city,
+          state: selectedStore.state,
+          postal_code: selectedStore.postal_code,
+          country: "India",
+        }
+      : selectedAddress
+      ? {
+          full_name: selectedAddress.full_name,
+          phone: selectedAddress.phone,
+          address_line1: selectedAddress.address_line1,
+          address_line2: selectedAddress.address_line2,
+          city: selectedAddress.city,
+          state: selectedAddress.state,
+          postal_code: selectedAddress.postal_code,
+          country: selectedAddress.country,
+        }
+      : {};
+
     // Create order with delivery scheduling
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -320,16 +344,9 @@ const Checkout = () => {
         coupon_code: appliedCoupon?.code || null,
         preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
         preferred_delivery_slot_id: selectedDeliverySlotId,
-        shipping_address: {
-          full_name: selectedAddress.full_name,
-          phone: selectedAddress.phone,
-          address_line1: selectedAddress.address_line1,
-          address_line2: selectedAddress.address_line2,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          postal_code: selectedAddress.postal_code,
-          country: selectedAddress.country,
-        },
+        fulfillment_type: fulfillmentType,
+        pickup_store_id: fulfillmentType === "store_pickup" ? pickupStoreId : null,
+        shipping_address: shippingAddress,
       })
       .select()
       .single();
