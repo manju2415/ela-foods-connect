@@ -18,34 +18,31 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const email = 'mlm.manager@elafoods.com';
-    const password = 'Manager@123';
+    const phone = '+919999000001';
     const fullName = 'MLM Manager';
 
-    // Check if user already exists
+    // Check if user already exists by phone in profiles
     const { data: existingProfile } = await supabaseAdmin
       .from('profiles')
       .select('id')
-      .eq('email', email)
+      .eq('phone', phone)
       .maybeSingle();
 
     if (existingProfile) {
-      // Ensure admin role exists
       await supabaseAdmin
         .from('user_roles')
         .upsert({ user_id: existingProfile.id, role: 'admin' }, { onConflict: 'user_id,role' });
 
       return new Response(
-        JSON.stringify({ message: 'Manager account already exists', email, password }),
+        JSON.stringify({ message: 'Manager account already exists', phone }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create user
+    // Create user with phone
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+      phone,
+      phone_confirm: true,
       user_metadata: { full_name: fullName },
     });
 
@@ -63,7 +60,7 @@ Deno.serve(async (req) => {
       .eq('id', authData.user.id);
 
     return new Response(
-      JSON.stringify({ message: 'Manager account created', email, password }),
+      JSON.stringify({ message: 'Manager account created', phone }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

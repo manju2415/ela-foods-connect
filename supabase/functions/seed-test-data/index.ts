@@ -6,8 +6,7 @@ const corsHeaders = {
 };
 
 interface TestUser {
-  email: string;
-  password: string;
+  phone: string;
   fullName: string;
   roles: string[];
   referralCode?: string;
@@ -15,33 +14,28 @@ interface TestUser {
 
 const TEST_USERS: TestUser[] = [
   {
-    email: 'superadmin@elafoods.com',
-    password: 'SuperAdmin123!',
+    phone: '+919999000001',
     fullName: 'Super Admin User',
     roles: ['super_admin', 'admin']
   },
   {
-    email: 'admin@elafoods.com',
-    password: 'Admin123!',
+    phone: '+919999000002',
     fullName: 'Admin User',
     roles: ['admin']
   },
   {
-    email: 'founder@elafoods.com',
-    password: 'TestPass123!',
+    phone: '+919999000003',
     fullName: 'Test Founding Member',
     roles: ['founding_member', 'member'],
     referralCode: 'ELAFOUND01'
   },
   {
-    email: 'delivery@elafoods.com',
-    password: 'Delivery123!',
+    phone: '+919999000004',
     fullName: 'Delivery Partner',
     roles: ['delivery_partner', 'member']
   },
   {
-    email: 'member@elafoods.com',
-    password: 'Member123!',
+    phone: '+919999000005',
     fullName: 'Regular Member',
     roles: ['member']
   }
@@ -59,40 +53,25 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const results: { email: string; password: string; roles: string[]; referralCode?: string; status: string }[] = [];
+    const results: { phone: string; roles: string[]; referralCode?: string; status: string }[] = [];
 
     for (const testUser of TEST_USERS) {
-      // Check if user already exists
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      let user = existingUsers?.users?.find(u => u.email === testUser.email);
+      let user = existingUsers?.users?.find(u => u.phone === testUser.phone);
 
-      if (user) {
-        // Update password for existing user
-        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-          user.id,
-          { password: testUser.password }
-        );
-        if (updateError) {
-          console.error(`Error updating password for ${testUser.email}:`, updateError);
-        } else {
-          console.log('Updated password for existing user:', testUser.email);
-        }
-      } else {
-        // Create the test user
+      if (!user) {
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: testUser.email,
-          password: testUser.password,
-          email_confirm: true,
+          phone: testUser.phone,
+          phone_confirm: true,
           user_metadata: { full_name: testUser.fullName }
         });
 
         if (createError) {
-          console.error(`Error creating user ${testUser.email}:`, createError);
-          results.push({ 
-            email: testUser.email, 
-            password: testUser.password, 
-            roles: testUser.roles, 
-            status: `Error: ${createError.message}` 
+          console.error(`Error creating user ${testUser.phone}:`, createError);
+          results.push({
+            phone: testUser.phone,
+            roles: testUser.roles,
+            status: `Error: ${createError.message}`
           });
           continue;
         }
@@ -104,15 +83,15 @@ Deno.serve(async (req) => {
       for (const role of testUser.roles) {
         const { error: roleError } = await supabaseAdmin
           .from('user_roles')
-          .upsert({ 
-            user_id: user.id, 
-            role: role 
-          }, { 
-            onConflict: 'user_id,role' 
+          .upsert({
+            user_id: user.id,
+            role: role
+          }, {
+            onConflict: 'user_id,role'
           });
 
         if (roleError) {
-          console.error(`Error adding role ${role} to ${testUser.email}:`, roleError);
+          console.error(`Error adding role ${role} to ${testUser.phone}:`, roleError);
         }
       }
 
@@ -130,7 +109,7 @@ Deno.serve(async (req) => {
           });
 
         if (dpError) {
-          console.error(`Error creating delivery partner for ${testUser.email}:`, dpError);
+          console.error(`Error creating delivery partner for ${testUser.phone}:`, dpError);
         }
       }
 
@@ -154,7 +133,7 @@ Deno.serve(async (req) => {
             });
 
           if (codeError) {
-            console.error(`Error creating referral code for ${testUser.email}:`, codeError);
+            console.error(`Error creating referral code for ${testUser.phone}:`, codeError);
           }
         } else {
           referralCode = existingCode.code;
@@ -162,8 +141,7 @@ Deno.serve(async (req) => {
       }
 
       results.push({
-        email: testUser.email,
-        password: testUser.password,
+        phone: testUser.phone,
         roles: testUser.roles,
         referralCode,
         status: 'Success'

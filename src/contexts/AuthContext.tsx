@@ -6,8 +6,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, referralCode: string) => Promise<{ error: Error | null }>;
+  sendOtp: (phone: string) => Promise<{ error: Error | null }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null; isNewUser?: boolean }>;
+  signUpWithOtp: (phone: string, fullName: string, referralCode: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   suppressAuthChanges: (suppress: boolean) => void;
 }
@@ -27,16 +28,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const suppressRef = useRef(false);
+  // Store signup metadata temporarily between sendOtp and verifyOtp
+  const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const suppressAuthChanges = useCallback((suppress: boolean) => {
     suppressRef.current = suppress;
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        // Skip auth state updates when adding a new user
         if (suppressRef.current) return;
         setSession(newSession);
         setUser(newSession?.user ?? null);
@@ -44,7 +45,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -54,16 +54,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+  const sendOtp = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({ phone });
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, referralCode: string) => {
-    // First validate the referral code
+  const verifyOtp = async (phone: string, token: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: "sms",
+    });
+
+    if (error) {
+      return { error: error as Error };
+    }
+
+    // If there was pending signup data, process MLM referral
+    const pending = pendingSignupRef.current;
+    if (pending && data.user) {
+      // Update profile with full name
+      await supabase
+        .from("profiles")
+        .update({ full_name: pending.fullName })
+        .eq("id", data.user.id);
+
+      // Process MLM referral
+      try {
+        await supabase.rpc("process_mlm_referral", {
+          p_referral_code: pending.referralCode.toUpperCase(),
+          p_referred_user_id: data.user.id,
+          p_registration_fee: 0,
+        });
+      } catch (err) {
+        console.error("Error processing MLM referral:", err);
+      }
+
+      pendingSignupRef.current = null;
+      return { error: null, isNewUser: true };
+    }
+
+    return { error: null, isNewUser: false };
+  };
+
+  const signUpWithOtp = async (phone: string, fullName: string, referralCode: string) => {
+    // Validate the referral code first
     const { data: codeData, error: codeError } = await supabase
       .from("referral_codes")
       .select("id, user_id, is_active")
@@ -79,13 +114,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: new Error("Invalid or inactive referral code") };
     }
 
-    const redirectUrl = `${window.location.origin}/`;
+    // Store signup metadata for after OTP verification
+    pendingSignupRef.current = { fullName, referralCode };
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+    // Send OTP (signInWithOtp auto-creates user if not exists)
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
       options: {
-        emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
           referral_code: referralCode.toUpperCase(),
@@ -94,26 +129,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     if (error) {
-      return { error: error as Error };
+      pendingSignupRef.current = null;
     }
 
-    // If signup successful and we have a user, process the MLM referral
-    if (data.user) {
-      // Use setTimeout to defer the Supabase call (avoiding deadlock in auth state change)
-      setTimeout(async () => {
-        try {
-          await supabase.rpc("process_mlm_referral", {
-            p_referral_code: referralCode.toUpperCase(),
-            p_referred_user_id: data.user!.id,
-            p_registration_fee: 0, // Registration fee can be collected separately
-          });
-        } catch (err) {
-          console.error("Error processing MLM referral:", err);
-        }
-      }, 100);
-    }
-    
-    return { error: null };
+    return { error: error as Error | null };
   };
 
   const signOut = async () => {
@@ -121,7 +140,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, signUp, signOut, suppressAuthChanges }}>
+    <AuthContext.Provider value={{ user, session, loading, sendOtp, verifyOtp, signUpWithOtp, signOut, suppressAuthChanges }}>
       {children}
     </AuthContext.Provider>
   );
