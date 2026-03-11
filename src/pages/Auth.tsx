@@ -222,20 +222,32 @@ const Auth = () => {
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await signUpWithOtp(fullPhone, data.fullName, data.referralCode);
-    setIsSubmitting(false);
 
     if (error) {
+      setIsSubmitting(false);
       toast({
         title: "Signup failed",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
+      return;
     }
+
+    // Auto-verify with mock code (skip OTP screen)
+    const { error: verifyError, isNewUser } = await verifyOtp(fullPhone, "000000");
+    setIsSubmitting(false);
+
+    if (verifyError) {
+      toast({
+        title: "Signup failed",
+        description: verifyError.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({ title: "Account created!", description: "You have logged in successfully." });
+    await handlePostVerifyRedirect(isNewUser || true);
   };
 
   const handleVerifyOtp = async () => {
