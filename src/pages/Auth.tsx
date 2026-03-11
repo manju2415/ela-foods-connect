@@ -249,7 +249,7 @@ const Auth = () => {
           <div className="flex justify-center">
             <img src={elaLogo} alt="ELA Foods" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Join ELA Foods"}</CardTitle>
+          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Join Elabazar"}</CardTitle>
           <CardDescription>
             {isLogin 
               ? "Sign in to your account to continue" 

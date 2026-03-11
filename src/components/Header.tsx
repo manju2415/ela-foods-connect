@@ -70,7 +70,7 @@ const Header = () => {
         <div className="container mx-auto px-4">
           <div className="flex h-20 items-center justify-between">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/shop" className="flex items-center gap-2">
               <img src={elaLogo} alt="ELA Foods" className="h-16 w-auto" />
             </Link>
 
