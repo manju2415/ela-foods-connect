@@ -42,10 +42,10 @@ const AdminDashboard = () => {
   }, []);
 
   const statCards = [
-    { title: "Founding Members", value: stats.foundingMembers, icon: Users, color: "text-primary" },
-    { title: "Referral Codes", value: stats.referralCodes, icon: Ticket, color: "text-secondary" },
+    { title: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: IndianRupee, color: "text-green-600" },
+    { title: "Orders", value: stats.orders, icon: ShoppingCart, color: "text-primary" },
     { title: "Products", value: stats.products, icon: Package, color: "text-accent" },
-    { title: "Orders", value: stats.orders, icon: ShoppingCart, color: "text-green-600" },
+    { title: "Categories", value: stats.categories, icon: FolderTree, color: "text-secondary" },
   ];
 
   return (
