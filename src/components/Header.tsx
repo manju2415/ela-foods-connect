@@ -27,7 +27,7 @@ const Header = () => {
   const location = useLocation();
 
   const navLinks = [
-    { name: "Home", href: "/" },
+    { name: "Home", href: "/shop" },
     { name: "Products", href: "/products" },
     { name: "Categories", href: "/categories" },
     { name: "Stores", href: "/stores" },
