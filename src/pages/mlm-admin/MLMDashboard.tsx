@@ -70,7 +70,7 @@ const MLMDashboard = () => {
   ];
 
   return (
-    <AdminLayout>
+    <MLMAdminLayout>
       <div className="space-y-6">
         <div>
           <h2 className="text-2xl font-bold">Network Dashboard</h2>
