@@ -111,10 +111,13 @@ const Checkout = () => {
     if (!user) return;
 
     setLoading(true);
-    const [addressRes, walletRes] = await Promise.all([
+    const [addressRes, walletRes, storesRes] = await Promise.all([
       supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
       supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", user.id).maybeSingle(),
+      supabase.from("stores").select("*").eq("is_active", true).order("display_order"),
     ]);
+
+    if (storesRes.data) setPickupStores(storesRes.data);
 
     if (addressRes.data) {
       setAddresses(addressRes.data);
