@@ -19,15 +19,14 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const existingUserSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email"),
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
   vehicleType: z.string().optional(),
   vehicleNumber: z.string().optional(),
 });
 
 const newUserSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters"),
-  email: z.string().trim().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
   vehicleType: z.string().optional(),
   vehicleNumber: z.string().optional(),
 });
@@ -47,27 +46,28 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
 
   const existingForm = useForm<ExistingUserData>({
     resolver: zodResolver(existingUserSchema),
-    defaultValues: { email: "", vehicleType: "", vehicleNumber: "" },
+    defaultValues: { phone: "", vehicleType: "", vehicleNumber: "" },
   });
 
   const newUserForm = useForm<NewUserData>({
     resolver: zodResolver(newUserSchema),
-    defaultValues: { fullName: "", email: "", password: "", vehicleType: "", vehicleNumber: "" },
+    defaultValues: { fullName: "", phone: "", vehicleType: "", vehicleNumber: "" },
   });
 
   const handleExistingUser = async (data: ExistingUserData) => {
     setIsSubmitting(true);
     try {
-      // Find user by email
+      const fullPhone = `+91${data.phone}`;
+      // Find user by phone
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("id")
-        .eq("email", data.email.toLowerCase())
+        .eq("phone", fullPhone)
         .maybeSingle();
 
       if (profileError) throw profileError;
       if (!profile) {
-        toast.error("User not found with this email. Try creating a new user.");
+        toast.error("User not found with this phone number. Try creating a new user.");
         setIsSubmitting(false);
         return;
       }
@@ -115,11 +115,10 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
   const handleNewUser = async (data: NewUserData) => {
     setIsSubmitting(true);
     try {
-      // Use edge function to create user with admin API (auto-confirmed)
+      const fullPhone = `+91${data.phone}`;
       const { data: result, error } = await supabase.functions.invoke('create-delivery-partner', {
         body: {
-          email: data.email,
-          password: data.password,
+          phone: fullPhone,
           fullName: data.fullName,
           vehicleType: data.vehicleType,
           vehicleNumber: data.vehicleNumber,
@@ -130,7 +129,7 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
       if (result?.error) throw new Error(result.error);
 
       toast.success(
-        `Delivery partner created! Login: ${data.email} / ${data.password}`,
+        `Delivery partner created! They can login with +91 ${data.phone} via OTP.`,
         { duration: 10000 }
       );
       queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
@@ -165,13 +164,21 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
           <TabsContent value="existing" className="space-y-4 mt-4">
             <form onSubmit={existingForm.handleSubmit(handleExistingUser)} className="space-y-4">
               <div className="space-y-2">
-                <Label>User Email</Label>
-                <Input
-                  placeholder="Enter existing user's email"
-                  {...existingForm.register("email")}
-                />
-                {existingForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{existingForm.formState.errors.email.message}</p>
+                <Label>Mobile Number</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    +91
+                  </span>
+                  <Input
+                    type="tel"
+                    placeholder="9876543210"
+                    className="rounded-l-none"
+                    maxLength={10}
+                    {...existingForm.register("phone")}
+                  />
+                </div>
+                {existingForm.formState.errors.phone && (
+                  <p className="text-sm text-destructive">{existingForm.formState.errors.phone.message}</p>
                 )}
               </div>
               <div className="space-y-2">
@@ -213,25 +220,21 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input
-                  type="email"
-                  placeholder="driver@example.com"
-                  {...newUserForm.register("email")}
-                />
-                {newUserForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{newUserForm.formState.errors.email.message}</p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Password *</Label>
-                <Input
-                  type="password"
-                  placeholder="Minimum 6 characters"
-                  {...newUserForm.register("password")}
-                />
-                {newUserForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{newUserForm.formState.errors.password.message}</p>
+                <Label>Mobile Number *</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    +91
+                  </span>
+                  <Input
+                    type="tel"
+                    placeholder="9876543210"
+                    className="rounded-l-none"
+                    maxLength={10}
+                    {...newUserForm.register("phone")}
+                  />
+                </div>
+                {newUserForm.formState.errors.phone && (
+                  <p className="text-sm text-destructive">{newUserForm.formState.errors.phone.message}</p>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-4">

@@ -6,8 +6,7 @@ const corsHeaders = {
 };
 
 interface CreateDeliveryPartnerRequest {
-  email: string;
-  password: string;
+  phone: string;
   fullName: string;
   vehicleType?: string;
   vehicleNumber?: string;
@@ -19,7 +18,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the caller is an admin
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -32,7 +30,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
-    // Create client with user's token to verify they're admin
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       auth: { autoRefreshToken: false, persistSession: false },
       global: { headers: { Authorization: authHeader } }
@@ -46,7 +43,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if caller is admin
     const { data: roles } = await supabaseUser
       .from('user_roles')
       .select('role')
@@ -60,27 +56,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
     const body: CreateDeliveryPartnerRequest = await req.json();
-    const { email, password, fullName, vehicleType, vehicleNumber } = body;
+    const { phone, fullName, vehicleType, vehicleNumber } = body;
 
-    if (!email || !password || !fullName) {
+    if (!phone || !fullName) {
       return new Response(
-        JSON.stringify({ error: 'Email, password, and full name are required' }),
+        JSON.stringify({ error: 'Phone and full name are required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create admin client with service role key
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Create user with admin API (auto-confirmed)
+    // Create user with phone number
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password,
-      email_confirm: true,
+      phone: phone,
+      phone_confirm: true,
       user_metadata: { full_name: fullName }
     });
 
@@ -101,10 +94,8 @@ Deno.serve(async (req) => {
 
     console.log('Created user:', newUser.user.id);
 
-    // Wait for trigger to create profile
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Add delivery_partner role
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({ user_id: newUser.user.id, role: 'delivery_partner' });
@@ -113,7 +104,6 @@ Deno.serve(async (req) => {
       console.error('Error adding role:', roleError);
     }
 
-    // Create delivery partner record
     const { error: dpError } = await supabaseAdmin
       .from('delivery_partners')
       .insert({
@@ -137,8 +127,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         user_id: newUser.user.id,
-        email: email.toLowerCase(),
-        message: 'Delivery partner created. They can now login with the provided credentials.'
+        phone: phone,
+        message: 'Delivery partner created. They can now login with their phone number via OTP.'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

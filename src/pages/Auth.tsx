@@ -8,66 +8,59 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
-const loginSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+const phoneSchema = z.object({
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
-  email: z.string().trim().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
   referralCode: z.string().trim().min(1, "Referral code is required"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
 });
 
-type LoginFormData = z.infer<typeof loginSchema>;
+type PhoneFormData = z.infer<typeof phoneSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep] = useState<"phone" | "otp">("phone");
+  const [otpCode, setOtpCode] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
-  
-  const { user, signIn, signUp } = useAuth();
+  const [resendTimer, setResendTimer] = useState(0);
+
+  const { user, sendOtp, verifyOtp, signUpWithOtp } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
 
-  // Supports flows like: /auth?redirect=/driver-app
   const redirectTo = useMemo(() => {
     const redirectParam = new URLSearchParams(location.search).get("redirect")?.trim();
-    // Prevent open-redirects: only allow internal paths
     if (redirectParam && redirectParam.startsWith("/")) return redirectParam;
     return null;
   }, [location.search]);
 
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
+  const loginForm = useForm<PhoneFormData>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phone: "" },
   });
 
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "", referralCode: "" },
+    defaultValues: { fullName: "", phone: "", referralCode: "" },
   });
 
-  // Only auto-redirect if user is already logged in when they land on this page
-  // This prevents the useEffect from racing with handleLogin's navigation
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
-  
+
   useEffect(() => {
-    // If user is already logged in when they land on this page, redirect based on role
     if (user && !hasAttemptedLogin) {
       resolveRoleRedirect(user.id).then((dest) => {
         navigate(redirectTo ?? dest, { replace: true });
@@ -75,8 +68,15 @@ const Auth = () => {
     }
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
 
+  // Resend timer countdown
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
+
   const resolveRoleRedirect = async (userId: string): Promise<string> => {
-    // Check delivery partner
     const { data: partnerData } = await supabase
       .from("delivery_partners")
       .select("id")
@@ -84,7 +84,6 @@ const Auth = () => {
       .maybeSingle();
     if (partnerData) return "/driver-app";
 
-    // Check admin/super_admin roles
     const { data: adminRole } = await supabase
       .from("user_roles")
       .select("role")
@@ -93,7 +92,6 @@ const Auth = () => {
       .maybeSingle();
     if (adminRole) return "/admin";
 
-    // Check member/founding_member roles
     const { data: memberRole } = await supabase
       .from("user_roles")
       .select("role")
@@ -102,7 +100,6 @@ const Auth = () => {
       .maybeSingle();
     if (memberRole) return "/dashboard";
 
-    // Default: customer → shop
     return "/shop";
   };
 
@@ -111,7 +108,7 @@ const Auth = () => {
       setReferralCodeValid(null);
       return;
     }
-    
+
     setCheckingCode(true);
     const { data } = await supabase
       .from("referral_codes")
@@ -119,111 +116,44 @@ const Auth = () => {
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .maybeSingle();
-    
+
     setReferralCodeValid(!!data);
     setCheckingCode(false);
   };
 
-  const handleLogin = async (data: LoginFormData) => {
+  const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
-    
-    // Call supabase directly to get the user data for redirect logic
-    const { error, data: authData } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
-    
+    const fullPhone = `+91${data.phone}`;
+
+    const { error } = await sendOtp(fullPhone);
     setIsSubmitting(false);
 
     if (error) {
       setHasAttemptedLogin(false);
       toast({
-        title: "Login failed",
-        description: error.message === "Invalid login credentials" 
-          ? "Invalid email or password. Please try again."
-          : error.message,
+        title: "Failed to send OTP",
+        description: error.message,
         variant: "destructive",
       });
     } else {
-      toast({ title: "Welcome back!", description: "You have logged in successfully." });
-      
-      // Check if user is a delivery partner first
-      if (authData?.user?.id) {
-        const { data: partnerData } = await supabase
-          .from("delivery_partners")
-          .select("id")
-          .eq("user_id", authData.user.id)
-          .maybeSingle();
-        
-        if (partnerData) {
-          // Delivery partners skip onboarding flow
-          navigate(redirectTo || "/driver-app", { replace: true });
-          return;
-        }
-        
-      }
-
-      // Check if user needs to complete onboarding (no phone or bank details)
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("phone, bank_account_number, registration_fee_paid, user_level")
-        .eq("id", authData.user.id)
-        .single();
-
-      // Check if user is a founder/admin (they skip onboarding)
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id)
-        .in("role", ["founding_member", "super_admin", "admin"])
-        .maybeSingle();
-
-      const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
-      const hasPhone = !!profileData?.phone;
-      const hasBankDetails = !!profileData?.bank_account_number;
-      const isProfileComplete = hasPhone && hasBankDetails;
-      const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
-
-      // If not a founder/admin and profile is incomplete, send to registration
-      if (!isFounderOrAdmin && !isProfileComplete) {
-        navigate("/complete-registration", { replace: true });
-        return;
-      }
-
-      // If profile complete but payment pending, send to payment
-      if (!isFounderOrAdmin && isProfileComplete && !isPaymentComplete) {
-        navigate("/registration-payment", { replace: true });
-        return;
-      }
-      
-      // If there's a specific redirect, use it
-      if (redirectTo) {
-        navigate(redirectTo, { replace: true });
-        return;
-      }
-      
-      // Role-based redirect for fully onboarded users
-      const { data: roleData2 } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id);
-      
-      const roles = roleData2?.map(r => r.role) || [];
-      
-      if (roles.includes("super_admin") || roles.includes("admin")) {
-        navigate("/admin", { replace: true });
-      } else if (roles.includes("member") || roles.includes("founding_member")) {
-        navigate("/dashboard", { replace: true });
-      } else {
-        navigate("/shop", { replace: true });
-      }
+      setPhoneNumber(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
     }
   };
 
-  const handleSignup = async (data: SignupFormData) => {
+  const handleSendSignupOtp = async (data: SignupFormData) => {
+    if (!referralCodeValid) {
+      toast({ title: "Invalid referral code", description: "Please enter a valid referral code.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
-    const { error } = await signUp(data.email, data.password, data.fullName, data.referralCode);
+    const fullPhone = `+91${data.phone}`;
+
+    const { error } = await signUpWithOtp(fullPhone, data.fullName, data.referralCode);
     setIsSubmitting(false);
 
     if (error) {
@@ -233,76 +163,218 @@ const Auth = () => {
         variant: "destructive",
       });
     } else {
-      toast({ 
-        title: "Account created!", 
-        description: "Complete your registration to unlock member benefits and discounted prices." 
-      });
-      // Let the user browse; they can complete registration later from dashboard
-      navigate("/complete-registration");
+      setPhoneNumber(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
     }
   };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+
+    setIsSubmitting(true);
+    const { error, isNewUser } = await verifyOtp(phoneNumber, otpCode);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setOtpCode("");
+      return;
+    }
+
+    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
+
+    // Get the user after verification
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (!verifiedUser) return;
+
+    // Check delivery partner
+    const { data: partnerData } = await supabase
+      .from("delivery_partners")
+      .select("id")
+      .eq("user_id", verifiedUser.id)
+      .maybeSingle();
+
+    if (partnerData) {
+      navigate(redirectTo || "/driver-app", { replace: true });
+      return;
+    }
+
+    if (isNewUser) {
+      navigate("/complete-registration");
+      return;
+    }
+
+    // Check onboarding status
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("phone, bank_account_number, registration_fee_paid, user_level")
+      .eq("id", verifiedUser.id)
+      .single();
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", verifiedUser.id)
+      .in("role", ["founding_member", "super_admin", "admin"])
+      .maybeSingle();
+
+    const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
+    const hasBankDetails = !!profileData?.bank_account_number;
+    const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
+
+    if (!isFounderOrAdmin && !hasBankDetails) {
+      navigate("/complete-registration", { replace: true });
+      return;
+    }
+
+    if (!isFounderOrAdmin && hasBankDetails && !isPaymentComplete) {
+      navigate("/registration-payment", { replace: true });
+      return;
+    }
+
+    if (redirectTo) {
+      navigate(redirectTo, { replace: true });
+      return;
+    }
+
+    const dest = await resolveRoleRedirect(verifiedUser.id);
+    navigate(dest, { replace: true });
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setIsSubmitting(true);
+    const { error } = await sendOtp(phoneNumber);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({ title: "Failed to resend OTP", description: error.message, variant: "destructive" });
+    } else {
+      setResendTimer(30);
+      toast({ title: "OTP Resent", description: "A new verification code has been sent." });
+    }
+  };
+
+  const handleBackToPhone = () => {
+    setStep("phone");
+    setOtpCode("");
+    setPhoneNumber("");
+    setHasAttemptedLogin(false);
+  };
+
+  // OTP Verification Screen
+  if (step === "otp") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
+            </div>
+            <CardTitle className="text-2xl">Verify OTP</CardTitle>
+            <CardDescription>
+              Enter the 6-digit code sent to {phoneNumber}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={otpCode.length !== 6 || isSubmitting}
+              onClick={handleVerifyOtp}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Verify & Continue
+            </Button>
+
+            <div className="text-center space-y-2">
+              <button
+                type="button"
+                className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                onClick={handleResendOtp}
+                disabled={resendTimer > 0 || isSubmitting}
+              >
+                {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
+              </button>
+              <br />
+              <button
+                type="button"
+                className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1"
+                onClick={handleBackToPhone}
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Change phone number
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
           <div className="flex justify-center">
-            <img src={elaLogo} alt="ELA Foods" className="h-16 w-auto" />
+            <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
           </div>
           <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Join Elabazar"}</CardTitle>
           <CardDescription>
-            {isLogin 
-              ? "Sign in to your account to continue" 
+            {isLogin
+              ? "Enter your mobile number to continue"
               : "Create an account using your referral code"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {isLogin ? (
-            <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-4">
+            <form onSubmit={loginForm.handleSubmit(handleSendLoginOtp)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  {...loginForm.register("email")}
-                />
-                {loginForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{loginForm.formState.errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
+                <Label htmlFor="phone">Mobile Number</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    +91
+                  </span>
                   <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    {...loginForm.register("password")}
+                    id="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    className="rounded-l-none"
+                    maxLength={10}
+                    {...loginForm.register("phone")}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
-                {loginForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{loginForm.formState.errors.password.message}</p>
+                {loginForm.formState.errors.phone && (
+                  <p className="text-sm text-destructive">{loginForm.formState.errors.phone.message}</p>
                 )}
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Sign In
+                <Phone className="mr-2 h-4 w-4" />
+                Send OTP
               </Button>
             </form>
           ) : (
-            <form onSubmit={signupForm.handleSubmit(handleSignup)} className="space-y-4">
+            <form onSubmit={signupForm.handleSubmit(handleSendSignupOtp)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="referralCode">Referral Code *</Label>
                 <Input
@@ -334,58 +406,29 @@ const Auth = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signupEmail">Email</Label>
-                <Input
-                  id="signupEmail"
-                  type="email"
-                  placeholder="you@example.com"
-                  {...signupForm.register("email")}
-                />
-                {signupForm.formState.errors.email && (
-                  <p className="text-sm text-destructive">{signupForm.formState.errors.email.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="signupPassword">Password</Label>
-                <div className="relative">
+                <Label htmlFor="signupPhone">Mobile Number</Label>
+                <div className="flex">
+                  <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                    +91
+                  </span>
                   <Input
-                    id="signupPassword"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    {...signupForm.register("password")}
+                    id="signupPhone"
+                    type="tel"
+                    placeholder="9876543210"
+                    className="rounded-l-none"
+                    maxLength={10}
+                    {...signupForm.register("phone")}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full px-3"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
-                {signupForm.formState.errors.password && (
-                  <p className="text-sm text-destructive">{signupForm.formState.errors.password.message}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  {...signupForm.register("confirmPassword")}
-                />
-                {signupForm.formState.errors.confirmPassword && (
-                  <p className="text-sm text-destructive">{signupForm.formState.errors.confirmPassword.message}</p>
+                {signupForm.formState.errors.phone && (
+                  <p className="text-sm text-destructive">{signupForm.formState.errors.phone.message}</p>
                 )}
               </div>
 
               <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
+                <Phone className="mr-2 h-4 w-4" />
+                Send OTP
               </Button>
             </form>
           )}

@@ -21,8 +21,7 @@ import { UserPlus, Loader2, Check, X, Edit2 } from "lucide-react";
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
-  email: z.string().trim().email("Please enter a valid email"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
   referralCode: z.string().trim().min(1, "Referral code is required"),
 });
 
@@ -32,7 +31,7 @@ interface AddUserDialogProps {
   defaultReferralCode?: string;
   onUserAdded?: () => void;
   trigger?: React.ReactNode;
-  showCodeSelector?: boolean; // Show searchable dropdown for super admin
+  showCodeSelector?: boolean;
 }
 
 export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showCodeSelector = false }: AddUserDialogProps) {
@@ -49,20 +48,17 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
     resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: "",
-      email: "",
-      password: "",
+      phone: "",
       referralCode: defaultReferralCode || "",
     },
   });
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       const initialCode = defaultReferralCode || "";
       form.reset({
         fullName: "",
-        email: "",
-        password: "",
+        phone: "",
         referralCode: initialCode,
       });
       setSelectedCode(initialCode);
@@ -111,18 +107,17 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
 
     setIsSubmitting(true);
 
-    // Save the current session before signing up the new user
-    const { data: currentSessionData } = await supabase.auth.getSession();
-    const currentSession = currentSessionData?.session;
+    const currentSessionData = await supabase.auth.getSession();
+    const currentSession = currentSessionData.data?.session;
 
-    // Suppress auth state changes so the current user isn't navigated away
     suppressAuthChanges(true);
 
     try {
-      // Create user through direct signup
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: data.email,
-        password: data.password,
+      const fullPhone = `+91${data.phone}`;
+      
+      // Use signInWithOtp to create/register the user via phone
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        phone: fullPhone,
         options: {
           data: {
             full_name: data.fullName,
@@ -131,48 +126,33 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
         },
       });
 
-      if (signUpError) {
+      if (otpError) {
         setIsSubmitting(false);
         suppressAuthChanges(false);
         toast({
           title: "Registration failed",
-          description: signUpError.message,
+          description: otpError.message,
           variant: "destructive",
         });
         return;
       }
 
-      // Process MLM referral
-      if (signUpData.user) {
-        try {
-          await supabase.rpc("process_mlm_referral", {
-            p_referral_code: data.referralCode.toUpperCase(),
-            p_referred_user_id: signUpData.user.id,
-            p_registration_fee: 0,
-          });
-        } catch (err) {
-          console.error("Error processing MLM referral:", err);
-        }
-      }
-
-      // Restore the original user's session so the founder/member stays logged in
+      // Restore the original user's session
       if (currentSession?.refresh_token) {
         await supabase.auth.setSession({
           access_token: currentSession.access_token,
           refresh_token: currentSession.refresh_token,
         });
-        // Small delay to let session restoration propagate before re-enabling auth listener
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     } finally {
-      // Re-enable auth state changes after session is restored
       suppressAuthChanges(false);
     }
 
     setIsSubmitting(false);
     toast({
-      title: "User registered successfully!",
-      description: `${data.fullName} has been added to the network.`,
+      title: "OTP sent to user!",
+      description: `${data.fullName} will receive an OTP on +91 ${data.phone} to complete registration.`,
     });
     setOpen(false);
     onUserAdded?.();
@@ -192,14 +172,13 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
         <DialogHeader>
           <DialogTitle>Register New User</DialogTitle>
           <DialogDescription>
-            Add a new user to your network. They will be registered under the specified referral code.
+            Add a new user to your network. They will receive an OTP to verify their phone number.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="referralCode">Referral Code</Label>
             {showCodeSelector && !defaultReferralCode ? (
-              // Searchable dropdown for super admins
               <div>
                 <ReferralCodeSelector
                   value={selectedCode}
@@ -214,7 +193,6 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
                 )}
               </div>
             ) : (
-              // Manual input for regular members
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input
@@ -284,28 +262,22 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="email@example.com"
-              {...form.register("email")}
-            />
-            {form.formState.errors.email && (
-              <p className="text-sm text-destructive">{form.formState.errors.email.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              {...form.register("password")}
-            />
-            {form.formState.errors.password && (
-              <p className="text-sm text-destructive">{form.formState.errors.password.message}</p>
+            <Label htmlFor="phone">Mobile Number</Label>
+            <div className="flex">
+              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                +91
+              </span>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="9876543210"
+                className="rounded-l-none"
+                maxLength={10}
+                {...form.register("phone")}
+              />
+            </div>
+            {form.formState.errors.phone && (
+              <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
             )}
           </div>
 
