@@ -167,6 +167,7 @@ function App() {
                       <Route path="/mlm-admin/mlm-settings" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMSettings /></LayoutOverrideProvider>} />
                       <Route path="/mlm-admin/withdrawals" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminWithdrawals /></LayoutOverrideProvider>} />
                       <Route path="/policies" element={<Policies />} />
+                      <Route path="/stores" element={<StoreLocator />} />
                       <Route path="/policies/:slug" element={<Policies />} />
                       <Route path="/complete-registration" element={<CompleteRegistration />} />
                       <Route path="/registration-payment" element={<RegistrationPayment />} />

@@ -59,6 +59,7 @@ const menuItems: MenuItem[] = [
   { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList },
   { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck },
   { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw },
+  { title: "Stores", url: "/admin/stores", icon: Store },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
