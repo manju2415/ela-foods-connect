@@ -626,11 +626,13 @@ export type Database = {
           coupon_code: string | null
           created_at: string
           discount_amount: number | null
+          fulfillment_type: string
           id: string
           is_cod: boolean | null
           notes: string | null
           order_number: string
           payment_status: Database["public"]["Enums"]["payment_status"]
+          pickup_store_id: string | null
           preferred_delivery_date: string | null
           preferred_delivery_slot_id: string | null
           shipping_address: Json
@@ -651,11 +653,13 @@ export type Database = {
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
+          fulfillment_type?: string
           id?: string
           is_cod?: boolean | null
           notes?: string | null
           order_number: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
           shipping_address: Json
@@ -676,11 +680,13 @@ export type Database = {
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
+          fulfillment_type?: string
           id?: string
           is_cod?: boolean | null
           notes?: string | null
           order_number?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
+          pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
           shipping_address?: Json
@@ -693,6 +699,13 @@ export type Database = {
           wallet_amount_used?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_pickup_store_id_fkey"
+            columns: ["pickup_store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_preferred_delivery_slot_id_fkey"
             columns: ["preferred_delivery_slot_id"]
@@ -1111,6 +1124,149 @@ export type Database = {
           title?: string
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      store_inventory: {
+        Row: {
+          id: string
+          product_id: string
+          stock_quantity: number | null
+          store_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          stock_quantity?: number | null
+          store_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          stock_quantity?: number | null
+          store_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_inventory_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_inventory_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_staff: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: string | null
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: string | null
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: string | null
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_staff_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          city: string
+          closing_time: string | null
+          created_at: string | null
+          display_order: number | null
+          email: string | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          latitude: number | null
+          longitude: number | null
+          manager_name: string | null
+          manager_phone: string | null
+          name: string
+          opening_time: string | null
+          phone: string | null
+          postal_code: string
+          slug: string
+          state: string
+          updated_at: string | null
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          city: string
+          closing_time?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          email?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          manager_name?: string | null
+          manager_phone?: string | null
+          name: string
+          opening_time?: string | null
+          phone?: string | null
+          postal_code: string
+          slug: string
+          state: string
+          updated_at?: string | null
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          city?: string
+          closing_time?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          email?: string | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
+          manager_name?: string | null
+          manager_phone?: string | null
+          name?: string
+          opening_time?: string | null
+          phone?: string | null
+          postal_code?: string
+          slug?: string
+          state?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

@@ -40,6 +40,9 @@ import AdminBanners from "./pages/admin/Banners";
 import AdminFounders from "./pages/admin/Founders";
 import AdminReturnRequests from "./pages/admin/ReturnRequests";
 import AdminPolicies from "./pages/admin/Policies";
+import AdminStores from "./pages/admin/Stores";
+import AdminStoreInventory from "./pages/admin/StoreInventory";
+import StoreLocator from "./pages/StoreLocator";
 import Policies from "./pages/Policies";
 import AdminAdvertisements from "./pages/admin/Advertisements";
 import GuestCheckout from "./pages/GuestCheckout";
@@ -151,6 +154,8 @@ function App() {
                       <Route path="/admin/founders" element={<AdminFounders />} />
                       <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                       <Route path="/admin/policies" element={<AdminPolicies />} />
+                      <Route path="/admin/stores" element={<AdminStores />} />
+                      <Route path="/admin/stores/:id/inventory" element={<AdminStoreInventory />} />
                       {/* MLM Admin Routes */}
                       <Route path="/mlm-login" element={<MLMLogin />} />
                       <Route path="/mlm-admin" element={<MLMDashboard />} />
@@ -162,6 +167,7 @@ function App() {
                       <Route path="/mlm-admin/mlm-settings" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMSettings /></LayoutOverrideProvider>} />
                       <Route path="/mlm-admin/withdrawals" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminWithdrawals /></LayoutOverrideProvider>} />
                       <Route path="/policies" element={<Policies />} />
+                      <Route path="/stores" element={<StoreLocator />} />
                       <Route path="/policies/:slug" element={<Policies />} />
                       <Route path="/complete-registration" element={<CompleteRegistration />} />
                       <Route path="/registration-payment" element={<RegistrationPayment />} />
