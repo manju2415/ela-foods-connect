@@ -151,6 +151,16 @@ function App() {
                       <Route path="/admin/founders" element={<AdminFounders />} />
                       <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                       <Route path="/admin/policies" element={<AdminPolicies />} />
+                      {/* MLM Admin Routes */}
+                      <Route path="/mlm-login" element={<MLMLogin />} />
+                      <Route path="/mlm-admin" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMDashboard /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/network-analytics" element={<LayoutOverrideProvider value={MLMAdminLayout}><NetworkAnalytics /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/users" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminUsers /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/founding-members" element={<LayoutOverrideProvider value={MLMAdminLayout}><FoundingMembers /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/referral-codes" element={<LayoutOverrideProvider value={MLMAdminLayout}><ReferralCodes /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/founders" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminFounders /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/mlm-settings" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMSettings /></LayoutOverrideProvider>} />
+                      <Route path="/mlm-admin/withdrawals" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminWithdrawals /></LayoutOverrideProvider>} />
                       <Route path="/policies" element={<Policies />} />
                       <Route path="/policies/:slug" element={<Policies />} />
                       <Route path="/complete-registration" element={<CompleteRegistration />} />
