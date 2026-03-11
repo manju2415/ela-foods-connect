@@ -5,10 +5,10 @@ import { Package, ShoppingCart, FolderTree, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Stats {
-  foundingMembers: number;
-  referralCodes: number;
+  categories: number;
   products: number;
   orders: number;
+  revenue: number;
 }
 
 const AdminDashboard = () => {
