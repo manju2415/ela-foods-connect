@@ -67,11 +67,44 @@ const Auth = () => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   
   useEffect(() => {
-    // If user is logged in and hasn't just attempted login (meaning they arrived already logged in)
+    // If user is already logged in when they land on this page, redirect based on role
     if (user && !hasAttemptedLogin) {
-      navigate(redirectTo ?? "/dashboard", { replace: true });
+      resolveRoleRedirect(user.id).then((dest) => {
+        navigate(redirectTo ?? dest, { replace: true });
+      });
     }
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
+
+  const resolveRoleRedirect = async (userId: string): Promise<string> => {
+    // Check delivery partner
+    const { data: partnerData } = await supabase
+      .from("delivery_partners")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (partnerData) return "/driver-app";
+
+    // Check admin/super_admin roles
+    const { data: adminRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["super_admin", "admin"])
+      .maybeSingle();
+    if (adminRole) return "/admin";
+
+    // Check member/founding_member roles
+    const { data: memberRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["member", "founding_member"])
+      .maybeSingle();
+    if (memberRole) return "/dashboard";
+
+    // Default: customer → shop
+    return "/shop";
+  };
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
