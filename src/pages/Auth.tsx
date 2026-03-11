@@ -203,8 +203,21 @@ const Auth = () => {
         return;
       }
       
-      // Default to dashboard for fully onboarded users
-      navigate("/dashboard", { replace: true });
+      // Role-based redirect for fully onboarded users
+      const { data: roleData2 } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authData.user.id);
+      
+      const roles = roleData2?.map(r => r.role) || [];
+      
+      if (roles.includes("super_admin") || roles.includes("admin")) {
+        navigate("/admin", { replace: true });
+      } else if (roles.includes("member") || roles.includes("founding_member")) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/shop", { replace: true });
+      }
     }
   };
 
