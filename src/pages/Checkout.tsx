@@ -592,6 +592,7 @@ const Checkout = () => {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Delivery Scheduling */}
             <DeliveryScheduler
