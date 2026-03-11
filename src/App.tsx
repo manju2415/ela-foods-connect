@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AppErrorBoundary } from "@/components/errors/AppErrorBoundary";
+import AuthGuard from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
