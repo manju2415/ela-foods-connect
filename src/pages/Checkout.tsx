@@ -262,7 +262,7 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (!user || !selectedAddressId) {
+    if (fulfillmentType === "delivery" && !selectedAddressId) {
       toast({
         title: "Select Address",
         description: "Please select a delivery address.",
@@ -271,8 +271,23 @@ const Checkout = () => {
       return;
     }
 
-    const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
-    if (!selectedAddress) return;
+    if (fulfillmentType === "store_pickup" && !pickupStoreId) {
+      toast({
+        title: "Select Store",
+        description: "Please select a store for pickup.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!user) return;
+
+    const selectedAddress = fulfillmentType === "delivery" 
+      ? addresses.find((a) => a.id === selectedAddressId)
+      : null;
+    const selectedStore = fulfillmentType === "store_pickup"
+      ? pickupStores.find((s: any) => s.id === pickupStoreId)
+      : null;
 
     setPlacing(true);
 
