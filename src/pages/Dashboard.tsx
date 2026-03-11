@@ -336,10 +336,11 @@ const Dashboard = () => {
               Manage your account, orders, and wallet
             </p>
           </div>
-          {referralCodes.length > 0 && !isDeliveryPartner && (
+          {!isDeliveryPartner && (
             <AddUserDialog 
-              defaultReferralCode={referralCodes[0]?.code}
+              defaultReferralCode={referralCodes.length > 0 ? referralCodes[0]?.code : undefined}
               onUserAdded={fetchData}
+              showCodeSelector={referralCodes.length === 0}
               trigger={
                 <Button>
                   <UserPlus className="h-4 w-4 mr-2" />
