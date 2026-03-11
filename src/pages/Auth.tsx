@@ -67,11 +67,44 @@ const Auth = () => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   
   useEffect(() => {
-    // If user is logged in and hasn't just attempted login (meaning they arrived already logged in)
+    // If user is already logged in when they land on this page, redirect based on role
     if (user && !hasAttemptedLogin) {
-      navigate(redirectTo ?? "/dashboard", { replace: true });
+      resolveRoleRedirect(user.id).then((dest) => {
+        navigate(redirectTo ?? dest, { replace: true });
+      });
     }
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
+
+  const resolveRoleRedirect = async (userId: string): Promise<string> => {
+    // Check delivery partner
+    const { data: partnerData } = await supabase
+      .from("delivery_partners")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (partnerData) return "/driver-app";
+
+    // Check admin/super_admin roles
+    const { data: adminRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["super_admin", "admin"])
+      .maybeSingle();
+    if (adminRole) return "/admin";
+
+    // Check member/founding_member roles
+    const { data: memberRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .in("role", ["member", "founding_member"])
+      .maybeSingle();
+    if (memberRole) return "/dashboard";
+
+    // Default: customer → shop
+    return "/shop";
+  };
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
@@ -170,8 +203,21 @@ const Auth = () => {
         return;
       }
       
-      // Default to dashboard for fully onboarded users
-      navigate("/dashboard", { replace: true });
+      // Role-based redirect for fully onboarded users
+      const { data: roleData2 } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", authData.user.id);
+      
+      const roles = roleData2?.map(r => r.role) || [];
+      
+      if (roles.includes("super_admin") || roles.includes("admin")) {
+        navigate("/admin", { replace: true });
+      } else if (roles.includes("member") || roles.includes("founding_member")) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        navigate("/shop", { replace: true });
+      }
     }
   };
 
@@ -203,7 +249,7 @@ const Auth = () => {
           <div className="flex justify-center">
             <img src={elaLogo} alt="ELA Foods" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Join ELA Foods"}</CardTitle>
+          <CardTitle className="text-2xl">{isLogin ? "Welcome Back" : "Join Elabazar"}</CardTitle>
           <CardDescription>
             {isLogin 
               ? "Sign in to your account to continue" 

@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AppErrorBoundary } from "@/components/errors/AppErrorBoundary";
+import AuthGuard from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -119,9 +120,10 @@ function App() {
                 <CartProvider>
                   <WishlistProvider>
                     <Routes>
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<Auth />} />
                       <Route path="/auth" element={<Auth />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/shop" element={<AuthGuard><Index /></AuthGuard>} />
+                      <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
                       <Route path="/products" element={<Products />} />
                       <Route path="/categories" element={<Products />} />
                       <Route path="/category/:slug" element={<CategoryPage />} />
