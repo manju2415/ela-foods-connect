@@ -13,26 +13,28 @@ interface Stats {
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState<Stats>({
-    foundingMembers: 0,
-    referralCodes: 0,
+    categories: 0,
     products: 0,
     orders: 0,
+    revenue: 0,
   });
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [membersRes, codesRes, productsRes, ordersRes] = await Promise.all([
-        supabase.from("user_roles").select("id", { count: "exact" }).eq("role", "founding_member"),
-        supabase.from("referral_codes").select("id", { count: "exact" }),
+      const [categoriesRes, productsRes, ordersRes, revenueRes] = await Promise.all([
+        supabase.from("categories").select("id", { count: "exact" }).eq("is_active", true),
         supabase.from("products").select("id", { count: "exact" }),
         supabase.from("orders").select("id", { count: "exact" }),
+        supabase.from("orders").select("total_amount").eq("status", "delivered"),
       ]);
 
+      const totalRevenue = (revenueRes.data || []).reduce((sum, o) => sum + Number(o.total_amount), 0);
+
       setStats({
-        foundingMembers: membersRes.count || 0,
-        referralCodes: codesRes.count || 0,
+        categories: categoriesRes.count || 0,
         products: productsRes.count || 0,
         orders: ordersRes.count || 0,
+        revenue: totalRevenue,
       });
     };
 
