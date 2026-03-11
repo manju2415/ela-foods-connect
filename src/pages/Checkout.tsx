@@ -15,7 +15,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check } from "lucide-react";
+import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
 import {
   Dialog,
   DialogContent,
