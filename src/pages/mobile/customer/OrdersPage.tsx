@@ -94,6 +94,7 @@ export default function CustomerOrdersPage() {
   }
 
   return (
+    <MobileAppLayout appType="customer">
     <div className="min-h-screen bg-background">
       <MobileHeader title="My Orders" showBack />
       
