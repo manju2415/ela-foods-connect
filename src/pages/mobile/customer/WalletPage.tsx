@@ -106,6 +106,7 @@ export default function CustomerWalletPage() {
   }
 
   return (
+    <MobileAppLayout appType="customer">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Wallet" showBack />
       
