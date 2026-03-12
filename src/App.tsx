@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AppErrorBoundary } from "@/components/errors/AppErrorBoundary";
 import AuthGuard from "@/components/AuthGuard";
+import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -120,9 +121,9 @@ function App() {
                 <CartProvider>
                   <WishlistProvider>
                     <Routes>
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
                       <Route path="/auth" element={<Auth />} />
-                      <Route path="/shop" element={<Index />} />
+                      <Route path="/shop" element={<AuthGuard><Index /></AuthGuard>} />
                       <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
                       <Route path="/products" element={<Products />} />
                       <Route path="/categories" element={<Products />} />
