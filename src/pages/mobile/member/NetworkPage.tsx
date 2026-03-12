@@ -44,7 +44,7 @@ export default function MemberNetworkPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileHeader title="My Network" />
+      <MobileHeader title="My Network" showBack />
       <PullToRefresh isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} pullProgress={pullProgress} shouldTrigger={shouldTrigger} handlers={handlers}>
         <div className="p-4 space-y-3">
           <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">

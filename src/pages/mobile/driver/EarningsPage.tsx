@@ -116,7 +116,7 @@ export default function DriverEarningsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileHeader title="Earnings" />
+      <MobileHeader title="Earnings" showBack />
       
       <PullToRefresh
         isPulling={isPulling}

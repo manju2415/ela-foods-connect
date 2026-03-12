@@ -92,7 +92,7 @@ export default function CustomerOrdersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileHeader title="My Orders" />
+      <MobileHeader title="My Orders" showBack />
       
       <PullToRefresh
         isPulling={isPulling}
