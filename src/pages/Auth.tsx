@@ -100,7 +100,7 @@ const Auth = () => {
       .maybeSingle();
     if (memberRole) return "/dashboard";
 
-    return "/shop";
+    return "/customer-app";
   };
 
   const validateReferralCode = async (code: string) => {
