@@ -44,6 +44,7 @@ export default function MemberNetworkPage() {
   };
 
   return (
+    <MobileAppLayout appType="member">
     <div className="min-h-screen bg-background">
       <MobileHeader title="My Network" showBack />
       <PullToRefresh isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} pullProgress={pullProgress} shouldTrigger={shouldTrigger} handlers={handlers}>
