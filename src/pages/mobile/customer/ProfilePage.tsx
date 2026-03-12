@@ -108,6 +108,7 @@ export default function CustomerProfilePage() {
   }
 
   return (
+    <MobileAppLayout appType="customer">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Profile" showBack />
       
