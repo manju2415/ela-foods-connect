@@ -186,6 +186,7 @@ const Auth = () => {
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
+    hasAttemptedLoginRef.current = true;
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await sendOtp(fullPhone);
