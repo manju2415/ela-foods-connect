@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -115,6 +116,7 @@ export default function DriverEarningsPage() {
   });
 
   return (
+    <MobileAppLayout appType="driver">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Earnings" showBack />
       
@@ -226,5 +228,6 @@ export default function DriverEarningsPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

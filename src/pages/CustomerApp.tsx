@@ -71,7 +71,7 @@ export default function CustomerApp() {
 
   return (
     <MobileAppLayout appType="customer">
-      <Index />
+      <Index hideChrome />
       <InstallPrompt appName="ELA Foods" appType="customer" themeColor="#f97316" />
       <PWABadge />
     </MobileAppLayout>

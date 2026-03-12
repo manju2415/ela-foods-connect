@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -91,6 +92,7 @@ export default function CustomerProfilePage() {
 
   if (!user) {
     return (
+      <MobileAppLayout appType="customer">
       <div className="min-h-screen bg-background">
         <MobileHeader title="Profile" showBack showLogin />
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -101,10 +103,12 @@ export default function CustomerProfilePage() {
           </Button>
         </div>
       </div>
+      </MobileAppLayout>
     );
   }
 
   return (
+    <MobileAppLayout appType="customer">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Profile" showBack />
       
@@ -235,5 +239,6 @@ export default function CustomerProfilePage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

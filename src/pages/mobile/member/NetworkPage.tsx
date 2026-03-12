@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -43,6 +44,7 @@ export default function MemberNetworkPage() {
   };
 
   return (
+    <MobileAppLayout appType="member">
     <div className="min-h-screen bg-background">
       <MobileHeader title="My Network" showBack />
       <PullToRefresh isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} pullProgress={pullProgress} shouldTrigger={shouldTrigger} handlers={handlers}>
@@ -89,5 +91,6 @@ export default function MemberNetworkPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

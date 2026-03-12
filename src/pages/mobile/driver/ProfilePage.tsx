@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
@@ -103,6 +104,7 @@ export default function DriverProfilePage() {
   };
 
   return (
+    <MobileAppLayout appType="driver">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Profile" showBack />
       
@@ -214,5 +216,6 @@ export default function DriverProfilePage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

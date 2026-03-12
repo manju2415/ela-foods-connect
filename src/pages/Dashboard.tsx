@@ -108,7 +108,11 @@ interface WishlistProduct {
   stock_quantity: number;
 }
 
-const Dashboard = () => {
+interface DashboardProps {
+  hideChrome?: boolean;
+}
+
+const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -326,9 +330,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {!hideChrome && <Header />}
       
-      <main className="container mx-auto px-4 py-8">
+      <main className={`container mx-auto px-4 ${hideChrome ? 'py-4 pb-20' : 'py-8'}`}>
         <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-foreground">My Dashboard</h1>
@@ -1059,7 +1063,7 @@ const Dashboard = () => {
         />
       )}
 
-      <Footer />
+      {!hideChrome && <Footer />}
     </div>
   );
 };
