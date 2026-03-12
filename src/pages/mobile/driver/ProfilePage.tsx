@@ -104,6 +104,7 @@ export default function DriverProfilePage() {
   };
 
   return (
+    <MobileAppLayout appType="driver">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Profile" showBack />
       
