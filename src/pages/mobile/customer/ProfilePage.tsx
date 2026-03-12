@@ -239,5 +239,6 @@ export default function CustomerProfilePage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

@@ -218,5 +218,6 @@ export default function CustomerWalletPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }
