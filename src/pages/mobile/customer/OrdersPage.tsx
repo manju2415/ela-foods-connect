@@ -77,15 +77,18 @@ export default function CustomerOrdersPage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-        <Package className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-lg font-medium mb-2">Sign in to view orders</h2>
-        <button
-          onClick={() => navigate("/auth?redirect=/customer-app/orders")}
-          className="text-primary underline"
-        >
-          Sign in
-        </button>
+      <div className="min-h-screen bg-background">
+        <MobileHeader title="My Orders" showBack showLogin />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+          <Package className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-lg font-medium mb-2">Sign in to view orders</h2>
+          <button
+            onClick={() => navigate("/auth?redirect=/customer-app/orders")}
+            className="text-primary underline"
+          >
+            Sign in
+          </button>
+        </div>
       </div>
     );
   }
