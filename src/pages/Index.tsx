@@ -8,11 +8,15 @@ import ReferralBanner from "@/components/ReferralBanner";
 import Newsletter from "@/components/Newsletter";
 import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 
-const Index = () => {
+interface IndexProps {
+  hideChrome?: boolean;
+}
+
+const Index = ({ hideChrome = false }: IndexProps) => {
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className="flex-1">
+      {!hideChrome && <Header />}
+      <main className={`flex-1 ${hideChrome ? 'pb-16' : ''}`}>
         <HeroSection />
         <AdvertisementBanner placement="home_top" />
         <FeaturedProducts />
@@ -23,7 +27,7 @@ const Index = () => {
         <AdvertisementBanner placement="home_bottom" />
         <Newsletter />
       </main>
-      <Footer />
+      {!hideChrome && <Footer />}
     </div>
   );
 };
