@@ -59,12 +59,14 @@ const Auth = () => {
   });
 
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const hasAttemptedLoginRef = useRef(false);
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {
       let cancelled = false;
       resolveRoleRedirect(user.id).then((dest) => {
-        if (!cancelled) {
+        // Check ref (synchronously updated) to avoid race with state batching
+        if (!cancelled && !hasAttemptedLoginRef.current) {
           navigate(redirectTo ?? dest, { replace: true });
         }
       });
