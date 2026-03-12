@@ -194,6 +194,7 @@ const Auth = () => {
     if (error) {
       setIsSubmitting(false);
       setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
       toast({
         title: "Failed to send OTP",
         description: error.message,
