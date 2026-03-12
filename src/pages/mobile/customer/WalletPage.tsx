@@ -86,15 +86,18 @@ export default function CustomerWalletPage() {
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-        <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-lg font-medium mb-2">Sign in to view wallet</h2>
-        <button
-          onClick={() => navigate("/auth?redirect=/customer-app/wallet")}
-          className="text-primary underline"
-        >
-          Sign in
-        </button>
+      <div className="min-h-screen bg-background">
+        <MobileHeader title="Wallet" showBack showLogin />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+          <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
+          <h2 className="text-lg font-medium mb-2">Sign in to view wallet</h2>
+          <button
+            onClick={() => navigate("/auth?redirect=/customer-app/wallet")}
+            className="text-primary underline"
+          >
+            Sign in
+          </button>
+        </div>
       </div>
     );
   }
