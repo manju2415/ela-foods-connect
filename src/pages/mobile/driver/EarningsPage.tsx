@@ -228,5 +228,6 @@ export default function DriverEarningsPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

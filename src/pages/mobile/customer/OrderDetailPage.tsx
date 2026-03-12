@@ -254,5 +254,6 @@ export default function CustomerOrderDetailPage() {
         />
       )}
     </div>
+    </MobileAppLayout>
   );
 }

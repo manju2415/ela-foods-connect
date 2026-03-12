@@ -91,5 +91,6 @@ export default function MemberNetworkPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }

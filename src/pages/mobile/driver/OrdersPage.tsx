@@ -487,5 +487,6 @@ export default function DriverOrdersPage() {
         isProcessing={processingReturn}
       />
     </div>
+    </MobileAppLayout>
   );
 }

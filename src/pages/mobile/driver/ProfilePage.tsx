@@ -216,5 +216,6 @@ export default function DriverProfilePage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }
