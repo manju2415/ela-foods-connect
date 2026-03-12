@@ -62,9 +62,13 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {
+      let cancelled = false;
       resolveRoleRedirect(user.id).then((dest) => {
-        navigate(redirectTo ?? dest, { replace: true });
+        if (!cancelled) {
+          navigate(redirectTo ?? dest, { replace: true });
+        }
       });
+      return () => { cancelled = true; };
     }
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
 
