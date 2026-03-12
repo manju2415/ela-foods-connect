@@ -252,6 +252,7 @@ export default function DriverOrdersPage() {
   const selected = assignments.find(a => a.id === selectedId);
 
   return (
+    <MobileAppLayout appType="driver">
     <div className="min-h-screen bg-background">
       <MobileHeader 
         title="Active Orders"
