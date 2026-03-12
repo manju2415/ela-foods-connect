@@ -168,5 +168,6 @@ export default function CustomerOrdersPage() {
         </div>
       </PullToRefresh>
     </div>
+    </MobileAppLayout>
   );
 }
