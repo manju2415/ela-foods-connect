@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Package, User, Wallet, Truck, Users, ShoppingCart } from "lucide-react";
+import { Home, Package, User, Wallet, Truck, Users, ShoppingCart, LogIn } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 type AppType = "customer" | "driver" | "member";
@@ -11,7 +12,7 @@ interface NavItem {
   path: string;
 }
 
-const getNavItems = (appType: AppType): NavItem[] => {
+const getNavItems = (appType: AppType, isLoggedIn: boolean): NavItem[] => {
   switch (appType) {
     case "driver":
       return [
@@ -29,6 +30,13 @@ const getNavItems = (appType: AppType): NavItem[] => {
       ];
     case "customer":
     default:
+      if (!isLoggedIn) {
+        return [
+          { icon: Home, label: "Home", path: "/customer-app" },
+          { icon: ShoppingCart, label: "Orders", path: "/customer-app/orders" },
+          { icon: LogIn, label: "Login", path: "/auth?redirect=/customer-app" },
+        ];
+      }
       return [
         { icon: Home, label: "Home", path: "/customer-app" },
         { icon: ShoppingCart, label: "Orders", path: "/customer-app/orders" },
@@ -48,14 +56,16 @@ export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(fun
 ) {
   const location = useLocation();
   const navigate = useNavigate();
-  const navItems = getNavItems(appType);
+  const { user } = useAuth();
+  const navItems = getNavItems(appType, !!user);
 
   const isActive = (path: string) => {
-    // Exact match for home routes
     if (path.endsWith("-app")) {
       return location.pathname === path;
     }
-    // Prefix match for sub-routes
+    if (path.startsWith("/auth")) {
+      return location.pathname === "/auth";
+    }
     return location.pathname.startsWith(path);
   };
 

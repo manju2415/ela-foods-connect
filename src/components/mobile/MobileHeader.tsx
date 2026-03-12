@@ -1,5 +1,7 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface MobileHeaderProps {
@@ -7,15 +9,18 @@ interface MobileHeaderProps {
   showBack?: boolean;
   rightAction?: React.ReactNode;
   className?: string;
+  showLogin?: boolean;
 }
 
 export function MobileHeader({ 
   title, 
   showBack = false, 
   rightAction,
-  className 
+  className,
+  showLogin = false,
 }: MobileHeaderProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <header className={cn(
@@ -34,11 +39,20 @@ export function MobileHeader({
           )}
           <h1 className="text-lg font-semibold">{title}</h1>
         </div>
-        {rightAction && (
-          <div className="flex items-center">
-            {rightAction}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {showLogin && !user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate("/auth")}
+              className="gap-1.5"
+            >
+              <LogIn className="h-4 w-4" />
+              Login
+            </Button>
+          )}
+          {rightAction}
+        </div>
       </div>
     </header>
   );
