@@ -92,6 +92,7 @@ export default function CustomerProfilePage() {
 
   if (!user) {
     return (
+      <MobileAppLayout appType="customer">
       <div className="min-h-screen bg-background">
         <MobileHeader title="Profile" showBack showLogin />
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -102,6 +103,7 @@ export default function CustomerProfilePage() {
           </Button>
         </div>
       </div>
+      </MobileAppLayout>
     );
   }
 
