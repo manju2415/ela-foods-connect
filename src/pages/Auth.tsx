@@ -354,6 +354,7 @@ const Auth = () => {
     setOtpCode("");
     setPhoneNumber("");
     setHasAttemptedLogin(false);
+    hasAttemptedLoginRef.current = false;
   };
 
   // OTP Verification Screen
