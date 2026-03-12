@@ -1063,7 +1063,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         />
       )}
 
-      <Footer />
+      {!hideChrome && <Footer />}
     </div>
   );
 };
