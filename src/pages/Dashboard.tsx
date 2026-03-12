@@ -108,7 +108,11 @@ interface WishlistProduct {
   stock_quantity: number;
 }
 
-const Dashboard = () => {
+interface DashboardProps {
+  hideChrome?: boolean;
+}
+
+const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
