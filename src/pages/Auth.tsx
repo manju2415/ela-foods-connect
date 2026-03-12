@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -59,12 +59,14 @@ const Auth = () => {
   });
 
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
+  const hasAttemptedLoginRef = useRef(false);
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {
       let cancelled = false;
       resolveRoleRedirect(user.id).then((dest) => {
-        if (!cancelled) {
+        // Check ref (synchronously updated) to avoid race with state batching
+        if (!cancelled && !hasAttemptedLoginRef.current) {
           navigate(redirectTo ?? dest, { replace: true });
         }
       });
@@ -184,6 +186,11 @@ const Auth = () => {
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
+    hasAttemptedLoginRef.current = true;
+
+    // Sign out any previous session to prevent stale redirects
+    await supabase.auth.signOut();
+
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await sendOtp(fullPhone);
@@ -191,6 +198,7 @@ const Auth = () => {
     if (error) {
       setIsSubmitting(false);
       setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
       toast({
         title: "Failed to send OTP",
         description: error.message,
@@ -350,6 +358,7 @@ const Auth = () => {
     setOtpCode("");
     setPhoneNumber("");
     setHasAttemptedLogin(false);
+    hasAttemptedLoginRef.current = false;
   };
 
   // OTP Verification Screen
