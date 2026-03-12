@@ -116,6 +116,7 @@ export default function DriverEarningsPage() {
   });
 
   return (
+    <MobileAppLayout appType="driver">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Earnings" showBack />
       
