@@ -87,6 +87,7 @@ export default function CustomerWalletPage() {
 
   if (!user) {
     return (
+      <MobileAppLayout appType="customer">
       <div className="min-h-screen bg-background">
         <MobileHeader title="Wallet" showBack showLogin />
         <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
@@ -100,6 +101,7 @@ export default function CustomerWalletPage() {
           </button>
         </div>
       </div>
+      </MobileAppLayout>
     );
   }
 
