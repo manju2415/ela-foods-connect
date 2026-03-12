@@ -253,7 +253,8 @@ export default function DriverOrdersPage() {
   return (
     <div className="min-h-screen bg-background">
       <MobileHeader 
-        title="Active Orders" 
+        title="Active Orders"
+        showBack
         rightAction={
           !isOnline && (
             <Badge variant="outline" className="text-amber-600 border-amber-600">

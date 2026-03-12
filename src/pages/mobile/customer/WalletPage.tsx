@@ -101,7 +101,7 @@ export default function CustomerWalletPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileHeader title="Wallet" />
+      <MobileHeader title="Wallet" showBack />
       
       <PullToRefresh
         isPulling={isPulling}

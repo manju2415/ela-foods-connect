@@ -103,7 +103,7 @@ export default function CustomerProfilePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <MobileHeader title="Profile" />
+      <MobileHeader title="Profile" showBack />
       
       <PullToRefresh
         isPulling={isPulling}
