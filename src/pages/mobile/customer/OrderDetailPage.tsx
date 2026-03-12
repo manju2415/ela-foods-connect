@@ -121,6 +121,7 @@ export default function CustomerOrderDetailPage() {
   }
 
   return (
+    <MobileAppLayout appType="customer">
     <div className="min-h-screen bg-background">
       <MobileHeader title="Order Details" showBack />
 
