@@ -120,9 +120,9 @@ function App() {
                 <CartProvider>
                   <WishlistProvider>
                     <Routes>
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
                       <Route path="/auth" element={<Auth />} />
-                      <Route path="/shop" element={<Index />} />
+                      <Route path="/shop" element={<AuthGuard><Index /></AuthGuard>} />
                       <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
                       <Route path="/products" element={<Products />} />
                       <Route path="/categories" element={<Products />} />
