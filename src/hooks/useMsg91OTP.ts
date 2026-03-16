@@ -179,5 +179,5 @@ export function useMsg91OTP() {
     }
   }, []);
 
-  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError };
+  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError, initDone };
 }
