@@ -59,7 +59,7 @@ const MLMLogin = () => {
     }
   }, [resendTimer]);
 
-  const useMockOtp = !msg91Ready && !!msg91Error;
+  const useMockOtp = msg91InitDone && !msg91Ready;
 
   const handleMockLogin = async (phone: string) => {
     const fullPhone = `+91${phone}`;
