@@ -37,7 +37,7 @@ const Auth = () => {
   const [checkingCode, setCheckingCode] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { user, sendOtp, verifyOtp, signUpWithOtp } = useAuth();
+  const { user, sendOtp, verifyOtp, signUpWithOtp, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -192,7 +192,7 @@ const Auth = () => {
     hasAttemptedLoginRef.current = true;
 
     // Sign out any previous session to prevent stale redirects
-    await supabase.auth.signOut();
+    await signOut();
 
     const fullPhone = `+91${data.phone}`;
 

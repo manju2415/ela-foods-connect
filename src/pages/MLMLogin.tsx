@@ -28,7 +28,7 @@ const MLMLogin = () => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { user, sendOtp, verifyOtp } = useAuth();
+  const { user, sendOtp, verifyOtp, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -59,7 +59,7 @@ const MLMLogin = () => {
     setHasAttemptedLogin(true);
 
     // Sign out any previous session
-    await supabase.auth.signOut();
+    await signOut();
 
     const fullPhone = `+91${data.phone}`;
 
@@ -88,7 +88,7 @@ const MLMLogin = () => {
 
       if (!isAdmin) {
         toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
-        await supabase.auth.signOut();
+        await signOut();
         setHasAttemptedLogin(false);
         return;
       }
@@ -117,7 +117,7 @@ const MLMLogin = () => {
 
       if (!isAdmin) {
         toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
-        await supabase.auth.signOut();
+        await signOut();
         setHasAttemptedLogin(false);
         setStep("phone");
         setOtpCode("");
