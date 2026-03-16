@@ -57,20 +57,45 @@ const MLMLogin = () => {
   const handleSendOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
+
+    // Sign out any previous session
+    await supabase.auth.signOut();
+
     const fullPhone = `+91${data.phone}`;
 
     const { error } = await sendOtp(fullPhone);
-    setIsSubmitting(false);
 
     if (error) {
+      setIsSubmitting(false);
       setHasAttemptedLogin(false);
       toast({ title: "Failed to send OTP", description: error.message, variant: "destructive" });
-    } else {
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Verification code sent to +91 ${data.phone}` });
+      return;
     }
+
+    // Auto-verify with mock code (skip OTP screen)
+    const { error: verifyError } = await verifyOtp(fullPhone, "000000");
+    setIsSubmitting(false);
+
+    if (verifyError) {
+      toast({ title: "Login failed", description: verifyError.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      return;
+    }
+
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (verifiedUser) {
+      const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: verifiedUser.id });
+
+      if (!isAdmin) {
+        toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
+        await supabase.auth.signOut();
+        setHasAttemptedLogin(false);
+        return;
+      }
+    }
+
+    toast({ title: "Welcome!", description: "Logged in to Network Manager." });
+    navigate("/mlm-admin", { replace: true });
   };
 
   const handleVerifyOtp = async () => {
