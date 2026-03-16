@@ -317,6 +317,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", verifiedUser.id)
       .in("role", ["founding_member", "super_admin", "admin"])
+      .limit(1)
       .maybeSingle();
 
     const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";

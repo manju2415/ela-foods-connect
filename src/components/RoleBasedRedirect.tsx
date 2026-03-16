@@ -34,6 +34,7 @@ export default function RoleBasedRedirect() {
         .select("role")
         .eq("user_id", user.id)
         .in("role", ["super_admin", "admin"])
+        .limit(1)
         .maybeSingle();
       if (adminRole) {
         navigate("/admin", { replace: true });
@@ -46,6 +47,7 @@ export default function RoleBasedRedirect() {
         .select("role")
         .eq("user_id", user.id)
         .in("role", ["member", "founding_member"])
+        .limit(1)
         .maybeSingle();
       if (memberRole) {
         navigate("/dashboard", { replace: true });
