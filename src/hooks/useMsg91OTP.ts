@@ -147,22 +147,29 @@ export function useMsg91OTP() {
     }
     try {
       console.log('[MSG91] Verifying OTP...');
-      // Create a promise that resolves when success/failure callback fires
       const result = await new Promise<unknown>((resolve, reject) => {
         successResolveRef.current = resolve;
         failureRejectRef.current = reject;
 
-        // Call MSG91 verify - the success/failure callbacks in config will fire
-        window.verifyOtp!(otp).catch((err: unknown) => {
-          // If verifyOtp itself rejects, handle it
+        try {
+          const verificationResult = window.verifyOtp?.(otp);
+          if (verificationResult && typeof (verificationResult as Promise<unknown>).catch === 'function') {
+            (verificationResult as Promise<unknown>).catch((err: unknown) => {
+              if (failureRejectRef.current) {
+                failureRejectRef.current(err);
+                failureRejectRef.current = null;
+                successResolveRef.current = null;
+              }
+            });
+          }
+        } catch (err) {
           if (failureRejectRef.current) {
             failureRejectRef.current(err);
             failureRejectRef.current = null;
             successResolveRef.current = null;
           }
-        });
+        }
 
-        // Timeout after 30 seconds
         setTimeout(() => {
           if (failureRejectRef.current) {
             failureRejectRef.current(new Error('OTP verification timed out'));
