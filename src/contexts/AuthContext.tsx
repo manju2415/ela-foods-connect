@@ -163,7 +163,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (_) {
+      // Session may already be expired/invalid — clear local state anyway
+    }
+    setUser(null);
+    setSession(null);
   };
 
   return (
