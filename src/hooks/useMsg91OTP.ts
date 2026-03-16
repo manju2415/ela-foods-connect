@@ -106,6 +106,7 @@ export function useMsg91OTP() {
           setIsLoading(false);
           setInitDone(true);
         }
+      }
     };
 
     init();
