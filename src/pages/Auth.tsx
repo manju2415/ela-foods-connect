@@ -287,10 +287,11 @@ const Auth = () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
+    console.log("[Auth] verify start", { otpCode, phoneNumber, useMockOtp });
 
-    // Mock OTP bypass: skip MSG91 verification for code "000000"
     if (otpCode !== "000000") {
       const verifyResult = await msg91VerifyOtp(otpCode);
+      console.log("[Auth] verify result", verifyResult);
 
       if (!verifyResult.success) {
         setIsSubmitting(false);
@@ -300,11 +301,12 @@ const Auth = () => {
       }
     }
 
-    // OTP verified — create Supabase session
     const { error, isNewUser } = await createSessionForPhone(
       phoneNumber,
       pendingSignupRef.current || undefined
     );
+
+    console.log("[Auth] session result", { error: error?.message, isNewUser });
 
     setIsSubmitting(false);
     pendingSignupRef.current = null;
