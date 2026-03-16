@@ -321,6 +321,13 @@ const Auth = () => {
   // ── Resend OTP ──
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
+
+    if (useMockOtp) {
+      setResendTimer(30);
+      toast({ title: "OTP Resent", description: `Use 000000 for ${phoneNumber}` });
+      return;
+    }
+
     setIsSubmitting(true);
     const result = await msg91RetryOtp('text');
     setIsSubmitting(false);
