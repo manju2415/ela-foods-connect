@@ -109,10 +109,13 @@ const MLMLogin = () => {
     // Check admin role
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
-      const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: verifiedUser.id });
+      const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
+        supabase.rpc("is_admin", { _user_id: verifiedUser.id }),
+        supabase.rpc("is_founding_member", { _user_id: verifiedUser.id }),
+      ]);
 
-      if (!isAdmin) {
-        toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
+      if (!isAdmin && !isFounder) {
+        toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
         await signOut();
         setHasAttemptedLogin(false);
         setStep("phone");
