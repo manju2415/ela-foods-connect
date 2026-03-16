@@ -28,7 +28,7 @@ const MLMLogin = () => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { user, sendOtp, verifyOtp } = useAuth();
+  const { user, sendOtp, verifyOtp, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
