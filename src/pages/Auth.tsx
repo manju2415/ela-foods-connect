@@ -41,7 +41,7 @@ const Auth = () => {
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initError: msg91Error } = useMsg91OTP();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initDone: msg91InitDone } = useMsg91OTP();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -186,7 +186,7 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
-  const useMockOtp = !msg91Ready && !!msg91Error;
+  const useMockOtp = msg91InitDone && !msg91Ready;
 
   const handleMockAuth = async (phone: string, signupData?: { fullName: string; referralCode: string }) => {
     const fullPhone = `+91${phone}`;
@@ -432,10 +432,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting && !useMockOtp}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || (!msg91Ready && !msg91InitDone)}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {useMockOtp ? "Sign In" : (msg91Ready ? "Send OTP" : "Loading...")}
+                {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
               </Button>
             </form>
           ) : (
@@ -490,10 +490,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || (!msg91Ready && !msg91InitDone)}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {useMockOtp ? "Sign Up" : (msg91Ready ? "Send OTP" : "Loading...")}
+                {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
               </Button>
             </form>
           )}

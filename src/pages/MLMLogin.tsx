@@ -30,7 +30,7 @@ const MLMLogin = () => {
   const [resendTimer, setResendTimer] = useState(0);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initError: msg91Error } = useMsg91OTP();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initDone: msg91InitDone } = useMsg91OTP();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -59,7 +59,7 @@ const MLMLogin = () => {
     }
   }, [resendTimer]);
 
-  const useMockOtp = !msg91Ready && !!msg91Error;
+  const useMockOtp = msg91InitDone && !msg91Ready;
 
   const handleMockLogin = async (phone: string) => {
     const fullPhone = `+91${phone}`;
@@ -270,10 +270,10 @@ const MLMLogin = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || (!msg91Ready && !msg91InitDone)}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Phone className="mr-2 h-4 w-4" />
-              {useMockOtp ? "Sign In" : (msg91Ready ? "Send OTP" : "Loading...")}
+              {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
             </Button>
           </form>
 

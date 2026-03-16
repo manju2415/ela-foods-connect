@@ -39,6 +39,7 @@ export function useMsg91OTP() {
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [initDone, setInitDone] = useState(false);
 
   // Promise resolvers for verify flow
   const successResolveRef = useRef<((data: unknown) => void) | null>(null);
@@ -101,7 +102,10 @@ export function useMsg91OTP() {
           setInitError(err instanceof Error ? err.message : 'MSG91 init failed');
         }
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setInitDone(true);
+        }
       }
     };
 
@@ -178,5 +182,5 @@ export function useMsg91OTP() {
     }
   }, []);
 
-  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError };
+  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError, initDone };
 }
