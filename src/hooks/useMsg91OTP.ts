@@ -63,7 +63,14 @@ export function useMsg91OTP() {
 
         const { widgetId, tokenAuth } = data as { widgetId: string; tokenAuth: string };
 
-        // Load MSG91 OTP provider script
+        if (!isUsableMsg91Token(tokenAuth)) {
+          console.warn('[MSG91] Invalid or placeholder token detected, using mock OTP mode');
+          if (mounted) {
+            setInitError('Using mock OTP mode');
+          }
+          return;
+        }
+
         await loadScript([
           'https://verify.msg91.com/otp-provider.js',
           'https://verify.phone91.com/otp-provider.js',
@@ -75,7 +82,6 @@ export function useMsg91OTP() {
           throw new Error('MSG91 script loaded but initSendOTP not found');
         }
 
-        // Initialize widget with exposeMethods so we control the UI
         const configuration = {
           widgetId,
           tokenAuth,
