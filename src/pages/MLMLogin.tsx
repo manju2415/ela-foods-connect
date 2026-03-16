@@ -41,8 +41,11 @@ const MLMLogin = () => {
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {
-      supabase.rpc("is_admin", { _user_id: user.id }).then(({ data }) => {
-        if (data) {
+      Promise.all([
+        supabase.rpc("is_admin", { _user_id: user.id }),
+        supabase.rpc("is_founding_member", { _user_id: user.id }),
+      ]).then(([adminRes, founderRes]) => {
+        if (adminRes.data || founderRes.data) {
           navigate("/mlm-admin", { replace: true });
         }
       });
