@@ -41,7 +41,7 @@ const Auth = () => {
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready } = useMsg91OTP();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initError: msg91Error } = useMsg91OTP();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -186,6 +186,25 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
+  const useMockOtp = !msg91Ready && !!msg91Error;
+
+  const handleMockAuth = async (phone: string, signupData?: { fullName: string; referralCode: string }) => {
+    const fullPhone = `+91${phone}`;
+    const { error, isNewUser } = await createSessionForPhone(fullPhone, signupData);
+    setIsSubmitting(false);
+    pendingSignupRef.current = null;
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
+      return;
+    }
+
+    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
+    await handlePostVerifyRedirect(isNewUser || false);
+  };
+
   // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
@@ -194,7 +213,13 @@ const Auth = () => {
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
-    pendingSignupRef.current = null; // login, not signup
+    pendingSignupRef.current = null;
+
+    // Mock OTP: skip SMS, login directly
+    if (useMockOtp) {
+      await handleMockAuth(data.phone);
+      return;
+    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
@@ -225,6 +250,12 @@ const Auth = () => {
 
     const fullPhone = `+91${data.phone}`;
     pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
+
+    // Mock OTP: skip SMS, signup directly
+    if (useMockOtp) {
+      await handleMockAuth(data.phone, pendingSignupRef.current);
+      return;
+    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
@@ -401,10 +432,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || !msg91Ready}>
+              <Button type="submit" className="w-full" disabled={isSubmitting && !useMockOtp}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {msg91Ready ? "Send OTP" : "Loading..."}
+                {useMockOtp ? "Sign In" : (msg91Ready ? "Send OTP" : "Loading...")}
               </Button>
             </form>
           ) : (
@@ -459,10 +490,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || !msg91Ready}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {msg91Ready ? "Send OTP" : "Loading..."}
+                {useMockOtp ? "Sign Up" : (msg91Ready ? "Send OTP" : "Loading...")}
               </Button>
             </form>
           )}

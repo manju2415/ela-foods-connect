@@ -30,7 +30,7 @@ const MLMLogin = () => {
   const [resendTimer, setResendTimer] = useState(0);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready } = useMsg91OTP();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initError: msg91Error } = useMsg91OTP();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -59,10 +59,49 @@ const MLMLogin = () => {
     }
   }, [resendTimer]);
 
+  const useMockOtp = !msg91Ready && !!msg91Error;
+
+  const handleMockLogin = async (phone: string) => {
+    const fullPhone = `+91${phone}`;
+    const { error } = await createSessionForPhone(fullPhone);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      return;
+    }
+
+    // Check admin/founder role
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (verifiedUser) {
+      const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
+        supabase.rpc("is_admin", { _user_id: verifiedUser.id }),
+        supabase.rpc("is_founding_member", { _user_id: verifiedUser.id }),
+      ]);
+
+      if (!isAdmin && !isFounder) {
+        toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
+        await signOut();
+        setHasAttemptedLogin(false);
+        return;
+      }
+    }
+
+    toast({ title: "Welcome!", description: "Logged in to Network Manager." });
+    navigate("/mlm-admin", { replace: true });
+  };
+
   const handleSendOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     await signOut();
+
+    // Mock OTP: skip SMS, login directly
+    if (useMockOtp) {
+      await handleMockLogin(data.phone);
+      return;
+    }
 
     const fullPhone = `+91${data.phone}`;
 
@@ -231,10 +270,10 @@ const MLMLogin = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || !msg91Ready}>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Phone className="mr-2 h-4 w-4" />
-              {msg91Ready ? "Send OTP" : "Loading..."}
+              {useMockOtp ? "Sign In" : (msg91Ready ? "Send OTP" : "Loading...")}
             </Button>
           </form>
 
