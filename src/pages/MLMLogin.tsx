@@ -98,7 +98,11 @@ const MLMLogin = () => {
 
     // Mock OTP: skip SMS, login directly
     if (useMockOtp) {
-      await handleMockLogin(data.phone);
+      setIsSubmitting(false);
+      setPhoneNumber(`+91${data.phone}`);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Use 000000 for +91${data.phone}` });
       return;
     }
 
