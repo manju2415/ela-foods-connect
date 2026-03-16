@@ -95,6 +95,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", userId)
       .in("role", ["super_admin", "admin"])
+      .limit(1)
       .maybeSingle();
     if (adminRole) return "/admin";
 
@@ -103,6 +104,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", userId)
       .in("role", ["member", "founding_member"])
+      .limit(1)
       .maybeSingle();
     if (memberRole) return "/dashboard";
 
