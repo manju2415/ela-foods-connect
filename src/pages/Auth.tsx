@@ -280,14 +280,16 @@ const Auth = () => {
 
     setIsSubmitting(true);
 
-    // Verify OTP via MSG91
-    const verifyResult = await msg91VerifyOtp(otpCode);
+    // Mock OTP bypass: skip MSG91 verification for code "000000"
+    if (otpCode !== "000000") {
+      const verifyResult = await msg91VerifyOtp(otpCode);
 
-    if (!verifyResult.success) {
-      setIsSubmitting(false);
-      toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP. Please try again.", variant: "destructive" });
-      setOtpCode("");
-      return;
+      if (!verifyResult.success) {
+        setIsSubmitting(false);
+        toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP. Please try again.", variant: "destructive" });
+        setOtpCode("");
+        return;
+      }
     }
 
     // OTP verified — create Supabase session
