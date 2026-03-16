@@ -95,6 +95,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", userId)
       .in("role", ["super_admin", "admin"])
+      .limit(1)
       .maybeSingle();
     if (adminRole) return "/admin";
 
@@ -103,6 +104,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", userId)
       .in("role", ["member", "founding_member"])
+      .limit(1)
       .maybeSingle();
     if (memberRole) return "/dashboard";
 
@@ -158,6 +160,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", verifiedUser.id)
       .in("role", ["founding_member", "super_admin", "admin"])
+      .limit(1)
       .maybeSingle();
 
     const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
@@ -314,6 +317,7 @@ const Auth = () => {
       .select("role")
       .eq("user_id", verifiedUser.id)
       .in("role", ["founding_member", "super_admin", "admin"])
+      .limit(1)
       .maybeSingle();
 
     const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
