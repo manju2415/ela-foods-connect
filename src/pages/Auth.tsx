@@ -192,7 +192,7 @@ const Auth = () => {
     hasAttemptedLoginRef.current = true;
 
     // Sign out any previous session to prevent stale redirects
-    await supabase.auth.signOut();
+    await signOut();
 
     const fullPhone = `+91${data.phone}`;
 
