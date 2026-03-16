@@ -15,8 +15,8 @@ export function MLMAdminLayout({ children }: MLMAdminLayoutProps) {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/mlm-login");
+    try { await signOut(); } catch (_) { /* session may already be expired */ }
+    navigate("/mlm-login", { replace: true });
   };
 
   const handleVisitSite = () => {
