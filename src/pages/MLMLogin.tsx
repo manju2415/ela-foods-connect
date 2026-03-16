@@ -88,7 +88,7 @@ const MLMLogin = () => {
 
       if (!isAdmin) {
         toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
-        await supabase.auth.signOut();
+        await signOut();
         setHasAttemptedLogin(false);
         return;
       }
