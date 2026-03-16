@@ -59,10 +59,49 @@ const MLMLogin = () => {
     }
   }, [resendTimer]);
 
+  const useMockOtp = !msg91Ready && !!msg91Error;
+
+  const handleMockLogin = async (phone: string) => {
+    const fullPhone = `+91${phone}`;
+    const { error } = await createSessionForPhone(fullPhone);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      return;
+    }
+
+    // Check admin/founder role
+    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+    if (verifiedUser) {
+      const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
+        supabase.rpc("is_admin", { _user_id: verifiedUser.id }),
+        supabase.rpc("is_founding_member", { _user_id: verifiedUser.id }),
+      ]);
+
+      if (!isAdmin && !isFounder) {
+        toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
+        await signOut();
+        setHasAttemptedLogin(false);
+        return;
+      }
+    }
+
+    toast({ title: "Welcome!", description: "Logged in to Network Manager." });
+    navigate("/mlm-admin", { replace: true });
+  };
+
   const handleSendOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     await signOut();
+
+    // Mock OTP: skip SMS, login directly
+    if (useMockOtp) {
+      await handleMockLogin(data.phone);
+      return;
+    }
 
     const fullPhone = `+91${data.phone}`;
 
