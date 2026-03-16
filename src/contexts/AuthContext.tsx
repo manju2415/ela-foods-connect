@@ -6,9 +6,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  sendOtp: (phone: string) => Promise<{ error: Error | null }>;
-  verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null; isNewUser?: boolean }>;
-  signUpWithOtp: (phone: string, fullName: string, referralCode: string) => Promise<{ error: Error | null }>;
+  /** Create a Supabase session for a phone-verified user (call AFTER MSG91 OTP is verified) */
+  createSessionForPhone: (phone: string, signupData?: { fullName: string; referralCode: string }) => Promise<{ error: Error | null; isNewUser?: boolean }>;
   signOut: () => Promise<void>;
   suppressAuthChanges: (suppress: boolean) => void;
 }
@@ -28,8 +27,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const suppressRef = useRef(false);
-  // Store signup metadata temporarily between sendOtp and verifyOtp
-  const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const suppressAuthChanges = useCallback((suppress: boolean) => {
     suppressRef.current = suppress;
@@ -54,16 +51,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendOtp = async (_phone: string) => {
-    // TODO: Replace with real SMS gateway (e.g. Twilio) later
-    // For now, mock OTP send — always succeeds
-    console.log("[Auth] Mock OTP sent to", _phone);
-    return { error: null as Error | null };
-  };
-
-  const verifyOtp = async (phone: string, _token: string) => {
-    // Mock OTP: use email-based auth behind the scenes since phone provider needs Twilio
-    // Generate a deterministic email from the phone number
+  /**
+   * After MSG91 OTP verification succeeds, create a Supabase session for the user.
+   * Uses deterministic email/password based on phone number.
+   * Optionally processes MLM signup if signupData is provided.
+   */
+  const createSessionForPhone = async (
+    phone: string,
+    signupData?: { fullName: string; referralCode: string }
+  ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
     const cleanPhone = phone.replace(/\+/g, '');
     const mockEmail = `${cleanPhone}@elabazar.local`;
     const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
@@ -74,21 +70,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       password: tempPassword,
       options: {
         data: {
-          full_name: pendingSignupRef.current?.fullName || '',
+          full_name: signupData?.fullName || '',
           phone: phone,
         }
       }
     });
 
-    // If signup failed for reason other than "user already exists", that's ok - we'll try sign in
     if (signUpError && !signUpError.message.includes('already registered')) {
       console.log("[Auth] Signup attempt:", signUpError.message);
     }
 
-    // Small delay to let trigger fire for new users
+    // Small delay to let handle_new_user trigger fire for new users
     await new Promise(r => setTimeout(r, 500));
 
-    // Now sign in
+    // Sign in
     const { data, error } = await supabase.auth.signInWithPassword({
       email: mockEmail,
       password: tempPassword,
@@ -98,17 +93,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: error as Error };
     }
 
-    // If there was pending signup data, process MLM referral and update profile
-    const pending = pendingSignupRef.current;
-    if (pending && data.user) {
+    // If signup data provided, process MLM referral and update profile
+    if (signupData && data.user) {
       await supabase
         .from("profiles")
-        .update({ full_name: pending.fullName, phone: phone })
+        .update({ full_name: signupData.fullName, phone: phone })
         .eq("id", data.user.id);
 
       try {
         await supabase.rpc("process_mlm_referral", {
-          p_referral_code: pending.referralCode.toUpperCase(),
+          p_referral_code: signupData.referralCode.toUpperCase(),
           p_referred_user_id: data.user.id,
           p_registration_fee: 0,
         });
@@ -116,7 +110,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error("Error processing MLM referral:", err);
       }
 
-      pendingSignupRef.current = null;
       return { error: null, isNewUser: true };
     }
 
@@ -131,37 +124,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error: null, isNewUser: false };
   };
 
-  const signUpWithOtp = async (phone: string, fullName: string, referralCode: string) => {
-    // Validate the referral code first
-    const { data: codeData, error: codeError } = await supabase
-      .from("referral_codes")
-      .select("id, user_id, is_active")
-      .eq("code", referralCode.toUpperCase())
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (codeError) {
-      return { error: new Error("Error validating referral code") };
-    }
-
-    if (!codeData) {
-      return { error: new Error("Invalid or inactive referral code") };
-    }
-
-    // Store signup metadata for after OTP verification
-    pendingSignupRef.current = { fullName, referralCode };
-
-    // Mock OTP send — real SMS gateway to be added later
-    console.log("[Auth] Mock OTP sent for signup to", phone);
-    const error = null;
-
-    if (error) {
-      pendingSignupRef.current = null;
-    }
-
-    return { error: error as Error | null };
-  };
-
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
@@ -173,7 +135,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, sendOtp, verifyOtp, signUpWithOtp, signOut, suppressAuthChanges }}>
+    <AuthContext.Provider value={{ user, session, loading, createSessionForPhone, signOut, suppressAuthChanges }}>
       {children}
     </AuthContext.Provider>
   );
