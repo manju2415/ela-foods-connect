@@ -39,6 +39,7 @@ export function useMsg91OTP() {
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [initDone, setInitDone] = useState(false);
 
   // Promise resolvers for verify flow
   const successResolveRef = useRef<((data: unknown) => void) | null>(null);
