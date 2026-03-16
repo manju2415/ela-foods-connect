@@ -257,7 +257,11 @@ const Auth = () => {
 
     // Mock OTP: skip SMS, signup directly
     if (useMockOtp) {
-      await handleMockAuth(data.phone, pendingSignupRef.current);
+      setIsSubmitting(false);
+      setPhoneNumber(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Use 000000 for ${fullPhone}` });
       return;
     }
 
