@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMsg91OTP } from "@/hooks/useMsg91OTP";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,8 @@ const MLMLogin = () => {
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
 
-  const { user, sendOtp, verifyOtp, signOut } = useAuth();
+  const { user, createSessionForPhone, signOut } = useAuth();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready } = useMsg91OTP();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -57,60 +59,51 @@ const MLMLogin = () => {
   const handleSendOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
-
-    // Sign out any previous session
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
 
-    const { error } = await sendOtp(fullPhone);
-
-    if (error) {
-      setIsSubmitting(false);
-      setHasAttemptedLogin(false);
-      toast({ title: "Failed to send OTP", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    // Auto-verify with mock code (skip OTP screen)
-    const { error: verifyError } = await verifyOtp(fullPhone, "000000");
+    const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
 
-    if (verifyError) {
-      toast({ title: "Login failed", description: verifyError.message, variant: "destructive" });
+    if (!result.success) {
       setHasAttemptedLogin(false);
+      toast({ title: "Failed to send OTP", description: result.error || "Please try again.", variant: "destructive" });
       return;
     }
 
-    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-    if (verifiedUser) {
-      const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: verifiedUser.id });
-
-      if (!isAdmin) {
-        toast({ title: "Access Denied", description: "This login is for MLM managers only.", variant: "destructive" });
-        await signOut();
-        setHasAttemptedLogin(false);
-        return;
-      }
-    }
-
-    toast({ title: "Welcome!", description: "Logged in to Network Manager." });
-    navigate("/mlm-admin", { replace: true });
+    setPhoneNumber(fullPhone);
+    setStep("otp");
+    setResendTimer(30);
+    toast({ title: "OTP Sent", description: `Verification code sent to ${fullPhone}` });
   };
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
-    const { error } = await verifyOtp(phoneNumber, otpCode);
-    setIsSubmitting(false);
 
-    if (error) {
-      toast({ title: "Verification failed", description: error.message, variant: "destructive" });
+    // Verify OTP via MSG91
+    const verifyResult = await msg91VerifyOtp(otpCode);
+
+    if (!verifyResult.success) {
+      setIsSubmitting(false);
+      toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP.", variant: "destructive" });
       setOtpCode("");
       return;
     }
 
+    // OTP verified — create Supabase session
+    const { error } = await createSessionForPhone(phoneNumber);
+    setIsSubmitting(false);
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      return;
+    }
+
+    // Check admin role
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
       const { data: isAdmin } = await supabase.rpc("is_admin", { _user_id: verifiedUser.id });
@@ -132,11 +125,11 @@ const MLMLogin = () => {
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
     setIsSubmitting(true);
-    const { error } = await sendOtp(phoneNumber);
+    const result = await msg91RetryOtp('text');
     setIsSubmitting(false);
 
-    if (error) {
-      toast({ title: "Failed to resend OTP", description: error.message, variant: "destructive" });
+    if (!result.success) {
+      toast({ title: "Failed to resend OTP", description: result.error || "Please try again.", variant: "destructive" });
     } else {
       setResendTimer(30);
       toast({ title: "OTP Resent", description: "A new verification code has been sent." });
@@ -232,10 +225,10 @@ const MLMLogin = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || !msg91Ready}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Phone className="mr-2 h-4 w-4" />
-              Send OTP
+              {msg91Ready ? "Send OTP" : "Loading..."}
             </Button>
           </form>
 

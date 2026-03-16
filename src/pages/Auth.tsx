@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMsg91OTP } from "@/hooks/useMsg91OTP";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,8 +37,11 @@ const Auth = () => {
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  // Store signup data for after OTP verification
+  const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
-  const { user, sendOtp, verifyOtp, signUpWithOtp, signOut } = useAuth();
+  const { user, createSessionForPhone, signOut } = useAuth();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready } = useMsg91OTP();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -65,7 +69,6 @@ const Auth = () => {
     if (user && !hasAttemptedLogin) {
       let cancelled = false;
       resolveRoleRedirect(user.id).then((dest) => {
-        // Check ref (synchronously updated) to avoid race with state batching
         if (!cancelled && !hasAttemptedLoginRef.current) {
           navigate(redirectTo ?? dest, { replace: true });
         }
@@ -74,7 +77,6 @@ const Auth = () => {
     }
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
 
-  // Resend timer countdown
   useEffect(() => {
     if (resendTimer > 0) {
       const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
@@ -116,7 +118,6 @@ const Auth = () => {
       setReferralCodeValid(null);
       return;
     }
-
     setCheckingCode(true);
     const { data } = await supabase
       .from("referral_codes")
@@ -124,7 +125,6 @@ const Auth = () => {
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .maybeSingle();
-
     setReferralCodeValid(!!data);
     setCheckingCode(false);
   };
@@ -186,47 +186,33 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
+  // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
-
-    // Sign out any previous session to prevent stale redirects
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
+    pendingSignupRef.current = null; // login, not signup
 
-    const { error } = await sendOtp(fullPhone);
-
-    if (error) {
-      setIsSubmitting(false);
-      setHasAttemptedLogin(false);
-      hasAttemptedLoginRef.current = false;
-      toast({
-        title: "Failed to send OTP",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Auto-verify with mock code (skip OTP screen)
-    const { error: verifyError, isNewUser } = await verifyOtp(fullPhone, "000000");
+    const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
 
-    if (verifyError) {
-      toast({
-        title: "Login failed",
-        description: verifyError.message,
-        variant: "destructive",
-      });
+    if (!result.success) {
+      setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
+      toast({ title: "Failed to send OTP", description: result.error || "Please try again.", variant: "destructive" });
       return;
     }
 
-    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-    await handlePostVerifyRedirect(isNewUser || false);
+    setPhoneNumber(fullPhone);
+    setStep("otp");
+    setResendTimer(30);
+    toast({ title: "OTP Sent", description: `Verification code sent to ${fullPhone}` });
   };
 
+  // ── Send OTP (Signup) ──
   const handleSendSignupOtp = async (data: SignupFormData) => {
     if (!referralCodeValid) {
       toast({ title: "Invalid referral code", description: "Please enter a valid referral code.", variant: "destructive" });
@@ -234,123 +220,72 @@ const Auth = () => {
     }
 
     setIsSubmitting(true);
+    setHasAttemptedLogin(true);
+    hasAttemptedLoginRef.current = true;
+
     const fullPhone = `+91${data.phone}`;
+    pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
 
-    const { error } = await signUpWithOtp(fullPhone, data.fullName, data.referralCode);
-
-    if (error) {
-      setIsSubmitting(false);
-      toast({
-        title: "Signup failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Auto-verify with mock code (skip OTP screen)
-    const { error: verifyError, isNewUser } = await verifyOtp(fullPhone, "000000");
+    const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
 
-    if (verifyError) {
-      toast({
-        title: "Signup failed",
-        description: verifyError.message,
-        variant: "destructive",
-      });
+    if (!result.success) {
+      setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
+      pendingSignupRef.current = null;
+      toast({ title: "Failed to send OTP", description: result.error || "Please try again.", variant: "destructive" });
       return;
     }
 
-    toast({ title: "Account created!", description: "You have logged in successfully." });
-    await handlePostVerifyRedirect(isNewUser || true);
+    setPhoneNumber(fullPhone);
+    setStep("otp");
+    setResendTimer(30);
+    toast({ title: "OTP Sent", description: `Verification code sent to ${fullPhone}` });
   };
 
+  // ── Verify OTP (both login & signup) ──
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
-    const { error, isNewUser } = await verifyOtp(phoneNumber, otpCode);
-    setIsSubmitting(false);
 
-    if (error) {
-      toast({
-        title: "Verification failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    // Verify OTP via MSG91
+    const verifyResult = await msg91VerifyOtp(otpCode);
+
+    if (!verifyResult.success) {
+      setIsSubmitting(false);
+      toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP. Please try again.", variant: "destructive" });
       setOtpCode("");
       return;
     }
 
+    // OTP verified — create Supabase session
+    const { error, isNewUser } = await createSessionForPhone(
+      phoneNumber,
+      pendingSignupRef.current || undefined
+    );
+
+    setIsSubmitting(false);
+    pendingSignupRef.current = null;
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      return;
+    }
+
     toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-
-    // Get the user after verification
-    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-    if (!verifiedUser) return;
-
-    // Check delivery partner
-    const { data: partnerData } = await supabase
-      .from("delivery_partners")
-      .select("id")
-      .eq("user_id", verifiedUser.id)
-      .maybeSingle();
-
-    if (partnerData) {
-      navigate(redirectTo || "/driver-app", { replace: true });
-      return;
-    }
-
-    if (isNewUser) {
-      navigate("/complete-registration");
-      return;
-    }
-
-    // Check onboarding status
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("phone, bank_account_number, registration_fee_paid, user_level")
-      .eq("id", verifiedUser.id)
-      .single();
-
-    const { data: roleData } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", verifiedUser.id)
-      .in("role", ["founding_member", "super_admin", "admin"])
-      .limit(1)
-      .maybeSingle();
-
-    const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
-    const hasBankDetails = !!profileData?.bank_account_number;
-    const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
-
-    if (!isFounderOrAdmin && !hasBankDetails) {
-      navigate("/complete-registration", { replace: true });
-      return;
-    }
-
-    if (!isFounderOrAdmin && hasBankDetails && !isPaymentComplete) {
-      navigate("/registration-payment", { replace: true });
-      return;
-    }
-
-    if (redirectTo) {
-      navigate(redirectTo, { replace: true });
-      return;
-    }
-
-    const dest = await resolveRoleRedirect(verifiedUser.id);
-    navigate(dest, { replace: true });
+    await handlePostVerifyRedirect(isNewUser || false);
   };
 
+  // ── Resend OTP ──
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
     setIsSubmitting(true);
-    const { error } = await sendOtp(phoneNumber);
+    const result = await msg91RetryOtp('text');
     setIsSubmitting(false);
 
-    if (error) {
-      toast({ title: "Failed to resend OTP", description: error.message, variant: "destructive" });
+    if (!result.success) {
+      toast({ title: "Failed to resend OTP", description: result.error || "Please try again.", variant: "destructive" });
     } else {
       setResendTimer(30);
       toast({ title: "OTP Resent", description: "A new verification code has been sent." });
@@ -363,9 +298,10 @@ const Auth = () => {
     setPhoneNumber("");
     setHasAttemptedLogin(false);
     hasAttemptedLoginRef.current = false;
+    pendingSignupRef.current = null;
   };
 
-  // OTP Verification Screen
+  // ── OTP Verification Screen ──
   if (step === "otp") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -427,6 +363,7 @@ const Auth = () => {
     );
   }
 
+  // ── Phone Entry Screen ──
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -464,10 +401,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || !msg91Ready}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                Send OTP
+                {msg91Ready ? "Send OTP" : "Loading..."}
               </Button>
             </form>
           ) : (
@@ -522,10 +459,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || !msg91Ready}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                Send OTP
+                {msg91Ready ? "Send OTP" : "Loading..."}
               </Button>
             </form>
           )}
