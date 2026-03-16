@@ -102,8 +102,10 @@ export function useMsg91OTP() {
           setInitError(err instanceof Error ? err.message : 'MSG91 init failed');
         }
       } finally {
-        if (mounted) setIsLoading(false);
-      }
+        if (mounted) {
+          setIsLoading(false);
+          setInitDone(true);
+        }
     };
 
     init();
