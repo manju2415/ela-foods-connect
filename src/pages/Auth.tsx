@@ -186,6 +186,25 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
+  const useMockOtp = !msg91Ready && !!msg91Error;
+
+  const handleMockAuth = async (phone: string, signupData?: { fullName: string; referralCode: string }) => {
+    const fullPhone = `+91${phone}`;
+    const { error, isNewUser } = await createSessionForPhone(fullPhone, signupData);
+    setIsSubmitting(false);
+    pendingSignupRef.current = null;
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      setHasAttemptedLogin(false);
+      hasAttemptedLoginRef.current = false;
+      return;
+    }
+
+    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
+    await handlePostVerifyRedirect(isNewUser || false);
+  };
+
   // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
@@ -194,7 +213,13 @@ const Auth = () => {
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
-    pendingSignupRef.current = null; // login, not signup
+    pendingSignupRef.current = null;
+
+    // Mock OTP: skip SMS, login directly
+    if (useMockOtp) {
+      await handleMockAuth(data.phone);
+      return;
+    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
@@ -225,6 +250,12 @@ const Auth = () => {
 
     const fullPhone = `+91${data.phone}`;
     pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
+
+    // Mock OTP: skip SMS, signup directly
+    if (useMockOtp) {
+      await handleMockAuth(data.phone, pendingSignupRef.current);
+      return;
+    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
