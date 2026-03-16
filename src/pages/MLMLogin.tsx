@@ -72,7 +72,6 @@ const MLMLogin = () => {
       return;
     }
 
-    // Check admin/founder role
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
       const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
