@@ -72,7 +72,6 @@ const MLMLogin = () => {
       return;
     }
 
-    // Check admin/founder role
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
       const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
@@ -99,7 +98,11 @@ const MLMLogin = () => {
 
     // Mock OTP: skip SMS, login directly
     if (useMockOtp) {
-      await handleMockLogin(data.phone);
+      setIsSubmitting(false);
+      setPhoneNumber(`+91${data.phone}`);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Use 000000 for +91${data.phone}` });
       return;
     }
 
@@ -124,10 +127,11 @@ const MLMLogin = () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
+    console.log("[MLMLogin] verify start", { otpCode, phoneNumber, useMockOtp });
 
-    // Mock OTP bypass: skip MSG91 verification for code "000000"
     if (otpCode !== "000000") {
       const verifyResult = await msg91VerifyOtp(otpCode);
+      console.log("[MLMLogin] verify result", verifyResult);
 
       if (!verifyResult.success) {
         setIsSubmitting(false);
@@ -137,8 +141,8 @@ const MLMLogin = () => {
       }
     }
 
-    // OTP verified — create Supabase session
     const { error } = await createSessionForPhone(phoneNumber);
+    console.log("[MLMLogin] session result", { error: error?.message });
     setIsSubmitting(false);
 
     if (error) {
@@ -147,13 +151,14 @@ const MLMLogin = () => {
       return;
     }
 
-    // Check admin role
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
       const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
         supabase.rpc("is_admin", { _user_id: verifiedUser.id }),
         supabase.rpc("is_founding_member", { _user_id: verifiedUser.id }),
       ]);
+
+      console.log("[MLMLogin] role check", { isAdmin, isFounder });
 
       if (!isAdmin && !isFounder) {
         toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
@@ -171,6 +176,13 @@ const MLMLogin = () => {
 
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
+
+    if (useMockOtp) {
+      setResendTimer(30);
+      toast({ title: "OTP Resent", description: `Use 000000 for ${phoneNumber}` });
+      return;
+    }
+
     setIsSubmitting(true);
     const result = await msg91RetryOtp('text');
     setIsSubmitting(false);

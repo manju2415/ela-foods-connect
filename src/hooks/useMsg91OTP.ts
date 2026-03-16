@@ -12,7 +12,6 @@ declare global {
 
 function loadScript(urls: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     if (typeof window.initSendOTP === 'function') {
       resolve();
       return;
@@ -33,6 +32,12 @@ function loadScript(urls: string[]): Promise<void> {
     }
     attempt();
   });
+}
+
+function isUsableMsg91Token(tokenAuth: string | undefined) {
+  if (!tokenAuth) return false;
+  if (tokenAuth === 'MGSCLIENT123') return false;
+  return tokenAuth.startsWith('eyJ') || tokenAuth.split('.').length === 3;
 }
 
 export function useMsg91OTP() {
@@ -58,7 +63,14 @@ export function useMsg91OTP() {
 
         const { widgetId, tokenAuth } = data as { widgetId: string; tokenAuth: string };
 
-        // Load MSG91 OTP provider script
+        if (!isUsableMsg91Token(tokenAuth)) {
+          console.warn('[MSG91] Invalid or placeholder token detected, using mock OTP mode');
+          if (mounted) {
+            setInitError('Using mock OTP mode');
+          }
+          return;
+        }
+
         await loadScript([
           'https://verify.msg91.com/otp-provider.js',
           'https://verify.phone91.com/otp-provider.js',
@@ -70,7 +82,6 @@ export function useMsg91OTP() {
           throw new Error('MSG91 script loaded but initSendOTP not found');
         }
 
-        // Initialize widget with exposeMethods so we control the UI
         const configuration = {
           widgetId,
           tokenAuth,
@@ -136,22 +147,29 @@ export function useMsg91OTP() {
     }
     try {
       console.log('[MSG91] Verifying OTP...');
-      // Create a promise that resolves when success/failure callback fires
       const result = await new Promise<unknown>((resolve, reject) => {
         successResolveRef.current = resolve;
         failureRejectRef.current = reject;
 
-        // Call MSG91 verify - the success/failure callbacks in config will fire
-        window.verifyOtp!(otp).catch((err: unknown) => {
-          // If verifyOtp itself rejects, handle it
+        try {
+          const verificationResult = window.verifyOtp?.(otp);
+          if (verificationResult && typeof (verificationResult as Promise<unknown>).catch === 'function') {
+            (verificationResult as Promise<unknown>).catch((err: unknown) => {
+              if (failureRejectRef.current) {
+                failureRejectRef.current(err);
+                failureRejectRef.current = null;
+                successResolveRef.current = null;
+              }
+            });
+          }
+        } catch (err) {
           if (failureRejectRef.current) {
             failureRejectRef.current(err);
             failureRejectRef.current = null;
             successResolveRef.current = null;
           }
-        });
+        }
 
-        // Timeout after 30 seconds
         setTimeout(() => {
           if (failureRejectRef.current) {
             failureRejectRef.current(new Error('OTP verification timed out'));

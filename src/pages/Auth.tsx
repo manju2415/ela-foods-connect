@@ -217,7 +217,11 @@ const Auth = () => {
 
     // Mock OTP: skip SMS, login directly
     if (useMockOtp) {
-      await handleMockAuth(data.phone);
+      setIsSubmitting(false);
+      setPhoneNumber(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Use 000000 for ${fullPhone}` });
       return;
     }
 
@@ -253,7 +257,11 @@ const Auth = () => {
 
     // Mock OTP: skip SMS, signup directly
     if (useMockOtp) {
-      await handleMockAuth(data.phone, pendingSignupRef.current);
+      setIsSubmitting(false);
+      setPhoneNumber(fullPhone);
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `Use 000000 for ${fullPhone}` });
       return;
     }
 
@@ -279,10 +287,11 @@ const Auth = () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
+    console.log("[Auth] verify start", { otpCode, phoneNumber, useMockOtp });
 
-    // Mock OTP bypass: skip MSG91 verification for code "000000"
     if (otpCode !== "000000") {
       const verifyResult = await msg91VerifyOtp(otpCode);
+      console.log("[Auth] verify result", verifyResult);
 
       if (!verifyResult.success) {
         setIsSubmitting(false);
@@ -292,11 +301,12 @@ const Auth = () => {
       }
     }
 
-    // OTP verified — create Supabase session
     const { error, isNewUser } = await createSessionForPhone(
       phoneNumber,
       pendingSignupRef.current || undefined
     );
+
+    console.log("[Auth] session result", { error: error?.message, isNewUser });
 
     setIsSubmitting(false);
     pendingSignupRef.current = null;
@@ -313,6 +323,13 @@ const Auth = () => {
   // ── Resend OTP ──
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
+
+    if (useMockOtp) {
+      setResendTimer(30);
+      toast({ title: "OTP Resent", description: `Use 000000 for ${phoneNumber}` });
+      return;
+    }
+
     setIsSubmitting(true);
     const result = await msg91RetryOtp('text');
     setIsSubmitting(false);
