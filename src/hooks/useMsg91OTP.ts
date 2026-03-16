@@ -12,7 +12,6 @@ declare global {
 
 function loadScript(urls: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
-    // Check if already loaded
     if (typeof window.initSendOTP === 'function') {
       resolve();
       return;
@@ -33,6 +32,12 @@ function loadScript(urls: string[]): Promise<void> {
     }
     attempt();
   });
+}
+
+function isUsableMsg91Token(tokenAuth: string | undefined) {
+  if (!tokenAuth) return false;
+  if (tokenAuth === 'MGSCLIENT123') return false;
+  return tokenAuth.startsWith('eyJ') || tokenAuth.split('.').length === 3;
 }
 
 export function useMsg91OTP() {
