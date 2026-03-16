@@ -186,7 +186,7 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
-  const useMockOtp = !msg91Ready && !!msg91Error;
+  const useMockOtp = msg91InitDone && !msg91Ready;
 
   const handleMockAuth = async (phone: string, signupData?: { fullName: string; referralCode: string }) => {
     const fullPhone = `+91${phone}`;
