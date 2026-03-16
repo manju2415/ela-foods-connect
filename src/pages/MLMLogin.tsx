@@ -270,10 +270,10 @@ const MLMLogin = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button type="submit" className="w-full" disabled={isSubmitting || (!msg91Ready && !msg91InitDone)}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Phone className="mr-2 h-4 w-4" />
-              {useMockOtp ? "Sign In" : (msg91Ready ? "Send OTP" : "Loading...")}
+              {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
             </Button>
           </form>
 
