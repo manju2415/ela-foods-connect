@@ -490,10 +490,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || !msg91Ready}>
+              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {msg91Ready ? "Send OTP" : "Loading..."}
+                {useMockOtp ? "Sign Up" : (msg91Ready ? "Send OTP" : "Loading...")}
               </Button>
             </form>
           )}
