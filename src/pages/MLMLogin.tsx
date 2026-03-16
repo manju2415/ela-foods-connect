@@ -59,7 +59,7 @@ const MLMLogin = () => {
     setHasAttemptedLogin(true);
 
     // Sign out any previous session
-    await supabase.auth.signOut();
+    await signOut();
 
     const fullPhone = `+91${data.phone}`;
 
