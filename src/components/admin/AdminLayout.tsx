@@ -47,8 +47,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   }, [user, isAdmin, authLoading, checking, navigate]);
 
   const handleLogout = async () => {
-    await signOut();
-    navigate("/auth");
+    try { await signOut(); } catch (_) { /* session may already be expired */ }
+    navigate("/auth", { replace: true });
   };
 
   const handleVisitSite = () => {
