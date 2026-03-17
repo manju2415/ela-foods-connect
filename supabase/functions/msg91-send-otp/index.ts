@@ -14,7 +14,15 @@ serve(async (req) => {
     const authKey = Deno.env.get('MSG91_AUTH_TOKEN');
     if (!authKey) {
       return new Response(
-        JSON.stringify({ success: false, error: 'MSG91 not configured' }),
+        JSON.stringify({ success: false, error: 'MSG91 is not configured. Contact support.' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const templateId = Deno.env.get('MSG91_TEMPLATE_ID');
+    if (!templateId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'MSG91 template is not configured. Contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -27,8 +35,10 @@ serve(async (req) => {
       );
     }
 
-    // Strip + prefix if present, MSG91 expects country code + number (e.g. 919876543210)
+    // MSG91 expects country code + number without + (e.g. 919876543210)
     const mobile = phone.replace(/^\+/, '');
+
+    console.log('[msg91-send-otp] Sending OTP to:', mobile);
 
     const response = await fetch('https://control.msg91.com/api/v5/otp', {
       method: 'POST',
@@ -38,7 +48,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         mobile,
-        template_id: Deno.env.get('MSG91_TEMPLATE_ID') || '',
+        template_id: templateId,
         otp_length: 6,
       }),
     });
