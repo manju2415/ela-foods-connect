@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
@@ -11,24 +12,67 @@ import Index from "./Index";
 
 /**
  * Customer Mobile App Entry Point
- * This page serves as the dedicated mobile app experience for customers.
- * It provides a streamlined shopping and order tracking interface.
+ * Registration is compulsory after login before accessing the app.
  */
 export default function CustomerApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const [checkingRegistration, setCheckingRegistration] = useState(true);
   const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('customer');
   
-  // Set up app-specific manifest
   useAppManifest('customer');
 
+  // Redirect to /auth if not logged in, or to /complete-registration if not registered
   useEffect(() => {
-    // Customer app can work without login (for browsing)
-    // Push notifications only work when logged in
-  }, [user, loading]);
+    if (loading) return;
 
-  // Request push notification permission after dashboard is fully loaded and functional
+    if (!user) {
+      navigate("/auth?redirect=/customer-app", { replace: true });
+      return;
+    }
+
+    const checkRegistration = async () => {
+      // Skip registration check for delivery partners, founders, admins
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", ["founding_member", "super_admin", "admin", "delivery_partner"])
+        .limit(1)
+        .maybeSingle();
+
+      if (roleData) {
+        setCheckingRegistration(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("bank_account_number, registration_fee_paid")
+        .eq("id", user.id)
+        .single();
+
+      const hasBankDetails = !!profile?.bank_account_number;
+      const isPaymentComplete = (profile?.registration_fee_paid || 0) > 0;
+
+      if (!hasBankDetails) {
+        navigate("/complete-registration", { replace: true });
+        return;
+      }
+
+      if (hasBankDetails && !isPaymentComplete) {
+        navigate("/registration-payment", { replace: true });
+        return;
+      }
+
+      setCheckingRegistration(false);
+    };
+
+    checkRegistration();
+  }, [user, loading, navigate]);
+
+  // Request push notification permission
   useEffect(() => {
     if (!loading && user && isSupported && permissionStatus === 'prompt') {
       const scheduleRegistration = () => {
@@ -48,12 +92,12 @@ export default function CustomerApp() {
 
   // Hide splash screen when app is ready
   useEffect(() => {
-    if (!loading) {
+    if (!loading && !checkingRegistration) {
       hideSplash();
     }
-  }, [loading, hideSplash]);
+  }, [loading, checkingRegistration, hideSplash]);
 
-  if (loading) {
+  if (loading || checkingRegistration) {
     return (
       <MobileAppLayout appType="customer" hideNav>
         <div className="min-h-screen flex items-center justify-center bg-accent">
