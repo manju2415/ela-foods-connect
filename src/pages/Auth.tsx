@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Phone } from "lucide-react";
+import { Loader2, ArrowLeft, Phone, AlertCircle } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -37,11 +37,10 @@ const Auth = () => {
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
-  // Store signup data for after OTP verification
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, initDone: msg91InitDone } = useMsg91OTP();
+  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, isLoading: msg91Loading, initError: msg91Error } = useMsg91OTP();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -186,27 +185,13 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
-  const useMockOtp = msg91InitDone && !msg91Ready;
-
-  const handleMockAuth = async (phone: string, signupData?: { fullName: string; referralCode: string }) => {
-    const fullPhone = `+91${phone}`;
-    const { error, isNewUser } = await createSessionForPhone(fullPhone, signupData);
-    setIsSubmitting(false);
-    pendingSignupRef.current = null;
-
-    if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      setHasAttemptedLogin(false);
-      hasAttemptedLoginRef.current = false;
+  // ── Send OTP (Login) ──
+  const handleSendLoginOtp = async (data: PhoneFormData) => {
+    if (!msg91Ready) {
+      toast({ title: "OTP Service Unavailable", description: msg91Error || "SMS service is not configured. Please contact support.", variant: "destructive" });
       return;
     }
 
-    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-    await handlePostVerifyRedirect(isNewUser || false);
-  };
-
-  // ── Send OTP (Login) ──
-  const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
@@ -214,16 +199,6 @@ const Auth = () => {
 
     const fullPhone = `+91${data.phone}`;
     pendingSignupRef.current = null;
-
-    // Mock OTP: skip SMS, login directly
-    if (useMockOtp) {
-      setIsSubmitting(false);
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Use 000000 for ${fullPhone}` });
-      return;
-    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
@@ -248,22 +223,17 @@ const Auth = () => {
       return;
     }
 
+    if (!msg91Ready) {
+      toast({ title: "OTP Service Unavailable", description: msg91Error || "SMS service is not configured. Please contact support.", variant: "destructive" });
+      return;
+    }
+
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
 
     const fullPhone = `+91${data.phone}`;
     pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
-
-    // Mock OTP: skip SMS, signup directly
-    if (useMockOtp) {
-      setIsSubmitting(false);
-      setPhoneNumber(fullPhone);
-      setStep("otp");
-      setResendTimer(30);
-      toast({ title: "OTP Sent", description: `Use 000000 for ${fullPhone}` });
-      return;
-    }
 
     const result = await msg91SendOtp(fullPhone);
     setIsSubmitting(false);
@@ -282,31 +252,26 @@ const Auth = () => {
     toast({ title: "OTP Sent", description: `Verification code sent to ${fullPhone}` });
   };
 
-  // ── Verify OTP (both login & signup) ──
+  // ── Verify OTP (always via MSG91) ──
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
-    console.log("[Auth] verify start", { otpCode, phoneNumber, useMockOtp });
 
-    if (otpCode !== "000000") {
-      const verifyResult = await msg91VerifyOtp(otpCode);
-      console.log("[Auth] verify result", verifyResult);
+    const verifyResult = await msg91VerifyOtp(otpCode);
 
-      if (!verifyResult.success) {
-        setIsSubmitting(false);
-        toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP. Please try again.", variant: "destructive" });
-        setOtpCode("");
-        return;
-      }
+    if (!verifyResult.success) {
+      setIsSubmitting(false);
+      toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP. Please try again.", variant: "destructive" });
+      setOtpCode("");
+      return;
     }
 
+    // OTP verified via MSG91 — create session
     const { error, isNewUser } = await createSessionForPhone(
       phoneNumber,
       pendingSignupRef.current || undefined
     );
-
-    console.log("[Auth] session result", { error: error?.message, isNewUser });
 
     setIsSubmitting(false);
     pendingSignupRef.current = null;
@@ -323,12 +288,6 @@ const Auth = () => {
   // ── Resend OTP ──
   const handleResendOtp = async () => {
     if (resendTimer > 0) return;
-
-    if (useMockOtp) {
-      setResendTimer(30);
-      toast({ title: "OTP Resent", description: `Use 000000 for ${phoneNumber}` });
-      return;
-    }
 
     setIsSubmitting(true);
     const result = await msg91RetryOtp('text');
@@ -429,6 +388,14 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* MSG91 error banner */}
+          {!msg91Loading && !msg91Ready && msg91Error && (
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>OTP service is currently unavailable. Please try again later.</span>
+            </div>
+          )}
+
           {isLogin ? (
             <form onSubmit={loginForm.handleSubmit(handleSendLoginOtp)} className="space-y-4">
               <div className="space-y-2">
@@ -451,10 +418,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || (!msg91Ready && !msg91InitDone)}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={isSubmitting || msg91Loading || !msg91Ready}>
+                {(isSubmitting || msg91Loading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
+                {msg91Loading ? "Loading..." : "Send OTP"}
               </Button>
             </form>
           ) : (
@@ -509,10 +476,10 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || (!msg91Ready && !msg91InitDone)}>
-                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true || msg91Loading || !msg91Ready}>
+                {(isSubmitting || msg91Loading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
-                {(!msg91Ready && !msg91InitDone) ? "Loading..." : "Send OTP"}
+                {msg91Loading ? "Loading..." : "Send OTP"}
               </Button>
             </form>
           )}

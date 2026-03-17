@@ -5,7 +5,6 @@ export function useMsg91OTP() {
   const [isReady, setIsReady] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
-  const [initDone, setInitDone] = useState(false);
   const [currentPhone, setCurrentPhone] = useState<string>('');
 
   useEffect(() => {
@@ -13,36 +12,28 @@ export function useMsg91OTP() {
 
     const init = async () => {
       try {
-        // Check if MSG91 is configured by calling config endpoint
         const { data, error } = await supabase.functions.invoke('msg91-config');
         if (error || !data) {
-          throw new Error(error?.message || 'Failed to fetch MSG91 config');
+          throw new Error(error?.message || 'MSG91 is not configured. Please contact support.');
         }
 
         const { tokenAuth } = data as { widgetId: string; tokenAuth: string };
-
-        // Detect placeholder/invalid tokens
-        if (!tokenAuth || tokenAuth === 'MGSCLIENT123' || (!tokenAuth.startsWith('eyJ') && tokenAuth.split('.').length < 3)) {
-          console.warn('[MSG91] Invalid or placeholder token, using mock OTP mode');
-          if (mounted) {
-            setInitError('Using mock OTP mode');
-          }
-          return;
+        if (!tokenAuth) {
+          throw new Error('MSG91 authentication token is missing. OTP service unavailable.');
         }
 
         if (mounted) {
           setIsReady(true);
-          console.log('[MSG91] Backend API mode ready');
+          console.log('[MSG91] Backend API ready');
         }
       } catch (err: unknown) {
         console.error('[MSG91] Init error:', err);
         if (mounted) {
-          setInitError(err instanceof Error ? err.message : 'MSG91 init failed');
+          setInitError(err instanceof Error ? err.message : 'MSG91 initialization failed');
         }
       } finally {
         if (mounted) {
           setIsLoading(false);
-          setInitDone(true);
         }
       }
     };
@@ -52,6 +43,10 @@ export function useMsg91OTP() {
   }, []);
 
   const sendOtp = useCallback(async (phone: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isReady) {
+      return { success: false, error: initError || 'OTP service is not available. Please try again later.' };
+    }
+
     try {
       const cleanPhone = phone.startsWith('+') ? phone : `+${phone}`;
       setCurrentPhone(cleanPhone);
@@ -62,7 +57,7 @@ export function useMsg91OTP() {
       });
 
       if (error) {
-        console.error('[MSG91] Send OTP edge function error:', error);
+        console.error('[MSG91] Send OTP error:', error);
         return { success: false, error: error.message || 'Failed to send OTP' };
       }
 
@@ -75,9 +70,17 @@ export function useMsg91OTP() {
       console.error('[MSG91] Send OTP error:', err);
       return { success: false, error: err instanceof Error ? err.message : 'Failed to send OTP' };
     }
-  }, []);
+  }, [isReady, initError]);
 
   const verifyOtp = useCallback(async (otp: string): Promise<{ success: boolean; error?: string }> => {
+    if (!isReady) {
+      return { success: false, error: 'OTP service is not available.' };
+    }
+
+    if (!currentPhone) {
+      return { success: false, error: 'No phone number found. Please request OTP again.' };
+    }
+
     try {
       console.log('[MSG91] Verifying OTP via backend...');
       const { data, error } = await supabase.functions.invoke('msg91-verify-otp', {
@@ -85,7 +88,7 @@ export function useMsg91OTP() {
       });
 
       if (error) {
-        console.error('[MSG91] Verify OTP edge function error:', error);
+        console.error('[MSG91] Verify OTP error:', error);
         return { success: false, error: error.message || 'OTP verification failed' };
       }
 
@@ -93,20 +96,19 @@ export function useMsg91OTP() {
         return { success: true };
       }
 
-      return { success: false, error: data?.error || 'Invalid OTP' };
+      return { success: false, error: data?.error || 'Invalid OTP. Please try again.' };
     } catch (err: unknown) {
       console.error('[MSG91] Verify OTP error:', err);
       return { success: false, error: err instanceof Error ? err.message : 'OTP verification failed' };
     }
-  }, [currentPhone]);
+  }, [isReady, currentPhone]);
 
   const retryOtp = useCallback(async (_type: 'text' | 'voice' = 'text'): Promise<{ success: boolean; error?: string }> => {
     if (!currentPhone) {
-      return { success: false, error: 'No phone number set' };
+      return { success: false, error: 'No phone number set. Please go back and enter your number.' };
     }
-    // Resend by calling send again
     return sendOtp(currentPhone);
   }, [currentPhone, sendOtp]);
 
-  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError, initDone };
+  return { sendOtp, verifyOtp, retryOtp, isReady, isLoading, initError };
 }
