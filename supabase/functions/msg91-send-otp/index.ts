@@ -13,6 +13,7 @@ serve(async (req) => {
   try {
     const authKey = Deno.env.get('MSG91_AUTH_TOKEN');
     if (!authKey) {
+      console.error('[msg91-send-otp] MSG91_AUTH_TOKEN not configured');
       return new Response(
         JSON.stringify({ success: false, error: 'MSG91 is not configured. Contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -21,6 +22,7 @@ serve(async (req) => {
 
     const templateId = Deno.env.get('MSG91_TEMPLATE_ID');
     if (!templateId) {
+      console.error('[msg91-send-otp] MSG91_TEMPLATE_ID not configured');
       return new Response(
         JSON.stringify({ success: false, error: 'MSG91 template is not configured. Contact support.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -36,9 +38,21 @@ serve(async (req) => {
     }
 
     // MSG91 expects country code + number without + (e.g. 919876543210)
-    const mobile = phone.replace(/^\+/, '');
+    let mobile = phone.replace(/^\+/, '').replace(/\s+/g, '');
+    
+    // Ensure it starts with country code 91
+    if (mobile.length === 10) {
+      mobile = '91' + mobile;
+    }
+
+    const requestBody = {
+      mobile,
+      template_id: templateId,
+      otp_length: 6,
+    };
 
     console.log('[msg91-send-otp] Sending OTP to:', mobile);
+    console.log('[msg91-send-otp] Request body:', JSON.stringify(requestBody));
 
     const response = await fetch('https://control.msg91.com/api/v5/otp', {
       method: 'POST',
@@ -46,15 +60,23 @@ serve(async (req) => {
         'authkey': authKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        mobile,
-        template_id: templateId,
-        otp_length: 6,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
-    const data = await response.json();
-    console.log('[msg91-send-otp] Response:', JSON.stringify(data));
+    const responseText = await response.text();
+    console.log('[msg91-send-otp] HTTP Status:', response.status);
+    console.log('[msg91-send-otp] Response:', responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('[msg91-send-otp] Failed to parse response:', responseText);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid response from SMS provider' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (data.type === 'success' || data.type === 'OTP sent successfully') {
       return new Response(
