@@ -27,18 +27,34 @@ serve(async (req) => {
       );
     }
 
-    const mobile = phone.replace(/^\+/, '');
+    // Ensure format: 91XXXXXXXXXX (no +)
+    let mobile = phone.replace(/^\+/, '').replace(/\s+/g, '');
+    if (mobile.length === 10) {
+      mobile = '91' + mobile;
+    }
 
-    const response = await fetch(
-      `https://control.msg91.com/api/v5/otp/verify?mobile=${mobile}&otp=${otp}`,
-      {
-        method: 'GET',
-        headers: { 'authkey': authKey },
-      }
-    );
+    const verifyUrl = `https://control.msg91.com/api/v5/otp/verify?mobile=${mobile}&otp=${otp}`;
+    console.log('[msg91-verify-otp] Verifying OTP for:', mobile);
 
-    const data = await response.json();
-    console.log('[msg91-verify-otp] Response:', JSON.stringify(data));
+    const response = await fetch(verifyUrl, {
+      method: 'GET',
+      headers: { 'authkey': authKey },
+    });
+
+    const responseText = await response.text();
+    console.log('[msg91-verify-otp] HTTP Status:', response.status);
+    console.log('[msg91-verify-otp] Response:', responseText);
+
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      console.error('[msg91-verify-otp] Failed to parse response:', responseText);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid response from SMS provider' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (data.type === 'success') {
       return new Response(
