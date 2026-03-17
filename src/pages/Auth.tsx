@@ -90,7 +90,11 @@ const Auth = () => {
       .in("role", ["super_admin", "admin"])
       .limit(1)
       .maybeSingle();
-    if (adminRole) return "/admin";
+    if (adminRole) {
+      // super_admin goes to /dashboard (can add users), admin goes to /admin
+      if (adminRole.role === "super_admin") return "/dashboard";
+      return "/admin";
+    }
 
     const { data: memberRole } = await supabase
       .from("user_roles")
