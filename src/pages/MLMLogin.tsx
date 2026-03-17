@@ -4,16 +4,17 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMsg91OTP } from "@/hooks/useMsg91OTP";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Network, Phone, ArrowLeft, AlertCircle } from "lucide-react";
+import { Loader2, Network, Phone, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import elaLogo from "@/assets/ela-foods-logo.png";
+
+const MOCK_OTP = "000000";
 
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
@@ -27,10 +28,8 @@ const MLMLogin = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { sendOtp: msg91SendOtp, verifyOtp: msg91VerifyOtp, retryOtp: msg91RetryOtp, isReady: msg91Ready, isLoading: msg91Loading, initError: msg91Error } = useMsg91OTP();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -52,56 +51,29 @@ const MLMLogin = () => {
     }
   }, [user, navigate, hasAttemptedLogin]);
 
-  useEffect(() => {
-    if (resendTimer > 0) {
-      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendTimer]);
-
   const handleSendOtp = async (data: PhoneFormData) => {
-    if (!msg91Ready) {
-      toast({ title: "OTP Service Unavailable", description: msg91Error || "SMS service is not configured. Please contact support.", variant: "destructive" });
-      return;
-    }
-
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
-
-    const result = await msg91SendOtp(fullPhone);
-    setIsSubmitting(false);
-
-    if (!result.success) {
-      setHasAttemptedLogin(false);
-      toast({ title: "Failed to send OTP", description: result.error || "Please try again.", variant: "destructive" });
-      return;
-    }
-
     setPhoneNumber(fullPhone);
     setStep("otp");
-    setResendTimer(30);
-    toast({ title: "OTP Sent", description: `Verification code sent to ${fullPhone}` });
+    setIsSubmitting(false);
+    toast({ title: "OTP Sent", description: `Use code ${MOCK_OTP} to verify` });
   };
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
-    setIsSubmitting(true);
-
-    // Always verify via MSG91
-    const verifyResult = await msg91VerifyOtp(otpCode);
-
-    if (!verifyResult.success) {
-      setIsSubmitting(false);
-      toast({ title: "Verification failed", description: verifyResult.error || "Invalid OTP.", variant: "destructive" });
+    if (otpCode !== MOCK_OTP) {
+      toast({ title: "Verification failed", description: "Invalid OTP. Use 000000.", variant: "destructive" });
       setOtpCode("");
       return;
     }
 
-    // OTP verified — create session
+    setIsSubmitting(true);
+
     const { error } = await createSessionForPhone(phoneNumber);
     setIsSubmitting(false);
 
@@ -130,21 +102,6 @@ const MLMLogin = () => {
 
     toast({ title: "Welcome!", description: "Logged in to Network Manager." });
     navigate("/mlm-admin", { replace: true });
-  };
-
-  const handleResendOtp = async () => {
-    if (resendTimer > 0) return;
-
-    setIsSubmitting(true);
-    const result = await msg91RetryOtp('text');
-    setIsSubmitting(false);
-
-    if (!result.success) {
-      toast({ title: "Failed to resend OTP", description: result.error || "Please try again.", variant: "destructive" });
-    } else {
-      setResendTimer(30);
-      toast({ title: "OTP Resent", description: "A new verification code has been sent." });
-    }
   };
 
   if (step === "otp") {
@@ -177,16 +134,7 @@ const MLMLogin = () => {
               Verify & Sign In
             </Button>
 
-            <div className="text-center space-y-2">
-              <button
-                type="button"
-                className="text-sm text-primary hover:underline disabled:text-muted-foreground"
-                onClick={handleResendOtp}
-                disabled={resendTimer > 0 || isSubmitting}
-              >
-                {resendTimer > 0 ? `Resend OTP in ${resendTimer}s` : "Resend OTP"}
-              </button>
-              <br />
+            <div className="text-center">
               <button
                 type="button"
                 className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1"
@@ -215,14 +163,6 @@ const MLMLogin = () => {
           <CardDescription>Sign in with your mobile number</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* MSG91 error banner */}
-          {!msg91Loading && !msg91Ready && msg91Error && (
-            <div className="mb-4 flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>OTP service is currently unavailable. Please try again later.</span>
-            </div>
-          )}
-
           <form onSubmit={form.handleSubmit(handleSendOtp)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="mlm-phone">Mobile Number</Label>
@@ -244,10 +184,10 @@ const MLMLogin = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isSubmitting || msg91Loading || !msg91Ready}>
-              {(isSubmitting || msg91Loading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <Phone className="mr-2 h-4 w-4" />
-              {msg91Loading ? "Loading..." : "Send OTP"}
+              Send OTP
             </Button>
           </form>
 
