@@ -235,7 +235,7 @@ export default function ProductDetail() {
                 <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   containerClassName="w-full h-full"
                   priority
                 />
