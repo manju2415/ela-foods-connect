@@ -70,14 +70,83 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    // Create user with phone number
+    // Use the same email/password pattern as the login flow (createSessionForPhone)
+    const cleanPhone = phone.replace(/\+/g, '');
+    const mockEmail = `${cleanPhone}@elabazar.local`;
+    const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
+
+    // Create user with email/password matching the OTP login flow
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-      phone: phone,
-      phone_confirm: true,
-      user_metadata: { full_name: fullName }
+      email: mockEmail,
+      password: tempPassword,
+      email_confirm: true,
+      user_metadata: { full_name: fullName, phone: phone }
     });
 
     if (createError) {
+      // If user already exists, find them and add delivery partner role
+      if (createError.message.includes('already') || createError.message.includes('exists')) {
+        // Look up existing user by email
+        const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+        if (listError) {
+          return new Response(
+            JSON.stringify({ error: 'Failed to look up existing user' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const existingUser = users.find(u => u.email === mockEmail);
+        if (!existingUser) {
+          return new Response(
+            JSON.stringify({ error: 'User not found with this phone number' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log('Found existing user:', existingUser.id);
+
+        // Add delivery_partner role
+        const { error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .upsert({ user_id: existingUser.id, role: 'delivery_partner' }, { onConflict: 'user_id,role' });
+        if (roleError) console.error('Error adding role:', roleError);
+
+        // Create delivery_partners record
+        const { error: dpError } = await supabaseAdmin
+          .from('delivery_partners')
+          .upsert({
+            user_id: existingUser.id,
+            vehicle_type: vehicleType || null,
+            vehicle_number: vehicleNumber || null,
+            is_available: true
+          }, { onConflict: 'user_id' });
+
+        if (dpError) {
+          // Try insert if upsert fails (no unique constraint on user_id)
+          const { error: dpInsertError } = await supabaseAdmin
+            .from('delivery_partners')
+            .insert({
+              user_id: existingUser.id,
+              vehicle_type: vehicleType || null,
+              vehicle_number: vehicleNumber || null,
+              is_available: true
+            });
+          if (dpInsertError) {
+            console.error('Error creating delivery partner:', dpInsertError);
+          }
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            user_id: existingUser.id,
+            phone: phone,
+            message: 'Existing user converted to delivery partner. They can login with their phone number via OTP.'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       console.error('Error creating user:', createError);
       return new Response(
         JSON.stringify({ error: createError.message }),
@@ -96,6 +165,7 @@ Deno.serve(async (req) => {
 
     await new Promise(resolve => setTimeout(resolve, 1000));
 
+    // Add delivery_partner role (handle_new_user trigger may have already added 'member')
     const { error: roleError } = await supabaseAdmin
       .from('user_roles')
       .insert({ user_id: newUser.user.id, role: 'delivery_partner' });
@@ -120,6 +190,12 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Update profile with name and phone
+    await supabaseAdmin
+      .from('profiles')
+      .update({ full_name: fullName, phone: phone })
+      .eq('id', newUser.user.id);
 
     console.log('Delivery partner created successfully');
 
