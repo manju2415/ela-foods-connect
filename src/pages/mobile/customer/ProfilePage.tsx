@@ -80,7 +80,7 @@ export default function CustomerProfilePage() {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/customer-app");
+    navigate("/auth?redirect=/customer-app", { replace: true });
   };
 
   const getInitials = () => {

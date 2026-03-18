@@ -93,7 +93,7 @@ export default function DriverProfilePage() {
         .eq("id", partner.id);
     }
     await signOut();
-    navigate("/driver-app");
+    navigate("/auth?redirect=/driver-app", { replace: true });
   };
 
   const getInitials = () => {

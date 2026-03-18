@@ -54,7 +54,7 @@ const Header = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/auth", { replace: true });
   };
 
   // When a delivery partner is logged in (especially inside the driver app),
