@@ -51,12 +51,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   useEffect(() => {
     if (!authLoading && !checking) {
       if (!user) {
-        navigate("/auth");
+        navigate(isMLMRoute ? "/mlm-login" : "/auth");
       } else if (isAdmin === false) {
-        navigate("/");
+        navigate(isMLMRoute ? "/mlm-login" : "/");
       }
     }
-  }, [user, isAdmin, authLoading, checking, navigate]);
+  }, [user, isAdmin, authLoading, checking, navigate, isMLMRoute]);
 
   const handleLogout = async () => {
     try { await signOut(); } catch (_) { /* session may already be expired */ }
