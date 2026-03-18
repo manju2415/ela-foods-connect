@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,9 +15,12 @@ interface AdminLayoutProps {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
   const LayoutOverride = useLayoutOverride();
+
+  const isMLMRoute = location.pathname.startsWith("/mlm-admin");
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -26,15 +29,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         return;
       }
 
-      const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
-      setIsAdmin(!!data);
+      // For MLM routes, also allow founding_member role
+      if (isMLMRoute) {
+        const [adminRes, founderRes] = await Promise.all([
+          supabase.rpc("is_admin", { _user_id: user.id }),
+          supabase.rpc("has_role", { _user_id: user.id, _role: "founding_member" }),
+        ]);
+        setIsAdmin(!!adminRes.data || !!founderRes.data);
+      } else {
+        const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
+        setIsAdmin(!!data);
+      }
       setChecking(false);
     };
 
     if (!authLoading) {
       checkAdminStatus();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, isMLMRoute]);
 
   useEffect(() => {
     if (!authLoading && !checking) {

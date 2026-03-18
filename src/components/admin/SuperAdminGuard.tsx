@@ -27,8 +27,11 @@ export function SuperAdminGuard({ children }: SuperAdminGuardProps) {
       }
 
       if (isMLMRoute) {
-        const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
-        setIsAuthorized(!!data);
+        const [adminRes, founderRes] = await Promise.all([
+          supabase.rpc("is_admin", { _user_id: user.id }),
+          supabase.rpc("has_role", { _user_id: user.id, _role: "founding_member" }),
+        ]);
+        setIsAuthorized(!!adminRes.data || !!founderRes.data);
       } else {
         const { data } = await supabase.rpc("is_super_admin", { _user_id: user.id });
         setIsAuthorized(!!data);
