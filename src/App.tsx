@@ -121,7 +121,7 @@ function App() {
                 <CartProvider>
                   <WishlistProvider>
                     <Routes>
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<Navigate to="/auth" replace />} />
                       <Route path="/auth" element={<Auth />} />
                       <Route path="/shop" element={<Index />} />
                       <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
