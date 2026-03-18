@@ -231,7 +231,7 @@ export default function ProductDetail() {
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
             {/* Image Gallery */}
             <div className="space-y-4">
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
+              <div className="relative aspect-[4/3] md:aspect-square overflow-hidden rounded-lg bg-muted">
                 <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
