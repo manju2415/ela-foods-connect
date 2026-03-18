@@ -111,72 +111,79 @@ const Header = () => {
               </Button>
 
               {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
-                      <User className="h-4 w-4" />
-                      Account
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem className="text-muted-foreground text-xs">
-                      {user.email}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {isAdmin && (
-                      <>
-                        <DropdownMenuItem onClick={() => navigate("/admin")}>
-                          <Shield className="h-4 w-4 mr-2" />
-                          Admin Panel
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                      </>
-                    )}
-                    <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
-                      Dashboard
-                    </DropdownMenuItem>
-                    {!isDeliveryPartner && (
-                      <>
-                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
-                          My Orders
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
-                          Wallet
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    {isDeliveryPartner && (
-                      <>
-                        <DropdownMenuItem onClick={() => navigate("/driver-app/orders")}>
-                          My Deliveries
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => navigate("/driver-app/earnings")}>
-                          Earnings
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                      <LogOut className="h-4 w-4 mr-2" />
-                      Sign Out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <>
+                Capacitor.isNativePlatform() ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
+                        <User className="h-4 w-4" />
+                        Account
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem className="text-muted-foreground text-xs">
+                        {user.email}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      {isAdmin && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate("/admin")}>
+                            <Shield className="h-4 w-4 mr-2" />
+                            Admin Panel
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
+                        Dashboard
+                      </DropdownMenuItem>
+                      {!isDeliveryPartner && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
+                            My Orders
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
+                            Wallet
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {isDeliveryPartner && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate("/driver-app/orders")}>
+                            My Deliveries
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate("/driver-app/earnings")}>
+                            Earnings
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                     className="hidden sm:flex gap-2"
-                    onClick={() => navigate("/auth")}
+                    onClick={handleSignOut}
                   >
-                    <User className="h-4 w-4" />
-                    Login
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
                   </Button>
-                  <Button size="sm" className="hidden sm:flex" onClick={() => navigate("/auth")}>
-                    Sign Up
-                  </Button>
-                </>
+                )
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="hidden sm:flex gap-2"
+                  onClick={() => navigate("/auth")}
+                >
+                  <User className="h-4 w-4" />
+                  Login
+                </Button>
               )}
 
               {/* Mobile Menu Button */}
