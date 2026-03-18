@@ -340,53 +340,57 @@ export default function ProductDetail() {
                 <p className="text-muted-foreground">{product.short_description}</p>
               )}
 
-              <div className="flex items-center gap-4">
-                <div className="flex items-center border rounded-md">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center border rounded-md">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-12 text-center font-medium">{quantity}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
+                      disabled={quantity >= product.stock_quantity}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1}
+                    size="lg"
+                    variant="outline"
+                    onClick={() => toggleWishlist(product.id)}
+                    className={isInWishlist(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
                   >
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="w-12 text-center font-medium">{quantity}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
-                    disabled={quantity >= product.stock_quantity}
-                  >
-                    <Plus className="h-4 w-4" />
+                    <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? "fill-current" : ""}`} />
                   </Button>
                 </div>
-                <Button
-                  size="lg"
-                  onClick={handleAddToCart}
-                  disabled={isAddingToCart || product.stock_quantity === 0}
-                  className="flex-1"
-                >
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
-                </Button>
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  onClick={handleBuyNow}
-                  disabled={isBuyingNow || product.stock_quantity === 0}
-                  className="flex-1"
-                >
-                  <Zap className="mr-2 h-5 w-5" />
-                  Buy Now
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => toggleWishlist(product.id)}
-                  className={isInWishlist(product.id) ? "text-destructive border-destructive hover:bg-destructive/10" : ""}
-                >
-                  <Heart className={`h-5 w-5 ${isInWishlist(product.id) ? "fill-current" : ""}`} />
-                </Button>
+                <div className="flex items-center gap-3">
+                  <Button
+                    size="lg"
+                    onClick={handleAddToCart}
+                    disabled={isAddingToCart || product.stock_quantity === 0}
+                    className="flex-1"
+                  >
+                    <ShoppingCart className="mr-2 h-5 w-5" />
+                    {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    onClick={handleBuyNow}
+                    disabled={isBuyingNow || product.stock_quantity === 0}
+                    className="flex-1"
+                  >
+                    <Zap className="mr-2 h-5 w-5" />
+                    Buy Now
+                  </Button>
+                </div>
               </div>
 
               {product.stock_quantity > 0 && product.stock_quantity <= 10 && (
