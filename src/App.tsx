@@ -175,6 +175,7 @@ function App() {
                       <Route path="/policies" element={<Policies />} />
                       <Route path="/stores" element={<StoreLocator />} />
                       <Route path="/policies/:slug" element={<Policies />} />
+                      <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                       <Route path="/complete-registration" element={<CompleteRegistration />} />
                       <Route path="/registration-payment" element={<RegistrationPayment />} />
                       {/* Mobile App Entry Points */}
