@@ -40,7 +40,7 @@ const WhyChooseUs = () => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-primary font-semibold text-sm uppercase tracking-wider">
-            Why ELA Foods
+            Why Ela Bazar
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
             Why Choose Us
