@@ -29,8 +29,8 @@ export default function DriverInstall() {
           <div className="w-24 h-24 rounded-3xl bg-[#16a34a] flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-5xl">🚚</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">ELA Delivery</h1>
-          <p className="text-muted-foreground">Deliver with ELA Foods</p>
+          <h1 className="text-3xl font-bold mb-2">Ela Bazar Delivery</h1>
+          <p className="text-muted-foreground">Deliver with Ela Bazar</p>
         </div>
 
         {/* Features */}
