@@ -29,8 +29,8 @@ export default function MemberInstall() {
           <div className="w-24 h-24 rounded-3xl bg-[#7c3aed] flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-5xl">🌐</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">ELA Network</h1>
-          <p className="text-muted-foreground">Grow your network with ELA Foods</p>
+          <h1 className="text-3xl font-bold mb-2">Ela Bazar Network</h1>
+          <p className="text-muted-foreground">Grow your network with Ela Bazar</p>
         </div>
 
         {/* Features */}
@@ -53,7 +53,7 @@ export default function MemberInstall() {
               </div>
               <h2 className="text-xl font-semibold mb-2">App Installed!</h2>
               <p className="text-muted-foreground mb-4">
-                Look for the ELA Network icon on your home screen
+                Look for the Ela Bazar Network icon on your home screen
               </p>
               <Link to="/member-app">
                 <Button className="w-full bg-[#7c3aed] hover:bg-[#6d28d9]">

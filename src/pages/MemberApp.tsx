@@ -84,7 +84,7 @@ export default function MemberApp() {
             <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">🌐</span>
             </div>
-            <h1 className="text-xl font-bold text-white mb-2">ELA Network</h1>
+            <h1 className="text-xl font-bold text-white mb-2">Ela Bazar Network</h1>
             <p className="text-white/70">Grow your network</p>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function MemberApp() {
   return (
     <MobileAppLayout appType="member">
       <Dashboard hideChrome />
-      <InstallPrompt appName="ELA Network" appType="member" themeColor="#7c3aed" />
+      <InstallPrompt appName="Ela Bazar Network" appType="member" themeColor="#7c3aed" />
       <PWABadge />
     </MobileAppLayout>
   );

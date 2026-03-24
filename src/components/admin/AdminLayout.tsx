@@ -90,7 +90,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <main className="flex-1 flex flex-col">
           <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
             <SidebarTrigger />
-            <h1 className="font-semibold text-lg flex-1">ELA Foods Admin</h1>
+            <h1 className="font-semibold text-lg flex-1">Ela Bazar Admin</h1>
             <Button variant="ghost" size="sm" onClick={handleVisitSite}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Visit Site

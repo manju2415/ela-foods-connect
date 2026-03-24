@@ -224,7 +224,7 @@ const Products = () => {
             </h1>
           </div>
           <p className="text-muted-foreground ml-12">
-            Discover our wide range of authentic Indian snacks
+            Discover our wide range of quality products
           </p>
         </div>
 
@@ -349,7 +349,7 @@ const Products = () => {
                       memberPrice={product.member_price}
                       originalPrice={product.compare_at_price || undefined}
                       image={product.images?.[0] || "/placeholder.svg"}
-                      category={product.categories?.name || "Snacks"}
+                      category={product.categories?.name || "General"}
                       isBestSeller={product.is_featured}
                       unitType={product.unit_type}
                       unitValue={product.unit_value}

@@ -67,7 +67,7 @@ const FeaturedProducts = () => {
             Featured Products
           </h2>
           <p className="text-muted-foreground">
-            Handpicked favorites loved by thousands of snack enthusiasts across the country
+            Top picks loved by thousands of shoppers across the country
           </p>
         </div>
 
@@ -92,7 +92,7 @@ const FeaturedProducts = () => {
                 memberPrice={product.member_price}
                 originalPrice={product.compare_at_price || undefined}
                 image={product.images?.[0] || "/placeholder.svg"}
-                category={product.categories?.name || "Snacks"}
+                category={product.categories?.name || "General"}
                 isBestSeller={product.is_featured}
                 unitType={product.unit_type}
                 unitValue={product.unit_value}

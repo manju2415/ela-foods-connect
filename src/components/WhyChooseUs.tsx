@@ -4,7 +4,7 @@ const features = [
   {
     icon: Award,
     title: "Premium Quality",
-    description: "Made with finest ingredients and traditional recipes",
+    description: "Carefully curated products from trusted brands",
   },
   {
     icon: Truck,
@@ -13,13 +13,13 @@ const features = [
   },
   {
     icon: Shield,
-    title: "100% Hygienic",
-    description: "Prepared in FSSAI certified facilities",
+    title: "Verified Sellers",
+    description: "Quality checked products from verified sellers",
   },
   {
     icon: Heart,
-    title: "Made with Love",
-    description: "Every snack crafted with mother's touch",
+    title: "Best Prices",
+    description: "Competitive pricing on all products",
   },
   {
     icon: RefreshCw,
@@ -40,13 +40,13 @@ const WhyChooseUs = () => {
         {/* Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
           <span className="text-primary font-semibold text-sm uppercase tracking-wider">
-            Why ELA Foods
+            Why Ela Bazar
           </span>
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mt-2 mb-4">
             Why Choose Us
           </h2>
           <p className="text-muted-foreground">
-            We're committed to bringing you the best snacking experience
+            We're committed to bringing you the best shopping experience
           </p>
         </div>
 

@@ -16,7 +16,7 @@ export default function CustomerInstall() {
   };
 
   const features = [
-    { icon: ShoppingBag, title: "Easy Shopping", description: "Browse and order premium snacks" },
+    { icon: ShoppingBag, title: "Easy Shopping", description: "Browse and order quality products" },
     { icon: Truck, title: "Track Orders", description: "Real-time delivery tracking" },
     { icon: CreditCard, title: "Secure Payments", description: "Multiple payment options" },
     { icon: Heart, title: "Wishlist", description: "Save your favorite items" },
@@ -30,8 +30,8 @@ export default function CustomerInstall() {
           <div className="w-24 h-24 rounded-3xl bg-[#f97316] flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-5xl">🍽️</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">ELA Foods</h1>
-          <p className="text-muted-foreground">Mother's Touch - Premium Homemade Snacks</p>
+          <h1 className="text-3xl font-bold mb-2">Ela Bazar</h1>
+          <p className="text-muted-foreground">Your One-Stop Online Shopping Destination</p>
         </div>
 
         {/* Features */}
@@ -54,7 +54,7 @@ export default function CustomerInstall() {
               </div>
               <h2 className="text-xl font-semibold mb-2">App Installed!</h2>
               <p className="text-muted-foreground mb-4">
-                Look for the ELA Foods icon on your home screen
+                Look for the Ela Bazar icon on your home screen
               </p>
               <Link to="/customer-app">
                 <Button className="w-full bg-[#f97316] hover:bg-[#ea580c]">

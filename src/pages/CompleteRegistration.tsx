@@ -292,7 +292,7 @@ const CompleteRegistration = () => {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">Complete Your Registration</h1>
             <p className="text-muted-foreground">
-              Please provide your details to activate your ELA Foods membership
+              Please provide your details to activate your Ela Bazar membership
             </p>
           </div>
 

@@ -31,7 +31,7 @@ export function MLMAdminLayout({ children }: MLMAdminLayoutProps) {
           <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
             <SidebarTrigger />
             <Network className="h-5 w-5 text-primary" />
-            <h1 className="font-semibold text-lg flex-1">ELA Network Manager</h1>
+            <h1 className="font-semibold text-lg flex-1">Ela Bazar Network Manager</h1>
             <Button variant="ghost" size="sm" onClick={handleVisitSite}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Visit Site

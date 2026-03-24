@@ -16,7 +16,7 @@ const ReferralBanner = () => {
               Refer Friends & <span className="text-primary">Earn Rewards</span>
             </h2>
             <p className="text-muted-foreground mb-8 text-lg">
-              Share your love for ELA Foods! Invite friends using your unique referral code 
+              Share your love for Ela Bazar! Invite friends using your unique referral code 
               and earn wallet credits on every successful signup.
             </p>
 

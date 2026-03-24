@@ -16,8 +16,8 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div className="space-y-4">
               <img src={elaLogo} alt={storeSettings.store_name} className="h-20 w-auto brightness-110" />
               <p className="text-card/70 text-sm leading-relaxed">
-                Bringing the authentic taste of homemade snacks to your doorstep. 
-                Made with love, just like mother's touch.
+                Your one-stop destination for quality products across categories. 
+                Shop from a wide range of products delivered to your doorstep.
               </p>
               <div className="flex gap-4">
                 <a href="#" className="text-card/60 hover:text-secondary transition-colors">
@@ -56,7 +56,7 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div>
               <h4 className="font-semibold text-lg mb-4 text-secondary">Categories</h4>
               <ul className="space-y-2">
-                {["Namkeen", "Chips", "Mixture", "Bhujia", "Sweets", "Combos"].map((cat) => (
+                {["Electronics", "Fashion", "Home & Kitchen", "Beauty", "Sports", "Groceries"].map((cat) => (
                   <li key={cat}>
                     <Link to="#" className="text-card/70 hover:text-secondary text-sm transition-colors">
                       {cat}

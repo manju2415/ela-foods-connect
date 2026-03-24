@@ -105,8 +105,8 @@ export default function CustomerApp() {
             <div className="w-20 h-20 bg-accent-foreground/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">🍽️</span>
             </div>
-            <h1 className="text-xl font-bold text-accent-foreground mb-2">ELA Foods</h1>
-            <p className="text-accent-foreground/70">Delicious snacks delivered</p>
+            <h1 className="text-xl font-bold text-accent-foreground mb-2">Ela Bazar</h1>
+            <p className="text-accent-foreground/70">Shop quality products</p>
           </div>
         </div>
       </MobileAppLayout>
@@ -116,7 +116,7 @@ export default function CustomerApp() {
   return (
     <MobileAppLayout appType="customer">
       <Index hideChrome />
-      <InstallPrompt appName="ELA Foods" appType="customer" themeColor="#f97316" />
+      <InstallPrompt appName="Ela Bazar" appType="customer" themeColor="#f97316" />
       <PWABadge />
     </MobileAppLayout>
   );

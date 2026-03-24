@@ -8,10 +8,10 @@ const Newsletter = () => {
       <div className="container mx-auto px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-            Join Our Snack Family
+            Join the Ela Bazar Family
           </h2>
           <p className="text-primary-foreground/80 mb-8">
-            Subscribe to get exclusive offers, new product alerts, and delicious recipes delivered to your inbox.
+            Subscribe to get exclusive offers, new arrivals, and special deals delivered to your inbox.
           </p>
 
           <form className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">

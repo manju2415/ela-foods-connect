@@ -53,8 +53,8 @@ interface WalletSettings {
 }
 
 const defaultStoreSettings: StoreSettings = {
-  store_name: "ELA Foods",
-  store_email: "contact@elafoods.com",
+  store_name: "Ela Bazar",
+  store_email: "contact@elabazar.com",
   store_phone: "",
   store_address: "",
   currency: "INR",
