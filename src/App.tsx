@@ -47,6 +47,7 @@ import AdminStores from "./pages/admin/Stores";
 import AdminStoreInventory from "./pages/admin/StoreInventory";
 import StoreLocator from "./pages/StoreLocator";
 import Policies from "./pages/Policies";
+import TermsAndConditions from "./pages/TermsAndConditions";
 import AdminAdvertisements from "./pages/admin/Advertisements";
 import GuestCheckout from "./pages/GuestCheckout";
 import RegistrationPayment from "./pages/RegistrationPayment";
