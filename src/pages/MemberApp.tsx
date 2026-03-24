@@ -95,7 +95,7 @@ export default function MemberApp() {
   return (
     <MobileAppLayout appType="member">
       <Dashboard hideChrome />
-      <InstallPrompt appName="ELA Network" appType="member" themeColor="#7c3aed" />
+      <InstallPrompt appName="Ela Bazar Network" appType="member" themeColor="#7c3aed" />
       <PWABadge />
     </MobileAppLayout>
   );

@@ -349,7 +349,7 @@ const Products = () => {
                       memberPrice={product.member_price}
                       originalPrice={product.compare_at_price || undefined}
                       image={product.images?.[0] || "/placeholder.svg"}
-                      category={product.categories?.name || "Snacks"}
+                      category={product.categories?.name || "General"}
                       isBestSeller={product.is_featured}
                       unitType={product.unit_type}
                       unitValue={product.unit_value}

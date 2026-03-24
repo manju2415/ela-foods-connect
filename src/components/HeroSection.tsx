@@ -35,11 +35,11 @@ const HeroSection = () => {
   });
 
   // Default values if no banner is set
-  const title = banner?.title || "Experience the Mother's Touch";
-  const subtitle = banner?.subtitle || "Discover authentic homemade snacks crafted with love and traditional recipes. From crispy namkeen to spicy mixtures, taste the difference that quality makes.";
+  const title = banner?.title || "Shop Everything You Love";
+  const subtitle = banner?.subtitle || "Your one-stop destination for quality products across all categories. From electronics to fashion, home essentials to groceries — discover great deals every day.";
   const ctaText = banner?.cta_text || "Shop Now";
   const ctaLink = banner?.cta_link || "/products";
-  const badgeText = banner?.badge_text || "Premium Quality Snacks";
+  const badgeText = banner?.badge_text || "Your Trusted Marketplace";
   const heroImage = banner?.image_url || heroImageFallback;
 
   // Preload hero image for better LCP

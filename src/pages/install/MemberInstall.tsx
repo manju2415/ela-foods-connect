@@ -53,7 +53,7 @@ export default function MemberInstall() {
               </div>
               <h2 className="text-xl font-semibold mb-2">App Installed!</h2>
               <p className="text-muted-foreground mb-4">
-                Look for the ELA Network icon on your home screen
+                Look for the Ela Bazar Network icon on your home screen
               </p>
               <Link to="/member-app">
                 <Button className="w-full bg-[#7c3aed] hover:bg-[#6d28d9]">

@@ -46,7 +46,7 @@ const WhyChooseUs = () => {
             Why Choose Us
           </h2>
           <p className="text-muted-foreground">
-            We're committed to bringing you the best snacking experience
+            We're committed to bringing you the best shopping experience
           </p>
         </div>
 

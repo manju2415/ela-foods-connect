@@ -53,7 +53,7 @@ export default function DriverInstall() {
               </div>
               <h2 className="text-xl font-semibold mb-2">App Installed!</h2>
               <p className="text-muted-foreground mb-4">
-                Look for the ELA Delivery icon on your home screen
+                Look for the Ela Bazar Delivery icon on your home screen
               </p>
               <Link to="/driver-app">
                 <Button className="w-full bg-[#16a34a] hover:bg-[#15803d]">

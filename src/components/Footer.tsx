@@ -56,7 +56,7 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div>
               <h4 className="font-semibold text-lg mb-4 text-secondary">Categories</h4>
               <ul className="space-y-2">
-                {["Namkeen", "Chips", "Mixture", "Bhujia", "Sweets", "Combos"].map((cat) => (
+                {["Electronics", "Fashion", "Home & Kitchen", "Beauty", "Sports", "Groceries"].map((cat) => (
                   <li key={cat}>
                     <Link to="#" className="text-card/70 hover:text-secondary text-sm transition-colors">
                       {cat}

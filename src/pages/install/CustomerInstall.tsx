@@ -54,7 +54,7 @@ export default function CustomerInstall() {
               </div>
               <h2 className="text-xl font-semibold mb-2">App Installed!</h2>
               <p className="text-muted-foreground mb-4">
-                Look for the ELA Foods icon on your home screen
+                Look for the Ela Bazar icon on your home screen
               </p>
               <Link to="/customer-app">
                 <Button className="w-full bg-[#f97316] hover:bg-[#ea580c]">

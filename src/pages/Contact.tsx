@@ -41,8 +41,8 @@ const Contact = () => {
               Contact Us
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Good food deserves to be shared, and our gifted chefs push the limits every day 
-              to spread India's real flavors to everybody, everywhere.
+              Have a question or need help? Our team is here to assist you 
+              with anything you need.
             </p>
           </div>
         </section>
