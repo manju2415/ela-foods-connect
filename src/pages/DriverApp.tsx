@@ -51,8 +51,8 @@ export default function DriverApp() {
             <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">🚚</span>
             </div>
-            <h1 className="text-xl font-bold text-white mb-2">ELA Delivery</h1>
-            <p className="text-white/70">Deliver with ELA</p>
+            <h1 className="text-xl font-bold text-white mb-2">Ela Bazar Delivery</h1>
+            <p className="text-white/70">Deliver with Ela Bazar</p>
           </div>
         </div>
       </MobileAppLayout>
