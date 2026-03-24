@@ -224,7 +224,7 @@ const Products = () => {
             </h1>
           </div>
           <p className="text-muted-foreground ml-12">
-            Discover our wide range of authentic Indian snacks
+            Discover our wide range of quality products
           </p>
         </div>
 
