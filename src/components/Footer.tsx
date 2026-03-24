@@ -106,6 +106,9 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
               <Link to="/policies/refund" className="text-card/60 hover:text-secondary transition-colors">
                 Refund Policy
               </Link>
+              <Link to="/terms-and-conditions" className="text-card/60 hover:text-secondary transition-colors">
+                Terms & Conditions
+              </Link>
             </div>
           </div>
         </div>
