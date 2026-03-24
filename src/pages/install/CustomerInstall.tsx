@@ -16,7 +16,7 @@ export default function CustomerInstall() {
   };
 
   const features = [
-    { icon: ShoppingBag, title: "Easy Shopping", description: "Browse and order premium snacks" },
+    { icon: ShoppingBag, title: "Easy Shopping", description: "Browse and order quality products" },
     { icon: Truck, title: "Track Orders", description: "Real-time delivery tracking" },
     { icon: CreditCard, title: "Secure Payments", description: "Multiple payment options" },
     { icon: Heart, title: "Wishlist", description: "Save your favorite items" },
