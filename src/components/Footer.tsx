@@ -16,8 +16,8 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div className="space-y-4">
               <img src={elaLogo} alt={storeSettings.store_name} className="h-20 w-auto brightness-110" />
               <p className="text-card/70 text-sm leading-relaxed">
-                Bringing the authentic taste of homemade snacks to your doorstep. 
-                Made with love, just like mother's touch.
+                Your one-stop destination for quality products across categories. 
+                Shop from a wide range of products delivered to your doorstep.
               </p>
               <div className="flex gap-4">
                 <a href="#" className="text-card/60 hover:text-secondary transition-colors">
