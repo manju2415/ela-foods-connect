@@ -29,8 +29,8 @@ export default function MemberInstall() {
           <div className="w-24 h-24 rounded-3xl bg-[#7c3aed] flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-5xl">🌐</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2">ELA Network</h1>
-          <p className="text-muted-foreground">Grow your network with ELA Foods</p>
+          <h1 className="text-3xl font-bold mb-2">Ela Bazar Network</h1>
+          <p className="text-muted-foreground">Grow your network with Ela Bazar</p>
         </div>
 
         {/* Features */}
