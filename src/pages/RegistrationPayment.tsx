@@ -112,7 +112,7 @@ const RegistrationPayment = () => {
       await supabase.from("notifications").insert({
         user_id: user.id,
         title: "Registration Complete!",
-        message: `Welcome to ELA Foods! ₹${settings.wallet_credit} has been credited to your wallet.`,
+        message: `Welcome to Ela Bazar! ₹${settings.wallet_credit} has been credited to your wallet.`,
         type: "success",
       });
 
