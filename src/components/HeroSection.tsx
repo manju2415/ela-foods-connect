@@ -61,6 +61,9 @@ const HeroSection = () => {
           containerClassName="w-full h-full"
           priority
           blur={false}
+          displayWidth={1920}
+          displayHeight={1080}
+          quality="high"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-foreground/30" />
       </div>
