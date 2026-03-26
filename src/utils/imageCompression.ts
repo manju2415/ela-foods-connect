@@ -4,65 +4,60 @@ export interface CompressionOptions {
   maxSizeMB?: number;
   maxWidthOrHeight?: number;
   useWebWorker?: boolean;
+  fileType?: string;
 }
 
 const defaultOptions: CompressionOptions = {
-  maxSizeMB: 0.5, // Max 500KB
-  maxWidthOrHeight: 1920, // Max dimension
+  maxSizeMB: 0.3, // Max 300KB for faster loads
+  maxWidthOrHeight: 1920,
   useWebWorker: true,
 };
 
 /**
- * Compress an image file before upload
- * @param file - The image file to compress
- * @param options - Compression options
- * @returns The compressed file
+ * Compress an image file before upload.
+ * Converts to WebP when supported for smaller file sizes.
  */
 export async function compressImage(
   file: File,
   options: CompressionOptions = {}
 ): Promise<File> {
-  // Skip compression for non-image files
   if (!file.type.startsWith('image/')) {
     return file;
   }
 
-  // Skip compression for already small files (under 100KB)
-  if (file.size < 100 * 1024) {
+  // Skip compression for already small files (under 50KB)
+  if (file.size < 50 * 1024) {
     console.log(`Image ${file.name} is already small (${formatFileSize(file.size)}), skipping compression`);
     return file;
   }
 
   const mergedOptions = { ...defaultOptions, ...options };
-  
+
   try {
     console.log(`Compressing ${file.name}: ${formatFileSize(file.size)}`);
-    
+
     const compressedFile = await imageCompression(file, {
       maxSizeMB: mergedOptions.maxSizeMB!,
       maxWidthOrHeight: mergedOptions.maxWidthOrHeight!,
       useWebWorker: mergedOptions.useWebWorker!,
-      fileType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
+      fileType: mergedOptions.fileType as any || 'image/webp',
+      initialQuality: 0.8,
     });
-    
+
     const savings = ((1 - compressedFile.size / file.size) * 100).toFixed(1);
     console.log(
       `Compressed ${file.name}: ${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)} (${savings}% smaller)`
     );
-    
+
     return compressedFile;
   } catch (error) {
     console.error('Image compression failed:', error);
-    // Return original file if compression fails
     return file;
   }
 }
 
 /**
  * Compress multiple image files
- * @param files - Array of files to compress
- * @param options - Compression options
- * @returns Array of compressed files
  */
 export async function compressImages(
   files: File[],
