@@ -4,37 +4,16 @@
  */
 export function getOptimizedImageUrl(
   url: string,
-  options: {
+  _options: {
     width?: number;
     height?: number;
     quality?: number;
     format?: "webp" | "origin";
   } = {}
 ): string {
-  if (!url) return url;
-
-  const { width, height, quality = 75, format = "webp" } = options;
-
-  // Only transform Supabase storage URLs
-  const isSupabaseStorage =
-    url.includes("supabase.co/storage/") || url.includes("supabase.co/storage/");
-
-  if (!isSupabaseStorage) return url;
-
-  // Build transform path: /render/image/... instead of /object/...
-  const transformedUrl = url.replace(
-    "/storage/v1/object/public/",
-    "/storage/v1/render/image/public/"
-  );
-
-  const params = new URLSearchParams();
-  if (width) params.set("width", String(width));
-  if (height) params.set("height", String(height));
-  params.set("quality", String(quality));
-  if (format) params.set("format", format);
-
-  const separator = transformedUrl.includes("?") ? "&" : "?";
-  return `${transformedUrl}${separator}${params.toString()}`;
+  // Return URL as-is — Supabase image transforms are not available on this project.
+  // The OptimizedImage component still handles lazy loading, blur placeholders, etc.
+  return url || "";
 }
 
 /**
