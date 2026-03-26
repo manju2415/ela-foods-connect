@@ -20,6 +20,8 @@ const CategoryCard = ({ name, slug, image, productCount }: CategoryCardProps) =>
             alt={name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             containerClassName="w-full h-full"
+            displayWidth={400}
+            displayHeight={300}
           />
         </div>
         

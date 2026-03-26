@@ -67,6 +67,7 @@ export function AdvertisementBanner({ placement, className = "" }: Advertisement
                 alt={ad.title}
                 className="w-full md:w-1/3 h-32 md:h-auto object-cover"
                 containerClassName="w-full md:w-1/3 h-32 md:h-auto"
+                displayWidth={400}
               />
               <div className="p-4 flex-1 flex flex-col justify-center">
                 <h3 className="font-semibold text-lg text-foreground mb-1">{ad.title}</h3>

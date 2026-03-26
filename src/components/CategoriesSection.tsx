@@ -97,7 +97,7 @@ const CategoriesSection = () => {
             Shop by Category
           </h2>
           <p className="text-muted-foreground">
-            Find your favorite snacks organized by type for easy shopping
+            Explore our collections organized by category for easy shopping
           </p>
         </div>
 

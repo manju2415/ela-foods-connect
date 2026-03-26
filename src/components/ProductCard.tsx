@@ -119,6 +119,8 @@ const ProductCard = ({
           alt={name}
           className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
           containerClassName="aspect-square"
+          displayWidth={500}
+          displayHeight={500}
         />
         
         {/* Badges */}

@@ -4,7 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -13,72 +13,87 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AppErrorBoundary } from "@/components/errors/AppErrorBoundary";
 import AuthGuard from "@/components/AuthGuard";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import Dashboard from "./pages/Dashboard";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Checkout from "./pages/Checkout";
-import About from "./pages/About";
-import Contact from "./pages/Contact";
-import DeliveryDashboard from "./pages/DeliveryDashboard";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import FoundingMembers from "./pages/admin/FoundingMembers";
-import ReferralCodes from "./pages/admin/ReferralCodes";
-import AdminOrders from "./pages/admin/Orders";
-import AdminProducts from "./pages/admin/Products";
-import AdminCategories from "./pages/admin/Categories";
-import AdminCoupons from "./pages/admin/Coupons";
-import AdminSettings from "./pages/admin/Settings";
-import AdminDeliveryPartners from "./pages/admin/DeliveryPartners";
-import AdminOrderAssignments from "./pages/admin/OrderAssignments";
-import AdminAnalytics from "./pages/admin/Analytics";
-import AdminInventory from "./pages/admin/Inventory";
-import AdminUsers from "./pages/admin/Users";
-import MLMSettings from "./pages/admin/MLMSettings";
-import AdminWithdrawals from "./pages/admin/Withdrawals";
-import NetworkAnalytics from "./pages/admin/NetworkAnalytics";
-import AdminTestimonials from "./pages/admin/Testimonials";
-import AdminBanners from "./pages/admin/Banners";
-import AdminFounders from "./pages/admin/Founders";
-import AdminReturnRequests from "./pages/admin/ReturnRequests";
-import AdminPolicies from "./pages/admin/Policies";
-import AdminStores from "./pages/admin/Stores";
-import AdminStoreInventory from "./pages/admin/StoreInventory";
-import StoreLocator from "./pages/StoreLocator";
-import Policies from "./pages/Policies";
-import TermsAndConditions from "./pages/TermsAndConditions";
-import AdminAdvertisements from "./pages/admin/Advertisements";
-import GuestCheckout from "./pages/GuestCheckout";
-import RegistrationPayment from "./pages/RegistrationPayment";
-import CompleteRegistration from "./pages/CompleteRegistration";
-import NotFound from "./pages/NotFound";
-import MLMLogin from "./pages/MLMLogin";
-import MLMDashboard from "./pages/mlm-admin/MLMDashboard";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { MLMAdminLayout } from "./components/mlm-admin/MLMAdminLayout";
-import DriverApp from "./pages/DriverApp";
-import CustomerApp from "./pages/CustomerApp";
-import MemberApp from "./pages/MemberApp";
-import MobileApps from "./pages/MobileApps";
-import CategoryPage from "./pages/CategoryPage";
-// Mobile Customer Pages
-import CustomerOrdersPage from "./pages/mobile/customer/OrdersPage";
-import CustomerOrderDetailPage from "./pages/mobile/customer/OrderDetailPage";
-import CustomerWalletPage from "./pages/mobile/customer/WalletPage";
-import CustomerProfilePage from "./pages/mobile/customer/ProfilePage";
-// Mobile Driver Pages
-import DriverOrdersPage from "./pages/mobile/driver/OrdersPage";
-import DriverEarningsPage from "./pages/mobile/driver/EarningsPage";
-import DriverProfilePage from "./pages/mobile/driver/ProfilePage";
-// Mobile Member Pages
-import MemberNetworkPage from "./pages/mobile/member/NetworkPage";
+
+// Critical path - eagerly loaded
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import Products from "./pages/Products";
+
+// Lazy-loaded pages
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const About = lazy(() => import("./pages/About"));
+const Contact = lazy(() => import("./pages/Contact"));
+const DeliveryDashboard = lazy(() => import("./pages/DeliveryDashboard"));
+const CategoryPage = lazy(() => import("./pages/CategoryPage"));
+const GuestCheckout = lazy(() => import("./pages/GuestCheckout"));
+const RegistrationPayment = lazy(() => import("./pages/RegistrationPayment"));
+const CompleteRegistration = lazy(() => import("./pages/CompleteRegistration"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const MLMLogin = lazy(() => import("./pages/MLMLogin"));
+const Policies = lazy(() => import("./pages/Policies"));
+const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
+const StoreLocator = lazy(() => import("./pages/StoreLocator"));
+const MobileApps = lazy(() => import("./pages/MobileApps"));
+
+// Admin pages
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const FoundingMembers = lazy(() => import("./pages/admin/FoundingMembers"));
+const ReferralCodes = lazy(() => import("./pages/admin/ReferralCodes"));
+const AdminOrders = lazy(() => import("./pages/admin/Orders"));
+const AdminProducts = lazy(() => import("./pages/admin/Products"));
+const AdminCategories = lazy(() => import("./pages/admin/Categories"));
+const AdminCoupons = lazy(() => import("./pages/admin/Coupons"));
+const AdminSettings = lazy(() => import("./pages/admin/Settings"));
+const AdminDeliveryPartners = lazy(() => import("./pages/admin/DeliveryPartners"));
+const AdminOrderAssignments = lazy(() => import("./pages/admin/OrderAssignments"));
+const AdminAnalytics = lazy(() => import("./pages/admin/Analytics"));
+const AdminInventory = lazy(() => import("./pages/admin/Inventory"));
+const AdminUsers = lazy(() => import("./pages/admin/Users"));
+const MLMSettings = lazy(() => import("./pages/admin/MLMSettings"));
+const AdminWithdrawals = lazy(() => import("./pages/admin/Withdrawals"));
+const NetworkAnalytics = lazy(() => import("./pages/admin/NetworkAnalytics"));
+const AdminTestimonials = lazy(() => import("./pages/admin/Testimonials"));
+const AdminBanners = lazy(() => import("./pages/admin/Banners"));
+const AdminFounders = lazy(() => import("./pages/admin/Founders"));
+const AdminReturnRequests = lazy(() => import("./pages/admin/ReturnRequests"));
+const AdminPolicies = lazy(() => import("./pages/admin/Policies"));
+const AdminStores = lazy(() => import("./pages/admin/Stores"));
+const AdminStoreInventory = lazy(() => import("./pages/admin/StoreInventory"));
+const AdminAdvertisements = lazy(() => import("./pages/admin/Advertisements"));
+
+// MLM Admin
+const MLMDashboard = lazy(() => import("./pages/mlm-admin/MLMDashboard"));
+
+// Mobile App pages
+const DriverApp = lazy(() => import("./pages/DriverApp"));
+const CustomerApp = lazy(() => import("./pages/CustomerApp"));
+const MemberApp = lazy(() => import("./pages/MemberApp"));
+const CustomerOrdersPage = lazy(() => import("./pages/mobile/customer/OrdersPage"));
+const CustomerOrderDetailPage = lazy(() => import("./pages/mobile/customer/OrderDetailPage"));
+const CustomerWalletPage = lazy(() => import("./pages/mobile/customer/WalletPage"));
+const CustomerProfilePage = lazy(() => import("./pages/mobile/customer/ProfilePage"));
+const DriverOrdersPage = lazy(() => import("./pages/mobile/driver/OrdersPage"));
+const DriverEarningsPage = lazy(() => import("./pages/mobile/driver/EarningsPage"));
+const DriverProfilePage = lazy(() => import("./pages/mobile/driver/ProfilePage"));
+const MemberNetworkPage = lazy(() => import("./pages/mobile/member/NetworkPage"));
+
 // PWA Install Pages
-import CustomerInstall from "./pages/install/CustomerInstall";
-import DriverInstall from "./pages/install/DriverInstall";
-import MemberInstall from "./pages/install/MemberInstall";
+const CustomerInstall = lazy(() => import("./pages/install/CustomerInstall"));
+const DriverInstall = lazy(() => import("./pages/install/DriverInstall"));
+const MemberInstall = lazy(() => import("./pages/install/MemberInstall"));
 
 const queryClient = new QueryClient();
+
+// Minimal loading fallback
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+  </div>
+);
 
 function App() {
   useEffect(() => {
@@ -122,84 +137,86 @@ function App() {
               <BrowserRouter>
                 <CartProvider>
                   <WishlistProvider>
-                    <Routes>
-                      <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
-                      <Route path="/auth" element={<Auth />} />
-                      <Route path="/shop" element={<Index />} />
-                      <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
-                      <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
-                      <Route path="/products" element={<Products />} />
-                      <Route path="/categories" element={<Products />} />
-                      <Route path="/category/:slug" element={<CategoryPage />} />
-                      <Route path="/category/:slug/:subSlug" element={<CategoryPage />} />
-                      <Route path="/product/:slug" element={<ProductDetail />} />
-                      <Route path="/checkout" element={<Checkout />} />
-                      <Route path="/guest-checkout" element={<GuestCheckout />} />
-                      <Route path="/about" element={<About />} />
-                      <Route path="/contact" element={<Contact />} />
-                      <Route path="/delivery" element={<DeliveryDashboard />} />
-                      <Route path="/admin" element={<AdminDashboard />} />
-                      <Route path="/admin/founding-members" element={<FoundingMembers />} />
-                      <Route path="/admin/referral-codes" element={<ReferralCodes />} />
-                      <Route path="/admin/orders" element={<AdminOrders />} />
-                      <Route path="/admin/products" element={<AdminProducts />} />
-                      <Route path="/admin/categories" element={<AdminCategories />} />
-                      <Route path="/admin/coupons" element={<AdminCoupons />} />
-                      <Route path="/admin/settings" element={<AdminSettings />} />
-                      <Route path="/admin/delivery-partners" element={<AdminDeliveryPartners />} />
-                      <Route path="/admin/order-assignments" element={<AdminOrderAssignments />} />
-                      <Route path="/admin/analytics" element={<AdminAnalytics />} />
-                      <Route path="/admin/inventory" element={<AdminInventory />} />
-                      <Route path="/admin/users" element={<AdminUsers />} />
-                      <Route path="/admin/mlm-settings" element={<MLMSettings />} />
-                      <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
-                      <Route path="/admin/network-analytics" element={<NetworkAnalytics />} />
-                      <Route path="/admin/testimonials" element={<AdminTestimonials />} />
-                      <Route path="/admin/banners" element={<AdminBanners />} />
-                      <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
-                      <Route path="/admin/founders" element={<AdminFounders />} />
-                      <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
-                      <Route path="/admin/policies" element={<AdminPolicies />} />
-                      <Route path="/admin/stores" element={<AdminStores />} />
-                      <Route path="/admin/stores/:id/inventory" element={<AdminStoreInventory />} />
-                      {/* MLM Admin Routes */}
-                      <Route path="/mlm-login" element={<MLMLogin />} />
-                      <Route path="/mlm-admin" element={<MLMDashboard />} />
-                      <Route path="/mlm-admin/network-analytics" element={<LayoutOverrideProvider value={MLMAdminLayout}><NetworkAnalytics /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/users" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminUsers /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/founding-members" element={<LayoutOverrideProvider value={MLMAdminLayout}><FoundingMembers /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/referral-codes" element={<LayoutOverrideProvider value={MLMAdminLayout}><ReferralCodes /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/founders" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminFounders /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/mlm-settings" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMSettings /></LayoutOverrideProvider>} />
-                      <Route path="/mlm-admin/withdrawals" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminWithdrawals /></LayoutOverrideProvider>} />
-                      <Route path="/policies" element={<Policies />} />
-                      <Route path="/stores" element={<StoreLocator />} />
-                      <Route path="/policies/:slug" element={<Policies />} />
-                      <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
-                      <Route path="/complete-registration" element={<CompleteRegistration />} />
-                      <Route path="/registration-payment" element={<RegistrationPayment />} />
-                      {/* Mobile App Entry Points */}
-                      <Route path="/mobile-apps" element={<MobileApps />} />
-                      <Route path="/driver-app" element={<DriverApp />} />
-                      <Route path="/driver-app/orders" element={<DriverOrdersPage />} />
-                      <Route path="/driver-app/earnings" element={<DriverEarningsPage />} />
-                      <Route path="/driver-app/profile" element={<DriverProfilePage />} />
-                      <Route path="/customer-app" element={<CustomerApp />} />
-                      <Route path="/customer-app/orders" element={<CustomerOrdersPage />} />
-                      <Route path="/customer-app/order/:orderId" element={<CustomerOrderDetailPage />} />
-                      <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
-                      <Route path="/customer-app/profile" element={<CustomerProfilePage />} />
-                      <Route path="/member-app" element={<MemberApp />} />
-                      <Route path="/member-app/network" element={<MemberNetworkPage />} />
-                      <Route path="/member-app/wallet" element={<CustomerWalletPage />} />
-                      <Route path="/member-app/profile" element={<CustomerProfilePage />} />
-                      {/* PWA Install Pages */}
-                      <Route path="/install/customer" element={<CustomerInstall />} />
-                      <Route path="/install/driver" element={<DriverInstall />} />
-                      <Route path="/install/member" element={<MemberInstall />} />
-                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
+                    <Suspense fallback={<PageLoader />}>
+                      <Routes>
+                        <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
+                        <Route path="/auth" element={<Auth />} />
+                        <Route path="/shop" element={<Index />} />
+                        <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/products" element={<Products />} />
+                        <Route path="/categories" element={<Products />} />
+                        <Route path="/category/:slug" element={<CategoryPage />} />
+                        <Route path="/category/:slug/:subSlug" element={<CategoryPage />} />
+                        <Route path="/product/:slug" element={<ProductDetail />} />
+                        <Route path="/checkout" element={<Checkout />} />
+                        <Route path="/guest-checkout" element={<GuestCheckout />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/contact" element={<Contact />} />
+                        <Route path="/delivery" element={<DeliveryDashboard />} />
+                        <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin/founding-members" element={<FoundingMembers />} />
+                        <Route path="/admin/referral-codes" element={<ReferralCodes />} />
+                        <Route path="/admin/orders" element={<AdminOrders />} />
+                        <Route path="/admin/products" element={<AdminProducts />} />
+                        <Route path="/admin/categories" element={<AdminCategories />} />
+                        <Route path="/admin/coupons" element={<AdminCoupons />} />
+                        <Route path="/admin/settings" element={<AdminSettings />} />
+                        <Route path="/admin/delivery-partners" element={<AdminDeliveryPartners />} />
+                        <Route path="/admin/order-assignments" element={<AdminOrderAssignments />} />
+                        <Route path="/admin/analytics" element={<AdminAnalytics />} />
+                        <Route path="/admin/inventory" element={<AdminInventory />} />
+                        <Route path="/admin/users" element={<AdminUsers />} />
+                        <Route path="/admin/mlm-settings" element={<MLMSettings />} />
+                        <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
+                        <Route path="/admin/network-analytics" element={<NetworkAnalytics />} />
+                        <Route path="/admin/testimonials" element={<AdminTestimonials />} />
+                        <Route path="/admin/banners" element={<AdminBanners />} />
+                        <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
+                        <Route path="/admin/founders" element={<AdminFounders />} />
+                        <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
+                        <Route path="/admin/policies" element={<AdminPolicies />} />
+                        <Route path="/admin/stores" element={<AdminStores />} />
+                        <Route path="/admin/stores/:id/inventory" element={<AdminStoreInventory />} />
+                        {/* MLM Admin Routes */}
+                        <Route path="/mlm-login" element={<MLMLogin />} />
+                        <Route path="/mlm-admin" element={<MLMDashboard />} />
+                        <Route path="/mlm-admin/network-analytics" element={<LayoutOverrideProvider value={MLMAdminLayout}><NetworkAnalytics /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/users" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminUsers /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/founding-members" element={<LayoutOverrideProvider value={MLMAdminLayout}><FoundingMembers /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/referral-codes" element={<LayoutOverrideProvider value={MLMAdminLayout}><ReferralCodes /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/founders" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminFounders /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/mlm-settings" element={<LayoutOverrideProvider value={MLMAdminLayout}><MLMSettings /></LayoutOverrideProvider>} />
+                        <Route path="/mlm-admin/withdrawals" element={<LayoutOverrideProvider value={MLMAdminLayout}><AdminWithdrawals /></LayoutOverrideProvider>} />
+                        <Route path="/policies" element={<Policies />} />
+                        <Route path="/stores" element={<StoreLocator />} />
+                        <Route path="/policies/:slug" element={<Policies />} />
+                        <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+                        <Route path="/complete-registration" element={<CompleteRegistration />} />
+                        <Route path="/registration-payment" element={<RegistrationPayment />} />
+                        {/* Mobile App Entry Points */}
+                        <Route path="/mobile-apps" element={<MobileApps />} />
+                        <Route path="/driver-app" element={<DriverApp />} />
+                        <Route path="/driver-app/orders" element={<DriverOrdersPage />} />
+                        <Route path="/driver-app/earnings" element={<DriverEarningsPage />} />
+                        <Route path="/driver-app/profile" element={<DriverProfilePage />} />
+                        <Route path="/customer-app" element={<CustomerApp />} />
+                        <Route path="/customer-app/orders" element={<CustomerOrdersPage />} />
+                        <Route path="/customer-app/order/:orderId" element={<CustomerOrderDetailPage />} />
+                        <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
+                        <Route path="/customer-app/profile" element={<CustomerProfilePage />} />
+                        <Route path="/member-app" element={<MemberApp />} />
+                        <Route path="/member-app/network" element={<MemberNetworkPage />} />
+                        <Route path="/member-app/wallet" element={<CustomerWalletPage />} />
+                        <Route path="/member-app/profile" element={<CustomerProfilePage />} />
+                        {/* PWA Install Pages */}
+                        <Route path="/install/customer" element={<CustomerInstall />} />
+                        <Route path="/install/driver" element={<DriverInstall />} />
+                        <Route path="/install/member" element={<MemberInstall />} />
+                        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                        <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </Suspense>
                   </WishlistProvider>
                 </CartProvider>
               </BrowserRouter>

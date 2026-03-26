@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { getOptimizedImageUrl } from "@/utils/imageUrl";
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -9,10 +10,17 @@ interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> 
   priority?: boolean;
   quality?: "low" | "medium" | "high";
   blur?: boolean;
+  /** Desired display width — used for Supabase image transforms */
+  displayWidth?: number;
+  /** Desired display height — used for Supabase image transforms */
+  displayHeight?: number;
 }
 
+const qualityMap = { low: 50, medium: 75, high: 90 };
+
 /**
- * OptimizedImage component with lazy loading, blur placeholder, and progressive loading
+ * OptimizedImage component with lazy loading, blur placeholder,
+ * Supabase image transforms, and progressive loading.
  */
 const OptimizedImage = ({
   src,
@@ -22,12 +30,25 @@ const OptimizedImage = ({
   priority = false,
   quality = "medium",
   blur = true,
+  displayWidth,
+  displayHeight,
   ...props
 }: OptimizedImageProps) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
   const [hasError, setHasError] = useState(false);
-  const imgRef = useRef<HTMLImageElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Generate optimized URL for Supabase storage images
+  const optimizedSrc = useMemo(
+    () =>
+      getOptimizedImageUrl(src, {
+        width: displayWidth,
+        height: displayHeight,
+        quality: qualityMap[quality],
+      }),
+    [src, displayWidth, displayHeight, quality]
+  );
 
   useEffect(() => {
     if (priority) {
@@ -43,13 +64,13 @@ const OptimizedImage = ({
         }
       },
       {
-        rootMargin: "100px",
+        rootMargin: "200px",
         threshold: 0.01,
       }
     );
 
-    if (imgRef.current) {
-      observer.observe(imgRef.current);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
     }
 
     return () => observer.disconnect();
@@ -64,11 +85,10 @@ const OptimizedImage = ({
     setIsLoaded(true);
   };
 
-  // Placeholder gradient for loading state
   const placeholderBg = "bg-gradient-to-br from-muted/50 to-muted";
 
   return (
-    <div ref={imgRef} className={cn("relative overflow-hidden", containerClassName)}>
+    <div ref={containerRef} className={cn("relative overflow-hidden", containerClassName)}>
       {/* Placeholder */}
       {(!isLoaded || !isInView) && (
         <div
@@ -82,14 +102,15 @@ const OptimizedImage = ({
       {/* Actual Image */}
       {isInView && !hasError && (
         <img
-          src={src}
+          src={optimizedSrc}
           alt={alt}
           onLoad={handleLoad}
           onError={handleError}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
+          fetchPriority={priority ? "high" : "auto"}
           className={cn(
-            "transition-all duration-500",
+            "transition-opacity duration-300",
             blur && !isLoaded ? "blur-sm scale-105" : "blur-0 scale-100",
             !isLoaded ? "opacity-0" : "opacity-100",
             className
