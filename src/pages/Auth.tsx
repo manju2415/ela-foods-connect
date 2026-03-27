@@ -76,24 +76,27 @@ const Auth = () => {
   }, [user, navigate, redirectTo, hasAttemptedLogin]);
 
   const resolveRoleRedirect = async (userId: string): Promise<string> => {
-    const { data: partnerData } = await supabase
-      .from("delivery_partners")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (partnerData) return "/driver-app";
+    const [partnerRes, superAdminRes, mlmAdminRes, adminRes, memberRolesRes] = await Promise.all([
+      supabase
+        .from("delivery_partners")
+        .select("id")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabase.rpc("is_super_admin", { _user_id: userId }),
+      supabase.rpc("is_mlm_admin", { _user_id: userId }),
+      supabase.rpc("is_admin", { _user_id: userId }),
+      supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .in("role", ["founding_member", "member"]),
+    ]);
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId);
-
-    const roleSet = new Set((roles || []).map((r) => r.role));
-
-    if (roleSet.has("super_admin")) return "/admin";
-    if (roleSet.has("mlm_admin")) return "/mlm-admin";
-    if (roleSet.has("admin")) return "/admin/products";
-    if (roleSet.has("founding_member") || roleSet.has("member")) return "/dashboard";
+    if (partnerRes.data) return "/driver-app";
+    if (superAdminRes.data) return "/admin";
+    if (mlmAdminRes.data) return "/mlm-admin";
+    if (adminRes.data) return "/admin/products";
+    if ((memberRolesRes.data || []).length > 0) return "/dashboard";
 
     return "/customer-app";
   };
