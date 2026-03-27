@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ShoppingCart, FolderTree, IndianRupee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Stats {
   categories: number;
@@ -12,6 +14,8 @@ interface Stats {
 }
 
 const AdminDashboard = () => {
+  const { isSuperAdmin, loading: roleLoading } = useUserRole();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({
     categories: 0,
     products: 0,
@@ -19,7 +23,15 @@ const AdminDashboard = () => {
     revenue: 0,
   });
 
+  // Redirect store admins away from dashboard
   useEffect(() => {
+    if (!roleLoading && !isSuperAdmin) {
+      navigate("/admin/products", { replace: true });
+    }
+  }, [isSuperAdmin, roleLoading, navigate]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
     const fetchStats = async () => {
       const [categoriesRes, productsRes, ordersRes, revenueRes] = await Promise.all([
         supabase.from("categories").select("id", { count: "exact" }).eq("is_active", true),
@@ -39,7 +51,9 @@ const AdminDashboard = () => {
     };
 
     fetchStats();
-  }, []);
+  }, [isSuperAdmin]);
+
+  if (roleLoading || !isSuperAdmin) return null;
 
   const statCards = [
     { title: "Revenue", value: `₹${stats.revenue.toLocaleString()}`, icon: IndianRupee, color: "text-green-600" },

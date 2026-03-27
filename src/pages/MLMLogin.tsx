@@ -40,11 +40,8 @@ const MLMLogin = () => {
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {
-      Promise.all([
-        supabase.rpc("is_admin", { _user_id: user.id }),
-        supabase.rpc("is_founding_member", { _user_id: user.id }),
-      ]).then(([adminRes, founderRes]) => {
-        if (adminRes.data || founderRes.data) {
+      supabase.rpc("is_mlm_admin", { _user_id: user.id }).then(({ data }) => {
+        if (data) {
           navigate("/mlm-admin", { replace: true });
         }
       });
@@ -85,12 +82,9 @@ const MLMLogin = () => {
 
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (verifiedUser) {
-      const [{ data: isAdmin }, { data: isFounder }] = await Promise.all([
-        supabase.rpc("is_admin", { _user_id: verifiedUser.id }),
-        supabase.rpc("is_founding_member", { _user_id: verifiedUser.id }),
-      ]);
+      const { data: isMlmAdmin } = await supabase.rpc("is_mlm_admin", { _user_id: verifiedUser.id });
 
-      if (!isAdmin && !isFounder) {
+      if (!isMlmAdmin) {
         toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
         await signOut();
         setHasAttemptedLogin(false);

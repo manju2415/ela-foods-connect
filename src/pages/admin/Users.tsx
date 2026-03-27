@@ -55,6 +55,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
   admin: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   super_admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   delivery_partner: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  mlm_admin: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
 };
 
 export default function UsersPage() {

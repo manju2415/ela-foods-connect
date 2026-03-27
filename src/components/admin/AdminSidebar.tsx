@@ -43,23 +43,25 @@ interface MenuItem {
   url: string;
   icon: LucideIcon;
   superAdminOnly?: boolean;
+  storeAdminVisible?: boolean;
 }
 
 const menuItems: MenuItem[] = [
-  { title: "Dashboard", url: "/admin", icon: LayoutDashboard },
-  { title: "Analytics", url: "/admin/analytics", icon: BarChart3 },
-  { title: "Banners", url: "/admin/banners", icon: Image },
-  { title: "Advertisements", url: "/admin/advertisements", icon: Megaphone },
-  { title: "Categories", url: "/admin/categories", icon: FolderTree },
-  { title: "Products", url: "/admin/products", icon: Package },
-  { title: "Inventory", url: "/admin/inventory", icon: Boxes },
-  { title: "Coupons", url: "/admin/coupons", icon: BadgePercent },
-  { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquareQuote },
-  { title: "Orders", url: "/admin/orders", icon: ShoppingCart },
-  { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList },
-  { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck },
-  { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw },
-  { title: "Stores", url: "/admin/stores", icon: Store },
+  { title: "Dashboard", url: "/admin", icon: LayoutDashboard, superAdminOnly: true },
+  { title: "Analytics", url: "/admin/analytics", icon: BarChart3, superAdminOnly: true },
+  { title: "Banners", url: "/admin/banners", icon: Image, superAdminOnly: true },
+  { title: "Advertisements", url: "/admin/advertisements", icon: Megaphone, superAdminOnly: true },
+  { title: "Categories", url: "/admin/categories", icon: FolderTree, storeAdminVisible: true },
+  { title: "Products", url: "/admin/products", icon: Package, storeAdminVisible: true },
+  { title: "Inventory", url: "/admin/inventory", icon: Boxes, storeAdminVisible: true },
+  { title: "Coupons", url: "/admin/coupons", icon: BadgePercent, superAdminOnly: true },
+  { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquareQuote, superAdminOnly: true },
+  { title: "Orders", url: "/admin/orders", icon: ShoppingCart, superAdminOnly: true },
+  { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList, superAdminOnly: true },
+  { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck, superAdminOnly: true },
+  { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw, superAdminOnly: true },
+  { title: "Stores", url: "/admin/stores", icon: Store, storeAdminVisible: true },
+  { title: "Store Inventory", url: "/admin/store-inventory", icon: Boxes, storeAdminVisible: true },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
@@ -70,9 +72,11 @@ export function AdminSidebar() {
   const location = useLocation();
   const { isSuperAdmin } = useUserRole();
 
-  const visibleMenuItems = menuItems.filter(
-    (item) => !item.superAdminOnly || isSuperAdmin
-  );
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (isSuperAdmin) return true;
+    // Store admin: only see items marked storeAdminVisible
+    return item.storeAdminVisible;
+  });
 
   return (
     <Sidebar collapsible="icon">

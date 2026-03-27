@@ -7,6 +7,7 @@ export function useUserRole() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [isMLMAdmin, setIsMLMAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,19 +16,21 @@ export function useUserRole() {
         setIsAdmin(false);
         setIsSuperAdmin(false);
         setIsMember(false);
+        setIsMLMAdmin(false);
         setLoading(false);
         return;
       }
 
-      const [adminResult, superAdminResult, memberResult] = await Promise.all([
+      const [adminResult, superAdminResult, mlmAdminResult, memberResult] = await Promise.all([
         supabase.rpc("is_admin", { _user_id: user.id }),
         supabase.rpc("is_super_admin", { _user_id: user.id }),
+        supabase.rpc("is_mlm_admin", { _user_id: user.id }),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
       ]);
 
       setIsAdmin(!!adminResult.data);
       setIsSuperAdmin(!!superAdminResult.data);
-      // User is a member if they have any role (member, founding_member, admin, super_admin)
+      setIsMLMAdmin(!!mlmAdminResult.data);
       setIsMember(!!(memberResult.data && memberResult.data.length > 0));
       setLoading(false);
     };
@@ -37,5 +40,5 @@ export function useUserRole() {
     }
   }, [user, authLoading]);
 
-  return { isAdmin, isSuperAdmin, isMember, loading: authLoading || loading };
+  return { isAdmin, isSuperAdmin, isMember, isMLMAdmin, loading: authLoading || loading };
 }
