@@ -40,6 +40,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface Profile {
   id: string;
@@ -116,6 +117,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { isSuperAdmin, isAdmin, isMLMAdmin, loading: roleLoading } = useUserRole();
   const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
   const { addToCart } = useCart();
   const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
@@ -145,10 +147,32 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   });
 
   useEffect(() => {
+    if (roleLoading) return;
+
+    if (isSuperAdmin) {
+      navigate("/admin", { replace: true });
+      return;
+    }
+
+    if (isMLMAdmin) {
+      navigate("/mlm-admin", { replace: true });
+      return;
+    }
+
+    if (isAdmin) {
+      navigate("/admin/products", { replace: true });
+    }
+  }, [isAdmin, isMLMAdmin, isSuperAdmin, navigate, roleLoading]);
+
+  useEffect(() => {
     if (authLoading || onboardingLoading) return;
     
     if (!user) {
       navigate("/auth");
+      return;
+    }
+
+    if (isSuperAdmin || isMLMAdmin || isAdmin) {
       return;
     }
     
@@ -165,7 +189,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     }
     
     fetchData();
-  }, [user, authLoading, onboardingLoading, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
+  }, [user, authLoading, onboardingLoading, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate, isSuperAdmin, isMLMAdmin, isAdmin]);
 
   useEffect(() => {
     if (wishlistItems.length > 0) {
