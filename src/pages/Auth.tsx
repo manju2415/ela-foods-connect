@@ -83,27 +83,17 @@ const Auth = () => {
       .maybeSingle();
     if (partnerData) return "/driver-app";
 
-    const { data: adminRole } = await supabase
+    const { data: roles } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", userId)
-      .in("role", ["super_admin", "admin"])
-      .limit(1)
-      .maybeSingle();
-    if (adminRole) {
-      // super_admin goes to /dashboard (can add users), admin goes to /admin
-      if (adminRole.role === "super_admin") return "/dashboard";
-      return "/admin";
-    }
+      .eq("user_id", userId);
 
-    const { data: memberRole } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .in("role", ["member", "founding_member"])
-      .limit(1)
-      .maybeSingle();
-    if (memberRole) return "/dashboard";
+    const roleSet = new Set((roles || []).map((r) => r.role));
+
+    if (roleSet.has("super_admin")) return "/dashboard";
+    if (roleSet.has("mlm_admin")) return "/mlm-admin";
+    if (roleSet.has("admin")) return "/admin/products";
+    if (roleSet.has("founding_member") || roleSet.has("member")) return "/dashboard";
 
     return "/customer-app";
   };

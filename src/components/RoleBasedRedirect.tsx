@@ -4,10 +4,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
-/**
- * Redirects authenticated users to their role-specific dashboard.
- * This is used as the root route handler for the unified Elabazar app.
- */
 export default function RoleBasedRedirect() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -28,28 +24,34 @@ export default function RoleBasedRedirect() {
         return;
       }
 
-      // Check if admin
-      const { data: adminRole } = await supabase
+      // Check roles
+      const { data: roles } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["super_admin", "admin"])
-        .limit(1)
-        .maybeSingle();
-      if (adminRole) {
+        .eq("user_id", user.id);
+
+      const roleSet = new Set((roles || []).map((r) => r.role));
+
+      // Super admin → full admin
+      if (roleSet.has("super_admin")) {
         navigate("/admin", { replace: true });
         return;
       }
 
-      // Check if founding member or member
-      const { data: memberRole } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["member", "founding_member"])
-        .limit(1)
-        .maybeSingle();
-      if (memberRole) {
+      // MLM admin → mlm dashboard
+      if (roleSet.has("mlm_admin")) {
+        navigate("/mlm-admin", { replace: true });
+        return;
+      }
+
+      // Store admin → products page (no dashboard)
+      if (roleSet.has("admin")) {
+        navigate("/admin/products", { replace: true });
+        return;
+      }
+
+      // Founding member or member → member dashboard
+      if (roleSet.has("founding_member") || roleSet.has("member")) {
         navigate("/dashboard", { replace: true });
         return;
       }

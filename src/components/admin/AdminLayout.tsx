@@ -29,13 +29,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         return;
       }
 
-      // For MLM routes, also allow founding_member role
       if (isMLMRoute) {
-        const [adminRes, founderRes] = await Promise.all([
-          supabase.rpc("is_admin", { _user_id: user.id }),
-          supabase.rpc("has_role", { _user_id: user.id, _role: "founding_member" }),
-        ]);
-        setIsAdmin(!!adminRes.data || !!founderRes.data);
+        const { data } = await supabase.rpc("is_mlm_admin", { _user_id: user.id });
+        setIsAdmin(!!data);
       } else {
         const { data } = await supabase.rpc("is_admin", { _user_id: user.id });
         setIsAdmin(!!data);
