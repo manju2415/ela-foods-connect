@@ -1703,6 +1703,7 @@ export type Database = {
         | "founding_member"
         | "member"
         | "delivery_partner"
+        | "mlm_admin"
       order_status:
         | "pending"
         | "confirmed"
@@ -1866,6 +1867,7 @@ export const Constants = {
         "founding_member",
         "member",
         "delivery_partner",
+        "mlm_admin",
       ],
       order_status: [
         "pending",
