@@ -1,94 +1,69 @@
 
 
-# Rebrand Website Content: ELA Foods (Snacks) → Ela Bazar (General E-commerce)
+# Separate Founding Member and MLM Admin into Distinct Roles
 
-## Summary
-Update all snack-specific and "ELA Foods" branded content across the website to reflect **Ela Bazar** as a full e-commerce platform with diverse product categories.
+## Current State
+- `app_role` enum: `super_admin`, `admin`, `founding_member`, `member`, `delivery_partner`
+- `founding_member` currently serves double duty: MLM network founder **and** MLM admin access
+- MLM login checks `is_admin()` OR `is_founding_member()` to grant `/mlm-admin` access
 
-## Files to Update
+## Problem
+A founding member (network tier) shouldn't automatically get MLM admin access. MLM Admin should be a separate role assignment.
 
-### 1. `index.html` — SEO & Meta Tags
-- Title: "Ela Bazar - Your One-Stop Online Shopping Destination"
-- Description: general e-commerce description
-- Keywords: remove snack-specific terms, add general e-commerce keywords
-- `apple-mobile-web-app-title`: "Ela Bazar"
-- OG/Twitter tags: update accordingly
-- Twitter site: "@ElaBazar"
+## Plan
 
-### 2. `src/components/HeroSection.tsx` — Default Hero Content
-- Title: "Shop Everything You Love" (instead of "Experience the Mother's Touch")
-- Subtitle: general shopping description instead of snacks
-- Badge: "Your Trusted Marketplace" instead of "Premium Quality Snacks"
-- Stats: keep 50+ Products, 10K+ Happy Customers, 100% Quality Assured
+### 1. Add `mlm_admin` to the `app_role` enum (DB migration)
+```sql
+ALTER TYPE public.app_role ADD VALUE 'mlm_admin';
+```
 
-### 3. `src/components/Footer.tsx`
-- Description: "Your one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep." instead of snack text
+### 2. Create `is_mlm_admin()` database function (DB migration)
+- Returns true if user has `mlm_admin` or `super_admin` role
 
-### 4. `src/components/WhyChooseUs.tsx`
-- Section label: "Why Ela Bazar" instead of "Why ELA Foods"
-- Subtitle: "We're committed to bringing you the best shopping experience"
-- Update feature descriptions to be generic (remove "snack", "mother's touch", "FSSAI")
-  - "Premium Quality" → "Carefully curated products from trusted brands"
-  - "100% Hygienic" → "Verified Sellers" / "Quality checked products from verified sellers"
-  - "Made with Love" → "Best Prices" / "Competitive pricing on all products"
+### 3. Update `handle_new_user` trigger
+- Phone `9999000003` → assign **both** `founding_member` and `mlm_admin` roles (for test account backward compat)
 
-### 5. `src/components/Newsletter.tsx`
-- Heading: "Join the Ela Bazar Family" instead of "Join Our Snack Family"
-- Subtitle: "Subscribe to get exclusive offers, new arrivals, and special deals delivered to your inbox."
+### 4. Update MLM Login (`src/pages/MLMLogin.tsx`)
+- Check `is_mlm_admin()` instead of `is_founding_member()` for access control
 
-### 6. `src/components/ReferralBanner.tsx`
-- "Share your love for ELA Foods!" → "Share your love for Ela Bazar!"
+### 5. Update AdminLayout (`src/components/admin/AdminLayout.tsx`)
+- For MLM routes, check `is_mlm_admin()` instead of `has_role('founding_member')`
 
-### 7. `src/components/FeaturedProducts.tsx`
-- Subtitle: "Top picks loved by thousands of shoppers across the country" instead of "snack enthusiasts"
-- Default category fallback: "General" instead of "Snacks"
+### 6. Update RoleBasedRedirect (`src/components/RoleBasedRedirect.tsx`)
+- Add `mlm_admin` check → redirect to `/mlm-admin`
+- `founding_member` without `mlm_admin` → `/dashboard` (regular member view)
 
-### 8. `src/pages/About.tsx`
-- Rewrite to reflect Ela Bazar as a general e-commerce marketplace
-- Update story, stats, and promise sections to be product-agnostic
+### 7. Update `useUserRole` hook
+- Add `isMLMAdmin` flag using the new `is_mlm_admin()` RPC
 
-### 9. `src/pages/Contact.tsx`
-- Subtitle: remove "chefs" / food-specific language, make it generic marketplace
+### 8. Update Auth.tsx `resolveRoleRedirect`
+- `mlm_admin` → `/mlm-admin`
+- `founding_member` (without mlm_admin) → `/dashboard`
 
-### 10. `src/pages/Products.tsx`
-- "Discover our wide range of authentic Indian snacks" → "Discover our wide range of quality products"
-- Default category: "General" instead of "Snacks"
+### 9. Update admin sidebar routing
+- `super_admin` → full admin access
+- `admin` (store admin) → `/admin/products` only (products, inventory, categories, stores)
+- `mlm_admin` → `/mlm-admin` only
+- `founding_member` → member dashboard (no admin access)
 
-### 11. `src/pages/Auth.tsx`
-- No snack-specific text expected, but verify login page text
+### Role Matrix (Final)
 
-### 12. PWA Manifests
-- `public/manifest-customer.json`: name "Ela Bazar", description "Shop quality products on Ela Bazar"
-- `public/manifest-driver.json`: name "Ela Bazar Delivery", description "Deliver orders with Ela Bazar"
-- `public/manifest-member.json`: name "Ela Bazar Network", description "Grow your network with Ela Bazar"
+| Role | Purpose | Landing | Admin Access |
+|------|---------|---------|-------------|
+| `super_admin` | Full platform control | `/admin` | All admin + all MLM |
+| `admin` | Store employee (inventory) | `/admin/products` | Products, inventory, categories, stores only |
+| `mlm_admin` | Network management | `/mlm-admin` | MLM settings, tree, users, wallets |
+| `founding_member` | Top-tier MLM member | `/dashboard` | None (member dashboard) |
+| `member` | Regular MLM member | `/dashboard` | None |
+| `delivery_partner` | Driver | `/driver-app` | None |
 
-### 13. Install Pages
-- `src/pages/install/CustomerInstall.tsx`: "Ela Bazar" + "Your one-stop online store", features updated (not snack-specific)
-- `src/pages/install/DriverInstall.tsx`: "Ela Bazar Delivery" + "Deliver with Ela Bazar"
-- `src/pages/install/MemberInstall.tsx`: "Ela Bazar Network" + "Grow your network with Ela Bazar"
-
-### 14. App Pages
-- `src/pages/CustomerApp.tsx`: "Ela Bazar" instead of "ELA Foods", remove "Delicious snacks delivered"
-- `src/pages/DriverApp.tsx`: "Ela Bazar Delivery" instead of "ELA Delivery"
-- `src/pages/MemberApp.tsx`: "Ela Bazar Network" instead of "ELA Network"
-- `src/pages/MobileApps.tsx`: "Ela Bazar Apps"
-
-### 15. Admin/MLM Layouts
-- `src/components/admin/AdminLayout.tsx`: "Ela Bazar Admin"
-- `src/components/mlm-admin/MLMAdminLayout.tsx`: "Ela Bazar Network Manager"
-
-### 16. Other Pages
-- `src/pages/RegistrationPayment.tsx`: "Ela Bazar member" instead of "ELA Foods member", notification message updated
-- `src/pages/CompleteRegistration.tsx`: "Ela Bazar membership"
-- `src/pages/Policies.tsx`: "Ela Bazar wallet" in fallback policy text
-- `src/pages/admin/Settings.tsx`: default store_name "Ela Bazar", email "contact@elabazar.com"
-- `src/pages/admin/Banners.tsx`: placeholder text updates
-
-### 17. `src/pages/admin/Categories.tsx` (Footer)
-- Footer categories list: Replace "Namkeen, Chips, Mixture, Bhujia, Sweets, Combos" with generic categories like "Electronics, Fashion, Home & Kitchen, Beauty, Sports, Groceries"
-
-## Approach
-- Bulk find-and-replace "ELA Foods" → "Ela Bazar" across all files
-- Replace snack-specific descriptions with general e-commerce language
-- Keep the same visual design, layout, and component structure — only text content changes
+### Files to Modify
+1. **DB migration** — Add `mlm_admin` enum value, create `is_mlm_admin()` function, update `handle_new_user` trigger
+2. **`src/hooks/useUserRole.ts`** — Add `isMLMAdmin` state
+3. **`src/pages/MLMLogin.tsx`** — Use `is_mlm_admin` check
+4. **`src/components/admin/AdminLayout.tsx`** — Use `is_mlm_admin` for MLM routes
+5. **`src/components/RoleBasedRedirect.tsx`** — Route `mlm_admin` → `/mlm-admin`, separate from `founding_member`
+6. **`src/pages/Auth.tsx`** — Update `resolveRoleRedirect`
+7. **`src/components/admin/AdminSidebar.tsx`** — Filter menu for store admin (`admin` role)
+8. **`src/pages/admin/AdminDashboard.tsx`** — Redirect non-super-admin to `/admin/products`
 
