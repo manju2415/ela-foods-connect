@@ -90,7 +90,7 @@ const Auth = () => {
 
     const roleSet = new Set((roles || []).map((r) => r.role));
 
-    if (roleSet.has("super_admin")) return "/dashboard";
+    if (roleSet.has("super_admin")) return "/admin";
     if (roleSet.has("mlm_admin")) return "/mlm-admin";
     if (roleSet.has("admin")) return "/admin/products";
     if (roleSet.has("founding_member") || roleSet.has("member")) return "/dashboard";
