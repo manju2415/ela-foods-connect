@@ -343,7 +343,14 @@ const GuestCheckout = () => {
       <Card>
         <CardContent className="pt-6 space-y-2">
           <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal (MRP)</span><span>₹{totalPrice.toFixed(2)}</span></div>
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Delivery</span><span className="text-green-600">Free</span></div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Delivery</span>
+            {shippingAmount === 0 ? (
+              <span className="text-green-600">Free</span>
+            ) : (
+              <span>₹{shippingAmount.toFixed(2)}</span>
+            )}
+          </div>
           {discountAmount > 0 && (
             <div className="flex justify-between text-sm text-green-600"><span>Coupon Discount</span><span>-₹{discountAmount.toFixed(2)}</span></div>
           )}
