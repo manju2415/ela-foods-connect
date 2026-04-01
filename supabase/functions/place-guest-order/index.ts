@@ -131,7 +131,7 @@ serve(async (req) => {
         status: "pending",
         payment_status: "pending",
         subtotal,
-        shipping_amount: 0,
+        shipping_amount: shippingAmount,
         discount_amount: finalDiscount,
         wallet_amount_used: 0,
         total_amount: totalAmount,
