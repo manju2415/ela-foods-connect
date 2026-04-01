@@ -43,6 +43,7 @@ const GuestCheckout = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { items, totalPrice, updateQuantity, removeFromCart } = useCart();
+  const { calculateShipping } = useShippingSettings();
 
   const [step, setStep] = useState<Step>("details");
   const [placing, setPlacing] = useState(false);
