@@ -743,41 +743,60 @@ const Checkout = () => {
 
                 {/* Pricing */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{effectiveTotalPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span className="text-green-600">Free</span>
-                  </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Coupon Discount</span>
-                      <span>-₹{discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {totalWalletUsed > 0 && (
+                {(() => {
+                  const discountAmount = calculateDiscount();
+                  const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
+                  const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
+                  const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
+                  const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
+                  const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
+                  const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
+                  const finalAmount = amountAfterDiscount - totalWalletUsed;
+
+                  return (
                     <>
-                      {purchaseOnlyUsed > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>₹{effectiveTotalPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Delivery</span>
+                        {shippingAmount === 0 ? (
+                          <span className="text-green-600">Free</span>
+                        ) : (
+                          <span>₹{shippingAmount.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {discountAmount > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Purchase Credits Used</span>
-                          <span>-₹{purchaseOnlyUsed.toFixed(2)}</span>
+                          <span>Coupon Discount</span>
+                          <span>-₹{discountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      {withdrawableUsed > 0 && (
-                        <div className="flex justify-between text-sm text-green-600">
-                          <span>Wallet Balance Used</span>
-                          <span>-₹{withdrawableUsed.toFixed(2)}</span>
-                        </div>
+                      {totalWalletUsed > 0 && (
+                        <>
+                          {purchaseOnlyUsed > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Purchase Credits Used</span>
+                              <span>-₹{purchaseOnlyUsed.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {withdrawableUsed > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Wallet Balance Used</span>
+                              <span>-₹{withdrawableUsed.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
+                      <Separator />
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total</span>
+                        <span className="text-primary">₹{finalAmount.toFixed(2)}</span>
+                      </div>
                     </>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span className="text-primary">₹{finalAmount.toFixed(2)}</span>
-                  </div>
+                  );
+                })()}
                 </div>
 
                 <Button
