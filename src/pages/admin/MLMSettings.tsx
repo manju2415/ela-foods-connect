@@ -434,6 +434,95 @@ const MLMSettings = () => {
             </CardContent>
           </Card>
 
+          {/* Multi-Level Founder Commissions */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Multi-Level Founder Commission Rates
+              </CardTitle>
+              <CardDescription>
+                Founders earn these commissions when users are added at each level depth in their network.
+                Add or remove levels and set variable amounts.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label>Enable Multi-Level Commissions</Label>
+                <Switch
+                  checked={(settings.founder_level_commissions?.enabled as boolean) ?? true}
+                  onCheckedChange={(checked) => updateSetting("founder_level_commissions", "enabled", checked)}
+                />
+              </div>
+
+              {(settings.founder_level_commissions?.enabled as boolean) !== false && (
+                <>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || []).map((level, index) => (
+                      <div key={index} className="p-4 border rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Badge variant={level.depth <= 3 ? "default" : "secondary"}>
+                            Level {level.depth}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              levels.splice(index, 1);
+                              updateSetting("founder_level_commissions", "levels", levels);
+                            }}
+                            disabled={((settings.founder_level_commissions?.levels as unknown[]) || []).length <= 1}
+                          >
+                            <span className="text-xs text-destructive">Remove</span>
+                          </Button>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Amount (₹)</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            value={level.amount}
+                            onChange={(e) => {
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              levels[index] = { ...levels[index], amount: Number(e.target.value) };
+                              updateSetting("founder_level_commissions", "levels", levels);
+                            }}
+                            className="h-8"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Description</Label>
+                          <Input
+                            value={level.description}
+                            onChange={(e) => {
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              levels[index] = { ...levels[index], description: e.target.value };
+                              updateSetting("founder_level_commissions", "levels", levels);
+                            }}
+                            className="h-8"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                      const nextDepth = levels.length > 0 ? Math.max(...levels.map(l => l.depth)) + 1 : 1;
+                      levels.push({ depth: nextDepth, amount: 0, description: `Level ${nextDepth}` });
+                      updateSetting("founder_level_commissions", "levels", levels);
+                    }}
+                  >
+                    + Add Level
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           {/* User Levels Info */}
           <Card>
             <CardHeader>
