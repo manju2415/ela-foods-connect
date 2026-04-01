@@ -420,12 +420,13 @@ const Checkout = () => {
   }
 
   const discountAmount = calculateDiscount();
+  const shippingAmountDisplay = calculateShipping(effectiveTotalPrice, fulfillmentType);
   const purchaseOnlyBalance = wallet.purchase_only_balance;
   const withdrawableBalance = wallet.withdrawable_balance;
   const totalWalletBalance = wallet.balance;
   
   // Calculate wallet usage for display: purchase-only first, then withdrawable
-  const amountAfterDiscount = effectiveTotalPrice - discountAmount;
+  const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmountDisplay;
   const purchaseOnlyUsed = useWallet ? Math.min(purchaseOnlyBalance, amountAfterDiscount) : 0;
   const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
   const withdrawableUsed = useWallet ? Math.min(withdrawableBalance, remainingAfterPurchaseOnly) : 0;
