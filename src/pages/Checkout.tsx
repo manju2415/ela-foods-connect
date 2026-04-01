@@ -340,7 +340,7 @@ const Checkout = () => {
         status: "pending",
         payment_status: "pending",
         subtotal: effectiveTotalPrice,
-        shipping_amount: 0,
+        shipping_amount: shippingAmount,
         discount_amount: discountAmount,
         wallet_amount_used: totalWalletUsed,
         total_amount: finalAmount,
