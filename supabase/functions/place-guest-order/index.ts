@@ -59,7 +59,28 @@ serve(async (req) => {
     }
 
     const finalDiscount = Math.min(discount_amount || 0, subtotal);
-    const totalAmount = subtotal - finalDiscount;
+
+    // Fetch shipping settings
+    let shippingAmount = 0;
+    const { data: shippingSettingsRow } = await supabase
+      .from("platform_settings")
+      .select("value")
+      .eq("key", "shipping_settings")
+      .maybeSingle();
+
+    if (shippingSettingsRow?.value) {
+      const ss = shippingSettingsRow.value as any;
+      const flatRate = ss.flat_rate ?? 50;
+      const enableFreeShipping = ss.enable_free_shipping ?? true;
+      const freeThreshold = ss.free_shipping_threshold ?? 500;
+      if (enableFreeShipping && subtotal >= freeThreshold) {
+        shippingAmount = 0;
+      } else {
+        shippingAmount = flatRate;
+      }
+    }
+
+    const totalAmount = subtotal - finalDiscount + shippingAmount;
 
     // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
