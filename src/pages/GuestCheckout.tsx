@@ -15,6 +15,7 @@ import {
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShippingSettings } from "@/hooks/useShippingSettings";
 
 interface Coupon {
   id: string;
