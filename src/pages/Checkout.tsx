@@ -294,9 +294,10 @@ const Checkout = () => {
     setPlacing(true);
 
     const discountAmount = calculateDiscount();
+    const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
     
     // Calculate wallet usage: purchase-only first, then withdrawable
-    const amountAfterDiscount = effectiveTotalPrice - discountAmount;
+    const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
     const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
     const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
     const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
