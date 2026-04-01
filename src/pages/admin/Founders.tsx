@@ -108,19 +108,37 @@ export default function Founders() {
     },
   });
 
-  // Fetch founder level commissions (mock data for now until types update)
+  // Fetch founder level commissions from mlm_settings
   const { data: commissions = [] } = useQuery({
     queryKey: ["founder-commissions"],
     queryFn: async () => {
-      // Default commission levels until table types are regenerated
-      const defaultCommissions: FounderCommission[] = [
+      const { data } = await supabase
+        .from("mlm_settings")
+        .select("value")
+        .eq("key", "founder_level_commissions")
+        .maybeSingle();
+
+      if (data?.value) {
+        const val = data.value as { enabled?: boolean; levels?: { depth: number; amount: number; description: string }[] };
+        if (val.enabled !== false && val.levels) {
+          return val.levels.map((l, i) => ({
+            id: String(i + 1),
+            level_depth: l.depth,
+            commission_amount: l.amount,
+            description: l.description,
+            is_active: true,
+          })) as FounderCommission[];
+        }
+      }
+
+      // Fallback defaults
+      return [
         { id: "1", level_depth: 1, commission_amount: 100, description: "Direct referral", is_active: true },
         { id: "2", level_depth: 2, commission_amount: 75, description: "Level 2", is_active: true },
         { id: "3", level_depth: 3, commission_amount: 50, description: "Level 3", is_active: true },
         { id: "4", level_depth: 4, commission_amount: 40, description: "Level 4", is_active: true },
         { id: "5", level_depth: 5, commission_amount: 30, description: "Level 5", is_active: true },
-      ];
-      return defaultCommissions;
+      ] as FounderCommission[];
     },
   });
 
@@ -219,14 +237,25 @@ export default function Founders() {
     },
   });
 
-  // Update commission mutation
+  // Update commission mutation - saves to mlm_settings
   const updateCommissionMutation = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      const index = Number(id) - 1;
+      const currentLevels = commissions.map(c => ({
+        depth: c.level_depth,
+        amount: c.commission_amount,
+        description: c.description || `Level ${c.level_depth}`,
+      }));
+      currentLevels[index] = { ...currentLevels[index], amount };
+
       const { error } = await supabase
-        .from("founder_level_commissions" as any)
-        .update({ commission_amount: amount, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      
+        .from("mlm_settings")
+        .upsert({
+          key: "founder_level_commissions",
+          value: { enabled: true, levels: currentLevels } as unknown as Record<string, never>,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "key" });
+
       if (error) throw error;
     },
     onSuccess: () => {
