@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, DollarSign, Users, Percent, Gift } from "lucide-react";
+import { Loader2, Save, DollarSign, Users, Percent, Gift, TrendingUp, Plus, Trash2 } from "lucide-react";
 
 interface MLMSetting {
   id: string;
