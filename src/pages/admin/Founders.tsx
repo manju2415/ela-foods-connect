@@ -237,14 +237,25 @@ export default function Founders() {
     },
   });
 
-  // Update commission mutation
+  // Update commission mutation - saves to mlm_settings
   const updateCommissionMutation = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
+      const index = Number(id) - 1;
+      const currentLevels = commissions.map(c => ({
+        depth: c.level_depth,
+        amount: c.commission_amount,
+        description: c.description || `Level ${c.level_depth}`,
+      }));
+      currentLevels[index] = { ...currentLevels[index], amount };
+
       const { error } = await supabase
-        .from("founder_level_commissions" as any)
-        .update({ commission_amount: amount, updated_at: new Date().toISOString() })
-        .eq("id", id);
-      
+        .from("mlm_settings")
+        .upsert({
+          key: "founder_level_commissions",
+          value: { enabled: true, levels: currentLevels } as unknown as Record<string, never>,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "key" });
+
       if (error) throw error;
     },
     onSuccess: () => {
