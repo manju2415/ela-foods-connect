@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
+import { useShippingSettings } from "@/hooks/useShippingSettings";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +67,7 @@ const Checkout = () => {
   
   // Use member price for members, MRP for normal users
   const effectiveTotalPrice = isMember ? memberTotalPrice : totalPrice;
+  const { calculateShipping } = useShippingSettings();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
@@ -292,9 +294,10 @@ const Checkout = () => {
     setPlacing(true);
 
     const discountAmount = calculateDiscount();
+    const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
     
     // Calculate wallet usage: purchase-only first, then withdrawable
-    const amountAfterDiscount = effectiveTotalPrice - discountAmount;
+    const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
     const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
     const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
     const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
@@ -337,7 +340,7 @@ const Checkout = () => {
         status: "pending",
         payment_status: "pending",
         subtotal: effectiveTotalPrice,
-        shipping_amount: 0,
+        shipping_amount: shippingAmount,
         discount_amount: discountAmount,
         wallet_amount_used: totalWalletUsed,
         total_amount: finalAmount,
@@ -417,12 +420,13 @@ const Checkout = () => {
   }
 
   const discountAmount = calculateDiscount();
+  const shippingAmountDisplay = calculateShipping(effectiveTotalPrice, fulfillmentType);
   const purchaseOnlyBalance = wallet.purchase_only_balance;
   const withdrawableBalance = wallet.withdrawable_balance;
   const totalWalletBalance = wallet.balance;
   
   // Calculate wallet usage for display: purchase-only first, then withdrawable
-  const amountAfterDiscount = effectiveTotalPrice - discountAmount;
+  const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmountDisplay;
   const purchaseOnlyUsed = useWallet ? Math.min(purchaseOnlyBalance, amountAfterDiscount) : 0;
   const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
   const withdrawableUsed = useWallet ? Math.min(withdrawableBalance, remainingAfterPurchaseOnly) : 0;
@@ -740,41 +744,60 @@ const Checkout = () => {
 
                 {/* Pricing */}
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span>₹{effectiveTotalPrice.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Shipping</span>
-                    <span className="text-green-600">Free</span>
-                  </div>
-                  {discountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-green-600">
-                      <span>Coupon Discount</span>
-                      <span>-₹{discountAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {totalWalletUsed > 0 && (
+                {(() => {
+                  const discountAmount = calculateDiscount();
+                  const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
+                  const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
+                  const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
+                  const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
+                  const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
+                  const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
+                  const finalAmount = amountAfterDiscount - totalWalletUsed;
+
+                  return (
                     <>
-                      {purchaseOnlyUsed > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Subtotal</span>
+                        <span>₹{effectiveTotalPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Delivery</span>
+                        {shippingAmount === 0 ? (
+                          <span className="text-green-600">Free</span>
+                        ) : (
+                          <span>₹{shippingAmount.toFixed(2)}</span>
+                        )}
+                      </div>
+                      {discountAmount > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Purchase Credits Used</span>
-                          <span>-₹{purchaseOnlyUsed.toFixed(2)}</span>
+                          <span>Coupon Discount</span>
+                          <span>-₹{discountAmount.toFixed(2)}</span>
                         </div>
                       )}
-                      {withdrawableUsed > 0 && (
-                        <div className="flex justify-between text-sm text-green-600">
-                          <span>Wallet Balance Used</span>
-                          <span>-₹{withdrawableUsed.toFixed(2)}</span>
-                        </div>
+                      {totalWalletUsed > 0 && (
+                        <>
+                          {purchaseOnlyUsed > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Purchase Credits Used</span>
+                              <span>-₹{purchaseOnlyUsed.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {withdrawableUsed > 0 && (
+                            <div className="flex justify-between text-sm text-green-600">
+                              <span>Wallet Balance Used</span>
+                              <span>-₹{withdrawableUsed.toFixed(2)}</span>
+                            </div>
+                          )}
+                        </>
                       )}
+                      <Separator />
+                      <div className="flex justify-between font-semibold text-lg">
+                        <span>Total</span>
+                        <span className="text-primary">₹{finalAmount.toFixed(2)}</span>
+                      </div>
                     </>
-                  )}
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-lg">
-                    <span>Total</span>
-                    <span className="text-primary">₹{finalAmount.toFixed(2)}</span>
-                  </div>
+                  );
+                })()}
                 </div>
 
                 <Button
