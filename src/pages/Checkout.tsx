@@ -67,7 +67,7 @@ const Checkout = () => {
   
   // Use member price for members, MRP for normal users
   const effectiveTotalPrice = isMember ? memberTotalPrice : totalPrice;
-  const { shippingSettings, calculateShipping } = useShippingSettings();
+  const { calculateShipping } = useShippingSettings();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
