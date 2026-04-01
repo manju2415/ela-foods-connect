@@ -148,7 +148,8 @@ const GuestCheckout = () => {
   };
 
   const discountAmount = calculateDiscount();
-  const finalAmount = totalPrice - discountAmount;
+  const shippingAmount = calculateShipping(totalPrice);
+  const finalAmount = totalPrice - discountAmount + shippingAmount;
 
   // ──── Place Order ────
   const handlePlaceOrder = async () => {
