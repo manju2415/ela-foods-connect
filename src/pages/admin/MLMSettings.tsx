@@ -34,6 +34,16 @@ const MLMSettings = () => {
     max_withdrawable_referrals: { count: 10 },
     upline_commission: { master_amount: 50, founder_amount: 100, is_withdrawable: true },
     founder_purchase_commission: { enabled: false, percentage: 5 },
+    founder_level_commissions: {
+      enabled: true,
+      levels: [
+        { depth: 1, amount: 100, description: "Direct referral" },
+        { depth: 2, amount: 75, description: "Level 2" },
+        { depth: 3, amount: 50, description: "Level 3" },
+        { depth: 4, amount: 40, description: "Level 4" },
+        { depth: 5, amount: 30, description: "Level 5" },
+      ],
+    },
   });
 
   const { data: mlmSettings, isLoading } = useQuery({
