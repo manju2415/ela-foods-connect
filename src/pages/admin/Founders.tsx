@@ -400,7 +400,7 @@ export default function Founders() {
                 Multi-Level Commission Rates
               </CardTitle>
               <CardDescription>
-                Founders earn these commissions when users are added at each level depth in their network
+                All upline members (Founders, Masters, Associates) earn these commissions based on level depth in their network
               </CardDescription>
             </CardHeader>
             <CardContent>

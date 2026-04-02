@@ -439,10 +439,10 @@ const MLMSettings = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5" />
-                Multi-Level Founder Commission Rates
+                Multi-Level Network Commission Rates
               </CardTitle>
               <CardDescription>
-                Founders earn these commissions when users are added at each level depth in their network.
+                All upline members (Founders, Masters, Associates) earn these commissions when new users are added at each level depth in their network.
                 Add or remove levels and set variable amounts.
               </CardDescription>
             </CardHeader>
