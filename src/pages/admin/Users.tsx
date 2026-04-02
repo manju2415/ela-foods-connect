@@ -396,6 +396,5 @@ export default function UsersPage() {
         </Dialog>
       </div>
     </AdminLayout>
-  </SuperAdminGuard>
   );
 }
