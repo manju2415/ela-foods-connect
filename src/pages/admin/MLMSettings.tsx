@@ -458,8 +458,8 @@ const MLMSettings = () => {
               {(settings.founder_level_commissions?.enabled as boolean) !== false && (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || []).map((level, index) => (
-                      <div key={index} className="p-4 border rounded-lg space-y-3">
+                    {((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || []).map((level, index) => (
+                      <div key={index} className={`p-4 border rounded-lg space-y-3 ${level.enabled === false ? 'opacity-60 bg-muted/30' : ''}`}>
                         <div className="flex items-center justify-between">
                           <Badge variant={level.depth <= 3 ? "default" : "secondary"}>
                             Level {level.depth}
@@ -468,7 +468,7 @@ const MLMSettings = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
                               levels.splice(index, 1);
                               updateSetting("founder_level_commissions", "levels", levels);
                             }}
@@ -477,6 +477,17 @@ const MLMSettings = () => {
                             <span className="text-xs text-destructive">Remove</span>
                           </Button>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Enable Level</Label>
+                          <Switch
+                            checked={level.enabled !== false}
+                            onCheckedChange={(checked) => {
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
+                              levels[index] = { ...levels[index], enabled: checked };
+                              updateSetting("founder_level_commissions", "levels", levels);
+                            }}
+                          />
+                        </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Amount (₹)</Label>
                           <Input
@@ -484,23 +495,40 @@ const MLMSettings = () => {
                             min="0"
                             value={level.amount}
                             onChange={(e) => {
-                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
                               levels[index] = { ...levels[index], amount: Number(e.target.value) };
                               updateSetting("founder_level_commissions", "levels", levels);
                             }}
                             className="h-8"
+                            disabled={level.enabled === false}
                           />
                         </div>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs">Withdrawable</Label>
+                          <Switch
+                            checked={level.is_withdrawable !== false}
+                            onCheckedChange={(checked) => {
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
+                              levels[index] = { ...levels[index], is_withdrawable: checked };
+                              updateSetting("founder_level_commissions", "levels", levels);
+                            }}
+                            disabled={level.enabled === false}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {level.is_withdrawable !== false ? "Credits to withdrawable wallet" : "Credits to purchase-only wallet"}
+                        </p>
                         <div className="space-y-1">
                           <Label className="text-xs">Description</Label>
                           <Input
                             value={level.description}
                             onChange={(e) => {
-                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                              const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
                               levels[index] = { ...levels[index], description: e.target.value };
                               updateSetting("founder_level_commissions", "levels", levels);
                             }}
                             className="h-8"
+                            disabled={level.enabled === false}
                           />
                         </div>
                       </div>
@@ -510,9 +538,9 @@ const MLMSettings = () => {
                   <Button
                     variant="outline"
                     onClick={() => {
-                      const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string }>) || [])];
+                      const levels = [...((settings.founder_level_commissions?.levels as Array<{ depth: number; amount: number; description: string; enabled?: boolean; is_withdrawable?: boolean }>) || [])];
                       const nextDepth = levels.length > 0 ? Math.max(...levels.map(l => l.depth)) + 1 : 1;
-                      levels.push({ depth: nextDepth, amount: 0, description: `Level ${nextDepth}` });
+                      levels.push({ depth: nextDepth, amount: 0, description: `Level ${nextDepth}`, enabled: true, is_withdrawable: true });
                       updateSetting("founder_level_commissions", "levels", levels);
                     }}
                   >
