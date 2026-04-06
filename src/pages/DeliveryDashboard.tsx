@@ -139,6 +139,59 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     checkPartner();
   }, [user, authLoading, navigate, partnerCheckKey]);
 
+  // Realtime subscription for new assignments
+  useEffect(() => {
+    if (!partnerId) return;
+    
+    const channel = supabase
+      .channel('delivery-assignments-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_assignments',
+          filter: `delivery_partner_id=eq.${partnerId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [partnerId, queryClient]);
+
+  // Realtime subscription for notifications
+  useEffect(() => {
+    if (!user) return;
+    
+    const channel = supabase
+      .channel('delivery-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          const notif = payload.new;
+          if (notif?.type === 'order') {
+            toast.info(notif.title, { description: notif.message, duration: 8000 });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["delivery-assignments", partnerId],
     queryFn: async () => {
@@ -160,16 +213,39 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
         if (error) throw error;
 
-        // Get order details - handle empty orderIds
         const orderIds = data?.map(a => a.order_id) || [];
         if (orderIds.length === 0) return [];
         
         const { data: orders } = await supabase
           .from("orders")
-          .select("id, order_number, total_amount, shipping_address, is_cod, status")
+          .select("id, order_number, total_amount, shipping_address, is_cod, status, pickup_store_id")
           .in("id", orderIds);
 
-        const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
+        // Fetch store details for pickup location
+        const storeIds = [...new Set(orders?.map(o => o.pickup_store_id).filter(Boolean) || [])];
+        let storesMap = new Map();
+        
+        // Also get default store for non-pickup orders
+        const { data: defaultStore } = await supabase
+          .from("stores")
+          .select("id, name, address_line1, city, state, phone")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (storeIds.length > 0) {
+          const { data: stores } = await supabase
+            .from("stores")
+            .select("id, name, address_line1, city, state, phone")
+            .in("id", storeIds);
+          stores?.forEach(s => storesMap.set(s.id, s));
+        }
+
+        const ordersMap = new Map(orders?.map(o => [o.id, {
+          ...o,
+          pickup_store: o.pickup_store_id ? storesMap.get(o.pickup_store_id) : defaultStore,
+        }]) || []);
 
         return data.map(assignment => ({
           ...assignment,
