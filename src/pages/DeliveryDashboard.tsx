@@ -229,7 +229,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
           .in("id", orderIds);
 
         // Fetch store details for pickup location
-        const storeIds = [...new Set(orders?.map(o => o.pickup_store_id).filter(Boolean) || [])];
+        const storeIds = Array.from(new Set(orders?.map(o => o.pickup_store_id).filter(Boolean) || []));
         let storesMap = new Map();
         
         // Also get default store for non-pickup orders
