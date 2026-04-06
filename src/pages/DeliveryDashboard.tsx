@@ -671,8 +671,30 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                 {getStatusBadge(selectedAssignment.status)}
               </div>
 
+              {/* Pickup Location */}
+              {selectedAssignment.order.pickup_store && (
+                <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg space-y-1">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Warehouse className="h-4 w-4" />
+                    Pickup Location
+                  </h4>
+                  <p className="text-sm font-medium">{selectedAssignment.order.pickup_store.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAssignment.order.pickup_store.address_line1}, {selectedAssignment.order.pickup_store.city}
+                  </p>
+                  {selectedAssignment.order.pickup_store.phone && (
+                    <a href={`tel:${selectedAssignment.order.pickup_store.phone}`} className="inline-flex items-center gap-1 text-primary text-sm mt-1">
+                      <Phone className="h-3 w-3" /> Call Store
+                    </a>
+                  )}
+                </div>
+              )}
+
               <div className="p-4 bg-muted rounded-lg space-y-2">
-                <h4 className="font-medium">Delivery Address</h4>
+                <h4 className="font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Delivery Address
+                </h4>
                 <p className="font-medium">{selectedAssignment.order.shipping_address?.full_name}</p>
                 <p className="text-sm text-muted-foreground">
                   {selectedAssignment.order.shipping_address?.address_line1}
@@ -712,6 +734,36 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                     <Package className="h-4 w-4" />
                     COD Order - Collect ₹{Number(selectedAssignment.order.total_amount).toFixed(2)} on delivery
                   </p>
+                </div>
+              )}
+
+              {/* Accept/Reject buttons for newly assigned orders */}
+              {selectedAssignment.status === "assigned" && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => acceptRejectMutation.mutate({
+                      assignmentId: selectedAssignment.id,
+                      action: "rejected",
+                      orderId: selectedAssignment.order_id,
+                    })}
+                    disabled={acceptRejectMutation.isPending}
+                  >
+                    {acceptRejectMutation.isPending ? "..." : "Reject"}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => acceptRejectMutation.mutate({
+                      assignmentId: selectedAssignment.id,
+                      action: "accepted",
+                      orderId: selectedAssignment.order_id,
+                    })}
+                    disabled={acceptRejectMutation.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    {acceptRejectMutation.isPending ? "..." : "Accept Order"}
+                  </Button>
                 </div>
               )}
 
