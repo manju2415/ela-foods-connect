@@ -148,14 +148,12 @@ export default function OrderAssignments() {
         .maybeSingle();
 
       if (existing) {
-        // Update existing assignment
         const { error } = await supabase
           .from("order_assignments")
           .update({ delivery_partner_id: partnerId, status: "assigned" })
           .eq("id", existing.id);
         if (error) throw error;
       } else {
-        // Create new assignment
         const { error } = await supabase
           .from("order_assignments")
           .insert({ order_id: orderId, delivery_partner_id: partnerId });
@@ -167,6 +165,40 @@ export default function OrderAssignments() {
         .from("orders")
         .update({ status: "processing" })
         .eq("id", orderId);
+
+      // Get order details for notification
+      const order = orders.find(o => o.id === orderId);
+      
+      // Get pickup store address (use first active store as default pickup)
+      const { data: storeData } = await supabase
+        .from("stores")
+        .select("name, address_line1, city, state")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      const pickupLocation = storeData 
+        ? `${storeData.name}, ${storeData.address_line1}, ${storeData.city}`
+        : "Store (check with admin)";
+      
+      const deliveryAddr = order?.shipping_address
+        ? `${order.shipping_address.full_name || ""}, ${order.shipping_address.city || ""}`
+        : "See order details";
+
+      // Get delivery partner's user_id
+      const partner = allPartners.find(p => p.id === partnerId);
+      if (partner) {
+        // Send in-app notification to delivery partner
+        await supabase.rpc("create_notification", {
+          p_user_id: partner.user_id,
+          p_title: "New Order Assigned",
+          p_message: `Order #${order?.order_number || "N/A"} assigned to you.\nPickup: ${pickupLocation}\nDeliver to: ${deliveryAddr}`,
+          p_type: "order",
+          p_reference_id: orderId,
+          p_reference_type: "order_assignment",
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["orders-for-assignment"] });

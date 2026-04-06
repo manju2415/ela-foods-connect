@@ -57,6 +57,13 @@ interface Assignment {
       state?: string;
       postal_code?: string;
     };
+    pickup_store?: {
+      name: string;
+      address_line1: string;
+      city: string;
+      state: string;
+      phone?: string;
+    } | null;
   };
 }
 
@@ -139,6 +146,59 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     checkPartner();
   }, [user, authLoading, navigate, partnerCheckKey]);
 
+  // Realtime subscription for new assignments
+  useEffect(() => {
+    if (!partnerId) return;
+    
+    const channel = supabase
+      .channel('delivery-assignments-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'order_assignments',
+          filter: `delivery_partner_id=eq.${partnerId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [partnerId, queryClient]);
+
+  // Realtime subscription for notifications
+  useEffect(() => {
+    if (!user) return;
+    
+    const channel = supabase
+      .channel('delivery-notifications')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload: any) => {
+          const notif = payload.new;
+          if (notif?.type === 'order') {
+            toast.info(notif.title, { description: notif.message, duration: 8000 });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ["delivery-assignments", partnerId],
     queryFn: async () => {
@@ -160,16 +220,39 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
         if (error) throw error;
 
-        // Get order details - handle empty orderIds
         const orderIds = data?.map(a => a.order_id) || [];
         if (orderIds.length === 0) return [];
         
         const { data: orders } = await supabase
           .from("orders")
-          .select("id, order_number, total_amount, shipping_address, is_cod, status")
+          .select("id, order_number, total_amount, shipping_address, is_cod, status, pickup_store_id")
           .in("id", orderIds);
 
-        const ordersMap = new Map(orders?.map(o => [o.id, o]) || []);
+        // Fetch store details for pickup location
+        const storeIds = Array.from(new Set(orders?.map(o => o.pickup_store_id).filter(Boolean) || []));
+        let storesMap = new Map();
+        
+        // Also get default store for non-pickup orders
+        const { data: defaultStore } = await supabase
+          .from("stores")
+          .select("id, name, address_line1, city, state, phone")
+          .eq("is_active", true)
+          .order("display_order", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (storeIds.length > 0) {
+          const { data: stores } = await supabase
+            .from("stores")
+            .select("id, name, address_line1, city, state, phone")
+            .in("id", storeIds);
+          stores?.forEach(s => storesMap.set(s.id, s));
+        }
+
+        const ordersMap = new Map(orders?.map(o => [o.id, {
+          ...o,
+          pickup_store: o.pickup_store_id ? storesMap.get(o.pickup_store_id) : defaultStore,
+        }]) || []);
 
         return data.map(assignment => ({
           ...assignment,
@@ -248,6 +331,43 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     },
   });
 
+  const acceptRejectMutation = useMutation({
+    mutationFn: async ({ assignmentId, action, orderId }: { 
+      assignmentId: string; 
+      action: "accepted" | "rejected";
+      orderId: string;
+    }) => {
+      if (action === "rejected") {
+        // Remove assignment so admin can reassign
+        const { error } = await supabase
+          .from("order_assignments")
+          .delete()
+          .eq("id", assignmentId);
+        if (error) throw error;
+
+        // Revert order status to confirmed
+        await supabase
+          .from("orders")
+          .update({ status: "confirmed" })
+          .eq("id", orderId);
+      } else {
+        const { error } = await supabase
+          .from("order_assignments")
+          .update({ status: "accepted" })
+          .eq("id", assignmentId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
+      toast.success(variables.action === "accepted" ? "Order accepted!" : "Order rejected");
+      setSelectedAssignment(null);
+    },
+    onError: () => {
+      toast.error("Failed to update assignment");
+    },
+  });
+
   const activeAssignments = assignments.filter(a => 
     a.status !== "delivered" && a.status !== "returned"
   );
@@ -257,7 +377,8 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "assigned": return <Badge className="bg-blue-100 text-blue-800">Assigned</Badge>;
+      case "assigned": return <Badge className="bg-blue-100 text-blue-800">New</Badge>;
+      case "accepted": return <Badge className="bg-emerald-100 text-emerald-800">Accepted</Badge>;
       case "picked_up": return <Badge className="bg-purple-100 text-purple-800">Picked Up</Badge>;
       case "out_for_delivery": return <Badge className="bg-cyan-100 text-cyan-800">Out for Delivery</Badge>;
       case "delivered": return <Badge className="bg-green-100 text-green-800">Delivered</Badge>;
@@ -271,7 +392,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
   const getNextAction = (status: string) => {
     switch (status) {
-      case "assigned": return { label: "Mark as Picked Up", nextStatus: "picked_up" };
+      case "accepted": return { label: "Mark as Picked Up", nextStatus: "picked_up" };
       case "picked_up": return { label: "Out for Delivery", nextStatus: "out_for_delivery" };
       case "out_for_delivery": return { label: "Mark as Delivered", nextStatus: "delivered" };
       case "return_initiated": 
@@ -550,8 +671,30 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                 {getStatusBadge(selectedAssignment.status)}
               </div>
 
+              {/* Pickup Location */}
+              {selectedAssignment.order.pickup_store && (
+                <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg space-y-1">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Warehouse className="h-4 w-4" />
+                    Pickup Location
+                  </h4>
+                  <p className="text-sm font-medium">{selectedAssignment.order.pickup_store.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAssignment.order.pickup_store.address_line1}, {selectedAssignment.order.pickup_store.city}
+                  </p>
+                  {selectedAssignment.order.pickup_store.phone && (
+                    <a href={`tel:${selectedAssignment.order.pickup_store.phone}`} className="inline-flex items-center gap-1 text-primary text-sm mt-1">
+                      <Phone className="h-3 w-3" /> Call Store
+                    </a>
+                  )}
+                </div>
+              )}
+
               <div className="p-4 bg-muted rounded-lg space-y-2">
-                <h4 className="font-medium">Delivery Address</h4>
+                <h4 className="font-medium flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Delivery Address
+                </h4>
                 <p className="font-medium">{selectedAssignment.order.shipping_address?.full_name}</p>
                 <p className="text-sm text-muted-foreground">
                   {selectedAssignment.order.shipping_address?.address_line1}
@@ -591,6 +734,36 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                     <Package className="h-4 w-4" />
                     COD Order - Collect ₹{Number(selectedAssignment.order.total_amount).toFixed(2)} on delivery
                   </p>
+                </div>
+              )}
+
+              {/* Accept/Reject buttons for newly assigned orders */}
+              {selectedAssignment.status === "assigned" && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-destructive text-destructive hover:bg-destructive/10"
+                    onClick={() => acceptRejectMutation.mutate({
+                      assignmentId: selectedAssignment.id,
+                      action: "rejected",
+                      orderId: selectedAssignment.order_id,
+                    })}
+                    disabled={acceptRejectMutation.isPending}
+                  >
+                    {acceptRejectMutation.isPending ? "..." : "Reject"}
+                  </Button>
+                  <Button
+                    className="flex-1"
+                    onClick={() => acceptRejectMutation.mutate({
+                      assignmentId: selectedAssignment.id,
+                      action: "accepted",
+                      orderId: selectedAssignment.order_id,
+                    })}
+                    disabled={acceptRejectMutation.isPending}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    {acceptRejectMutation.isPending ? "..." : "Accept Order"}
+                  </Button>
                 </div>
               )}
 
