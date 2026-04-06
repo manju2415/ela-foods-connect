@@ -57,6 +57,13 @@ interface Assignment {
       state?: string;
       postal_code?: string;
     };
+    pickup_store?: {
+      name: string;
+      address_line1: string;
+      city: string;
+      state: string;
+      phone?: string;
+    } | null;
   };
 }
 
