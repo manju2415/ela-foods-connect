@@ -331,6 +331,43 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
     },
   });
 
+  const acceptRejectMutation = useMutation({
+    mutationFn: async ({ assignmentId, action, orderId }: { 
+      assignmentId: string; 
+      action: "accepted" | "rejected";
+      orderId: string;
+    }) => {
+      if (action === "rejected") {
+        // Remove assignment so admin can reassign
+        const { error } = await supabase
+          .from("order_assignments")
+          .delete()
+          .eq("id", assignmentId);
+        if (error) throw error;
+
+        // Revert order status to confirmed
+        await supabase
+          .from("orders")
+          .update({ status: "confirmed" })
+          .eq("id", orderId);
+      } else {
+        const { error } = await supabase
+          .from("order_assignments")
+          .update({ status: "accepted" })
+          .eq("id", assignmentId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["delivery-assignments"] });
+      toast.success(variables.action === "accepted" ? "Order accepted!" : "Order rejected");
+      setSelectedAssignment(null);
+    },
+    onError: () => {
+      toast.error("Failed to update assignment");
+    },
+  });
+
   const activeAssignments = assignments.filter(a => 
     a.status !== "delivered" && a.status !== "returned"
   );
@@ -340,7 +377,8 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "assigned": return <Badge className="bg-blue-100 text-blue-800">Assigned</Badge>;
+      case "assigned": return <Badge className="bg-blue-100 text-blue-800">New</Badge>;
+      case "accepted": return <Badge className="bg-emerald-100 text-emerald-800">Accepted</Badge>;
       case "picked_up": return <Badge className="bg-purple-100 text-purple-800">Picked Up</Badge>;
       case "out_for_delivery": return <Badge className="bg-cyan-100 text-cyan-800">Out for Delivery</Badge>;
       case "delivered": return <Badge className="bg-green-100 text-green-800">Delivered</Badge>;
@@ -354,7 +392,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
   const getNextAction = (status: string) => {
     switch (status) {
-      case "assigned": return { label: "Mark as Picked Up", nextStatus: "picked_up" };
+      case "accepted": return { label: "Mark as Picked Up", nextStatus: "picked_up" };
       case "picked_up": return { label: "Out for Delivery", nextStatus: "out_for_delivery" };
       case "out_for_delivery": return { label: "Mark as Delivered", nextStatus: "delivered" };
       case "return_initiated": 
