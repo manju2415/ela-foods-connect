@@ -62,7 +62,6 @@ const menuItems: MenuItem[] = [
   { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw, storeAdminVisible: true },
   { title: "Users", url: "/admin/users", icon: Users, storeAdminVisible: true },
   { title: "Stores", url: "/admin/stores", icon: Store, storeAdminVisible: true },
-  { title: "Inventory", url: "/admin/inventory", icon: Boxes, storeAdminVisible: true },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
