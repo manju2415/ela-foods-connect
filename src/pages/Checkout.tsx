@@ -717,7 +717,32 @@ const Checkout = () => {
                   </div>
                 )}
 
-                <div className="p-4 rounded-lg border border-primary bg-primary/5">
+                {/* Online Payment */}
+                <div
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                  onClick={() => setPaymentMethod("online")}
+                >
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Pay Online (Razorpay)</p>
+                      <p className="text-sm text-muted-foreground">
+                        UPI, Credit/Debit Card, Net Banking, Wallets
+                      </p>
+                    </div>
+                    {paymentMethod === "online" && <Check className="h-5 w-5 text-primary ml-auto" />}
+                  </div>
+                </div>
+
+                {/* Cash on Delivery */}
+                <div
+                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                    paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                  onClick={() => setPaymentMethod("cod")}
+                >
                   <div className="flex items-center gap-3">
                     <Package className="h-5 w-5 text-primary" />
                     <div>
@@ -726,6 +751,7 @@ const Checkout = () => {
                         Pay when your order arrives
                       </p>
                     </div>
+                    {paymentMethod === "cod" && <Check className="h-5 w-5 text-primary ml-auto" />}
                   </div>
                 </div>
               </CardContent>
