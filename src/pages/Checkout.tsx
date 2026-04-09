@@ -16,6 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
+import { initiateRazorpayPayment } from "@/utils/razorpay";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import {
   Dialog,
@@ -72,7 +73,8 @@ const Checkout = () => {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
-  const [useWallet, setUseWallet] = useState(true); // Default to using wallet
+  const [useWallet, setUseWallet] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -296,7 +298,6 @@ const Checkout = () => {
     const discountAmount = calculateDiscount();
     const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
     
-    // Calculate wallet usage: purchase-only first, then withdrawable
     const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
     const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
     const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
@@ -304,7 +305,6 @@ const Checkout = () => {
     const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
     const finalAmount = amountAfterDiscount - totalWalletUsed;
 
-    // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
     const shippingAddress = fulfillmentType === "store_pickup" && selectedStore
@@ -331,20 +331,24 @@ const Checkout = () => {
         }
       : {};
 
-    // Create order with delivery scheduling
+    const isCod = paymentMethod === "cod" || finalAmount <= 0;
+
+    // Create order
     const { data: order, error: orderError } = await supabase
       .from("orders")
       .insert({
         user_id: user.id,
         order_number: orderNumber,
         status: "pending",
-        payment_status: "pending",
+        payment_status: isCod ? "pending" : "pending",
         subtotal: effectiveTotalPrice,
         shipping_amount: shippingAmount,
         discount_amount: discountAmount,
         wallet_amount_used: totalWalletUsed,
         total_amount: finalAmount,
         coupon_code: appliedCoupon?.code || null,
+        is_cod: isCod,
+        cod_amount: isCod ? finalAmount : 0,
         preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
         preferred_delivery_slot_id: selectedDeliverySlotId,
         fulfillment_type: fulfillmentType,
@@ -365,7 +369,7 @@ const Checkout = () => {
       return;
     }
 
-    // Create order items with correct pricing based on member status
+    // Create order items
     const orderItems = items.map((item) => {
       const itemPrice = isMember 
         ? (item.product.member_price || item.product.price) 
@@ -380,13 +384,8 @@ const Checkout = () => {
       };
     });
 
-    const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+    await supabase.from("order_items").insert(orderItems);
 
-    if (itemsError) {
-      console.error("Order items error:", itemsError);
-    }
-
-    // Update coupon usage count
     if (appliedCoupon) {
       await supabase
         .from("coupons")
@@ -394,7 +393,73 @@ const Checkout = () => {
         .eq("id", appliedCoupon.id);
     }
 
-    // Send order confirmation email
+    // If online payment and amount > 0, initiate Razorpay
+    if (!isCod && finalAmount > 0) {
+      try {
+        const selectedAddr = selectedAddress || selectedStore;
+        await initiateRazorpayPayment({
+          amount: finalAmount,
+          receipt: orderNumber,
+          notes: { description: `Order ${orderNumber}`, order_id: order.id },
+          orderId: order.id,
+          prefill: {
+            name: selectedAddr?.full_name || user.user_metadata?.full_name || "",
+            contact: selectedAddr?.phone || user.phone || "",
+            email: user.email || "",
+          },
+          onSuccess: async () => {
+            // Update order payment status
+            await supabase
+              .from("orders")
+              .update({ payment_status: "completed", is_cod: false })
+              .eq("id", order.id);
+
+            try {
+              await supabase.functions.invoke("send-order-confirmation", {
+                body: { order_id: order.id },
+              });
+            } catch (e) {
+              console.error("Email error:", e);
+            }
+
+            await clearCart();
+            toast({
+              title: "Payment Successful!",
+              description: `Order ${orderNumber} placed successfully.`,
+            });
+            navigate("/dashboard?tab=orders");
+          },
+          onFailure: async (error) => {
+            console.error("Payment failed:", error);
+            // Order exists but payment failed - mark as COD fallback
+            await supabase
+              .from("orders")
+              .update({ is_cod: true, cod_amount: finalAmount })
+              .eq("id", order.id);
+            
+            toast({
+              title: "Payment Failed",
+              description: "Order placed as Cash on Delivery instead.",
+              variant: "destructive",
+            });
+
+            await clearCart();
+            navigate("/dashboard?tab=orders");
+          },
+        });
+        setPlacing(false);
+        return;
+      } catch (err) {
+        console.error("Razorpay init error:", err);
+        // Fall back to COD
+        await supabase
+          .from("orders")
+          .update({ is_cod: true, cod_amount: finalAmount })
+          .eq("id", order.id);
+      }
+    }
+
+    // COD or zero-amount order flow
     try {
       await supabase.functions.invoke("send-order-confirmation", {
         body: { order_id: order.id },
@@ -403,7 +468,6 @@ const Checkout = () => {
       console.error("Failed to send confirmation email:", emailError);
     }
 
-    // Clear cart
     await clearCart();
 
     toast({
