@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
+import { initiateRazorpayPayment } from "@/utils/razorpay";
 
 interface RegistrationSettings {
   amount: number;
@@ -70,63 +71,81 @@ const RegistrationPayment = () => {
     setProcessing(true);
 
     try {
-      // For now, simulate payment success (integrate with actual payment gateway later)
-      // Update profile with registration fee paid
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({ registration_fee_paid: settings.amount })
-        .eq("id", user.id);
+      await initiateRazorpayPayment({
+        amount: settings.amount,
+        receipt: `reg_${user.id.slice(0, 8)}`,
+        notes: { description: "Registration Fee", user_id: user.id },
+        purpose: "registration",
+        orderId: user.id,
+        prefill: {
+          name: user.user_metadata?.full_name || "",
+          email: user.email || "",
+          contact: user.phone || "",
+        },
+        onSuccess: async () => {
+          // Update profile with registration fee paid
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({ registration_fee_paid: settings.amount })
+            .eq("id", user.id);
 
-      if (profileError) throw profileError;
+          if (profileError) throw profileError;
 
-      // Credit wallet with welcome bonus
-      const { error: walletError } = await supabase
-        .from("wallets")
-        .update({ 
-          balance: settings.wallet_credit,
-          purchase_only_balance: settings.wallet_credit
-        })
-        .eq("user_id", user.id);
+          // Credit wallet with welcome bonus
+          const { error: walletError } = await supabase
+            .from("wallets")
+            .update({ 
+              balance: settings.wallet_credit,
+              purchase_only_balance: settings.wallet_credit
+            })
+            .eq("user_id", user.id);
 
-      if (walletError) throw walletError;
+          if (walletError) throw walletError;
 
-      // Add wallet transaction record
-      const { data: wallet } = await supabase
-        .from("wallets")
-        .select("id, balance")
-        .eq("user_id", user.id)
-        .single();
+          // Add wallet transaction record
+          const { data: wallet } = await supabase
+            .from("wallets")
+            .select("id, balance")
+            .eq("user_id", user.id)
+            .single();
 
-      if (wallet) {
-        await supabase.from("wallet_transactions").insert({
-          wallet_id: wallet.id,
-          type: "credit",
-          amount: settings.wallet_credit,
-          balance_after: wallet.balance,
-          description: "Registration welcome bonus",
-          is_withdrawable: false,
-        });
-      }
+          if (wallet) {
+            await supabase.from("wallet_transactions").insert({
+              wallet_id: wallet.id,
+              type: "credit",
+              amount: settings.wallet_credit,
+              balance_after: wallet.balance,
+              description: "Registration welcome bonus",
+              is_withdrawable: false,
+            });
+          }
 
-      // Create notification
-      await supabase.from("notifications").insert({
-        user_id: user.id,
-        title: "Registration Complete!",
-        message: `Welcome to Ela Bazar! ₹${settings.wallet_credit} has been credited to your wallet.`,
-        type: "success",
+          // Create notification
+          await supabase.from("notifications").insert({
+            user_id: user.id,
+            title: "Registration Complete!",
+            message: `Welcome to Ela Bazar! ₹${settings.wallet_credit} has been credited to your wallet.`,
+            type: "success",
+          });
+
+          toast({
+            title: "Payment Successful!",
+            description: `₹${settings.wallet_credit} wallet credit added to your account.`,
+          });
+
+          setFeePaid(true);
+          setTimeout(() => navigate("/dashboard"), 2000);
+        },
+        onFailure: (error) => {
+          console.error("Payment error:", error);
+          toast({
+            title: "Payment Failed",
+            description: "Something went wrong. Please try again.",
+            variant: "destructive",
+          });
+          setProcessing(false);
+        },
       });
-
-      toast({
-        title: "Payment Successful!",
-        description: `₹${settings.wallet_credit} wallet credit added to your account.`,
-      });
-
-      setFeePaid(true);
-      
-      // Redirect to dashboard after short delay
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 2000);
     } catch (error) {
       console.error("Payment error:", error);
       toast({
