@@ -14,6 +14,7 @@ import {
   MapPin, Package, CreditCard, Ticket, X, Check,
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2,
 } from "lucide-react";
+import { initiateRazorpayPayment } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 
@@ -156,6 +157,54 @@ const GuestCheckout = () => {
     setPlacing(true);
 
     try {
+      if (paymentMethod !== "cod" && finalAmount > 0) {
+        // Online payment via Razorpay first, then place order on success
+        await initiateRazorpayPayment({
+          amount: finalAmount,
+          receipt: `guest_${Date.now()}`,
+          notes: { description: "Guest Order" },
+          purpose: "guest_order",
+          prefill: {
+            name: guestDetails.full_name,
+            contact: guestDetails.phone,
+            email: guestDetails.email,
+          },
+          onSuccess: async () => {
+            // Place the order after successful payment
+            const { data, error } = await supabase.functions.invoke("place-guest-order", {
+              body: {
+                guest_details: guestDetails,
+                items: items.map((item) => ({
+                  product_id: item.product_id,
+                  quantity: item.quantity,
+                })),
+                coupon_code: appliedCoupon?.code || null,
+                discount_amount: discountAmount,
+                payment_method: "online",
+              },
+            });
+
+            if (error || !data?.success) {
+              toast({ title: "Error", description: "Order creation failed after payment.", variant: "destructive" });
+              setPlacing(false);
+              return;
+            }
+
+            localStorage.removeItem("ela_guest_cart");
+            setOrderResult({ orderNumber: data.order_number });
+            setStep("confirmation");
+            setPlacing(false);
+          },
+          onFailure: (error) => {
+            console.error("Payment failed:", error);
+            toast({ title: "Payment Failed", description: "Please try again or use Cash on Delivery.", variant: "destructive" });
+            setPlacing(false);
+          },
+        });
+        return;
+      }
+
+      // COD flow
       const { data, error } = await supabase.functions.invoke("place-guest-order", {
         body: {
           guest_details: guestDetails,
@@ -176,9 +225,7 @@ const GuestCheckout = () => {
         return;
       }
 
-      // Clear guest cart
       localStorage.removeItem("ela_guest_cart");
-
       setOrderResult({ orderNumber: data.order_number });
       setStep("confirmation");
     } catch (err) {
@@ -397,8 +444,8 @@ const GuestCheckout = () => {
             </div>
           ))}
           {paymentMethod !== "cod" && (
-            <p className="text-sm text-muted-foreground text-center pt-2">
-              Online payment integration coming soon. Please use Cash on Delivery for now.
+            <p className="text-sm text-primary text-center pt-2 font-medium">
+              You'll be redirected to Razorpay for secure payment.
             </p>
           )}
         </CardContent>
@@ -413,8 +460,8 @@ const GuestCheckout = () => {
 
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setStep("summary")}>Back</Button>
-        <Button size="lg" onClick={handlePlaceOrder} disabled={placing || (paymentMethod !== "cod")}>
-          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Placing Order...</> : "Place Order"}
+        <Button size="lg" onClick={handlePlaceOrder} disabled={placing}>
+          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</> : paymentMethod === "cod" ? "Place Order" : `Pay ₹${finalAmount.toFixed(2)}`}
         </Button>
       </div>
     </div>
