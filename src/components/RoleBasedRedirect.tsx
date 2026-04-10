@@ -50,9 +50,9 @@ export default function RoleBasedRedirect() {
         return;
       }
 
-      // Founding member or member → member dashboard
+      // Founding member or member → member app
       if (roleSet.has("founding_member") || roleSet.has("member")) {
-        navigate("/dashboard", { replace: true });
+        navigate("/member-app", { replace: true });
         return;
       }
 

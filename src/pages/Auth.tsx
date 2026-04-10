@@ -96,7 +96,7 @@ const Auth = () => {
     if (superAdminRes.data) return "/admin";
     if (mlmAdminRes.data) return "/mlm-admin";
     if (adminRes.data) return "/admin/products";
-    if ((memberRolesRes.data || []).length > 0) return "/dashboard";
+    if ((memberRolesRes.data || []).length > 0) return "/member-app";
 
     return "/customer-app";
   };
