@@ -1,0 +1,1 @@
+ALTER VIEW public.user_hierarchy SET (security_invoker = true);

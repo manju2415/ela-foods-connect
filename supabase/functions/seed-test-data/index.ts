@@ -42,6 +42,11 @@ const TEST_USERS: TestUser[] = [
   {
     phone: '9999000005',
     fullName: 'Regular Customer',
+    roles: [],
+  },
+  {
+    phone: '9999000006',
+    fullName: 'Member User',
     roles: ['member'],
   },
 ];
