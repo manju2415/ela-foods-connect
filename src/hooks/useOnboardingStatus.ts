@@ -35,8 +35,8 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
 
   const checkOnboardingStatus = async (uid: string) => {
     try {
-      // Check profile, delivery partner, and founder status in parallel
-      const [profileRes, partnerRes, founderRes] = await Promise.all([
+      // Check profile, delivery partner, and dashboard-eligible roles in parallel
+      const [profileRes, partnerRes, memberAccessRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("phone, bank_account_number, registration_fee_paid, user_level")
@@ -51,16 +51,17 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
           .from("user_roles")
           .select("role")
           .eq("user_id", uid)
-          .in("role", ["founding_member", "super_admin", "admin"])
+          .in("role", ["founding_member", "super_admin", "admin", "member", "mlm_admin"])
+          .limit(1)
           .maybeSingle(),
       ]);
 
       const profile = profileRes.data;
       const isDeliveryPartner = !!partnerRes.data;
-      const isFounderOrAdmin = !!founderRes.data || profile?.user_level === "founder";
+      const hasMemberDashboardAccess = !!memberAccessRes.data || profile?.user_level === "founder";
 
-      // Delivery partners and founders/admins skip onboarding flow
-      if (isDeliveryPartner || isFounderOrAdmin) {
+      // Delivery partners and member/admin accounts skip onboarding when entering the member dashboard
+      if (isDeliveryPartner || hasMemberDashboardAccess) {
         setStatus({
           isLoading: false,
           isProfileComplete: true,
