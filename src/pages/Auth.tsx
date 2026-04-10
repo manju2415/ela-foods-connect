@@ -147,7 +147,7 @@ const Auth = () => {
       .from("user_roles")
       .select("role")
       .eq("user_id", verifiedUser.id)
-      .in("role", ["founding_member", "super_admin", "admin"])
+      .in("role", ["founding_member", "super_admin", "admin", "member", "mlm_admin"])
       .limit(1)
       .maybeSingle();
 
