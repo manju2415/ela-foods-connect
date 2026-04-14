@@ -130,12 +130,50 @@ serve(async (req) => {
       type: "success",
     });
 
-    // Process MLM referral if user was referred
+    // Process MLM referral commissions if user was referred
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("referred_by")
       .eq("id", user.id)
       .single();
+
+    if (userProfile?.referred_by) {
+      // Find the referral code used (from referrals table or referral_codes)
+      const { data: referralData } = await supabase
+        .from("referral_codes")
+        .select("code")
+        .eq("user_id", userProfile.referred_by)
+        .eq("is_active", true)
+        .limit(1)
+        .single();
+
+      if (referralData?.code) {
+        // Call process_mlm_referral which handles:
+        // - Referral bonus to direct referrer
+        // - Multi-level upward commissions (credit_founder_commission)
+        // - Welcome bonus for new user
+        // - Auto-generate referral code for new user
+        const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
+          p_referral_code: referralData.code,
+          p_referred_user_id: user.id,
+          p_registration_fee: registrationAmount,
+        });
+
+        if (mlmError) {
+          console.error("MLM referral processing error:", mlmError);
+        } else {
+          console.log("MLM referral processed successfully for user:", user.id);
+        }
+      }
+    } else {
+      // Even without referrer, generate a referral code for the new member
+      const { error: codeError } = await supabase.rpc("generate_user_referral_code", {
+        p_user_id: user.id,
+      });
+      if (codeError) {
+        console.error("Referral code generation error:", codeError);
+      }
+    }
 
     // Assign member role
     await supabase.from("user_roles").upsert(
