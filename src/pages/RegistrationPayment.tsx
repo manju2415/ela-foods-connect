@@ -82,55 +82,30 @@ const RegistrationPayment = () => {
           email: user.email || "",
           contact: user.phone || "",
         },
-        onSuccess: async () => {
-          // Update profile with registration fee paid
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .update({ registration_fee_paid: settings.amount })
-            .eq("id", user.id);
+        onSuccess: async (response) => {
+          // Process registration via server-side edge function (bypasses RLS)
+          const { data: regData, error: regError } = await supabase.functions.invoke(
+            "process-registration-payment",
+            {
+              body: {
+                razorpay_payment_id: response.razorpay_payment_id,
+              },
+            }
+          );
 
-          if (profileError) throw profileError;
-
-          // Credit wallet with welcome bonus
-          const { error: walletError } = await supabase
-            .from("wallets")
-            .update({ 
-              balance: settings.wallet_credit,
-              purchase_only_balance: settings.wallet_credit
-            })
-            .eq("user_id", user.id);
-
-          if (walletError) throw walletError;
-
-          // Add wallet transaction record
-          const { data: wallet } = await supabase
-            .from("wallets")
-            .select("id, balance")
-            .eq("user_id", user.id)
-            .single();
-
-          if (wallet) {
-            await supabase.from("wallet_transactions").insert({
-              wallet_id: wallet.id,
-              type: "credit",
-              amount: settings.wallet_credit,
-              balance_after: wallet.balance,
-              description: "Registration welcome bonus",
-              is_withdrawable: false,
+          if (regError) {
+            console.error("Registration processing error:", regError);
+            toast({
+              title: "Payment received, but registration processing failed",
+              description: "Please contact support. Your payment is safe.",
+              variant: "destructive",
             });
+            return;
           }
-
-          // Create notification
-          await supabase.from("notifications").insert({
-            user_id: user.id,
-            title: "Registration Complete!",
-            message: `Welcome to Ela Bazar! ₹${settings.wallet_credit} has been credited to your wallet.`,
-            type: "success",
-          });
 
           toast({
             title: "Payment Successful!",
-            description: `₹${settings.wallet_credit} wallet credit added to your account.`,
+            description: `₹${regData?.wallet_credit || settings.wallet_credit} wallet credit added to your account.`,
           });
 
           setFeePaid(true);
