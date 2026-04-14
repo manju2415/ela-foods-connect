@@ -13,6 +13,7 @@ import { initiateRazorpayPayment } from "@/utils/razorpay";
 interface RegistrationSettings {
   amount: number;
   wallet_credit: number;
+  non_refundable: number;
 }
 
 const RegistrationPayment = () => {
@@ -22,7 +23,7 @@ const RegistrationPayment = () => {
 
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000 });
+  const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000, non_refundable: 0 });
   const [feePaid, setFeePaid] = useState(false);
 
   useEffect(() => {
@@ -56,10 +57,14 @@ const RegistrationPayment = () => {
       .single();
 
     if (settingsData?.value) {
-      const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number };
+      const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number; non_refundable?: number };
+      const total = value.total || value.amount || 2499;
+      const walletCredit = value.wallet_credit || 1000;
+      const nonRefundable = value.non_refundable || (total - walletCredit);
       setSettings({
-        amount: value.total || value.amount || 2499,
-        wallet_credit: value.wallet_credit || 1000,
+        amount: total,
+        wallet_credit: walletCredit,
+        non_refundable: nonRefundable > 0 ? nonRefundable : 0,
       });
     }
 
@@ -233,6 +238,25 @@ const RegistrationPayment = () => {
               <div className="text-center p-6 bg-primary/5 rounded-lg border border-primary/20">
                 <p className="text-sm text-muted-foreground mb-1">Registration Fee</p>
                 <p className="text-4xl font-bold text-primary">₹{settings.amount}</p>
+              </div>
+
+              {/* Fee Breakdown */}
+              <div className="rounded-lg border p-4 space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Fee Breakdown</h4>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm">Wallet Credit (Purchase Only)</span>
+                  <span className="font-medium text-green-600">₹{settings.wallet_credit}</span>
+                </div>
+                {settings.non_refundable > 0 && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm">Platform Fee (Non-refundable)</span>
+                    <span className="font-medium">₹{settings.non_refundable}</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 flex justify-between items-center font-semibold">
+                  <span>Total</span>
+                  <span>₹{settings.amount}</span>
+                </div>
               </div>
 
               {/* Benefits */}
