@@ -3,6 +3,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ReferralCodeSelector } from "@/components/ReferralCodeSelector";
-import { UserPlus, Loader2, Check, X, Edit2 } from "lucide-react";
+import { UserPlus, Loader2, Check, X, AlertCircle } from "lucide-react";
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
@@ -27,19 +28,20 @@ const signupSchema = z.object({
 type SignupFormData = z.infer<typeof signupSchema>;
 
 interface AddUserDialogProps {
-  defaultReferralCode?: string;
   onUserAdded?: () => void;
   trigger?: React.ReactNode;
-  showCodeSelector?: boolean;
+  isAdmin?: boolean;
 }
 
-export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showCodeSelector = false }: AddUserDialogProps) {
+export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
-  const [editingCode, setEditingCode] = useState(false);
-  const [selectedCode, setSelectedCode] = useState(defaultReferralCode || "");
+  const [myCode, setMyCode] = useState<string | null>(null);
+  const [loadingMyCode, setLoadingMyCode] = useState(false);
+  const [selectedAdminCode, setSelectedAdminCode] = useState("");
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<SignupFormData>({
@@ -47,34 +49,45 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
     defaultValues: {
       fullName: "",
       phone: "",
-      referralCode: defaultReferralCode || "",
+      referralCode: "",
     },
   });
 
+  // Fetch logged-in user's own referral code on dialog open (for non-admin)
   useEffect(() => {
-    if (open) {
-      const initialCode = defaultReferralCode || "";
-      form.reset({
-        fullName: "",
-        phone: "",
-        referralCode: initialCode,
-      });
-      setSelectedCode(initialCode);
-      setEditingCode(!defaultReferralCode && !showCodeSelector);
-      if (initialCode) {
-        validateReferralCode(initialCode);
-      } else {
-        setReferralCodeValid(null);
-      }
+    if (!open) return;
+
+    form.reset({ fullName: "", phone: "", referralCode: "" });
+    setReferralCodeValid(null);
+    setSelectedAdminCode("");
+
+    if (!isAdmin && user) {
+      setLoadingMyCode(true);
+      supabase
+        .from("referral_codes")
+        .select("code")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.code) {
+            setMyCode(data.code);
+            form.setValue("referralCode", data.code);
+            setReferralCodeValid(true);
+          } else {
+            setMyCode(null);
+          }
+          setLoadingMyCode(false);
+        });
     }
-  }, [open, defaultReferralCode, showCodeSelector]);
+  }, [open, isAdmin, user]);
 
   const validateReferralCode = async (code: string) => {
     if (!code || code.length < 3) {
       setReferralCodeValid(null);
       return;
     }
-
     setCheckingCode(true);
     const { data } = await supabase
       .from("referral_codes")
@@ -82,24 +95,19 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .maybeSingle();
-
     setReferralCodeValid(!!data);
     setCheckingCode(false);
   };
 
-  const handleCodeSelectorChange = (code: string) => {
-    setSelectedCode(code);
+  const handleAdminCodeChange = (code: string) => {
+    setSelectedAdminCode(code);
     form.setValue("referralCode", code);
     validateReferralCode(code);
   };
 
   const handleSubmit = async (data: SignupFormData) => {
     if (!referralCodeValid) {
-      toast({
-        title: "Invalid referral code",
-        description: "Please enter a valid referral code to continue.",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid referral code", description: "Please enter a valid referral code.", variant: "destructive" });
       return;
     }
 
@@ -111,13 +119,13 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
           phone: data.phone,
           full_name: data.fullName,
           referral_code: data.referralCode.toUpperCase(),
+          added_by_user_id: user?.id || null,
         },
       });
 
       if (error) {
         let errorMessage = "An error occurred. Please try again.";
         try {
-          // FunctionsHttpError stores the Response in .context
           if ("context" in error && (error as any).context instanceof Response) {
             const body = await (error as any).context.json();
             if (body?.error) errorMessage = body.error;
@@ -125,22 +133,13 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
             errorMessage = (error as any).message;
           }
         } catch {}
-        
-        toast({
-          title: "Failed to add user",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        toast({ title: "Failed to add user", description: errorMessage, variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
 
       if (result?.error) {
-        toast({
-          title: "Failed to add user",
-          description: result.error,
-          variant: "destructive",
-        });
+        toast({ title: "Failed to add user", description: result.error, variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
@@ -153,14 +152,65 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       onUserAdded?.();
     } catch (err) {
       console.error("Add user error:", err);
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
     }
 
     setIsSubmitting(false);
+  };
+
+  const renderReferralField = () => {
+    // Admin mode: show selector
+    if (isAdmin) {
+      return (
+        <div className="space-y-2">
+          <Label>Referral Code</Label>
+          <ReferralCodeSelector
+            value={selectedAdminCode}
+            onChange={handleAdminCodeChange}
+            placeholder="Search and select referral code..."
+          />
+          {referralCodeValid === true && <p className="text-sm text-green-600">Valid referral code</p>}
+          {referralCodeValid === false && <p className="text-sm text-destructive">Invalid or inactive code</p>}
+        </div>
+      );
+    }
+
+    // Member mode: auto-resolve own code
+    if (loadingMyCode) {
+      return (
+        <div className="space-y-2">
+          <Label>Referral Code</Label>
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading your referral code...
+          </div>
+        </div>
+      );
+    }
+
+    if (!myCode) {
+      return (
+        <div className="space-y-2">
+          <Label>Referral Code</Label>
+          <div className="flex items-center gap-2 text-destructive text-sm py-2">
+            <AlertCircle className="h-4 w-4" />
+            You don't have a referral code yet. Please contact support or generate one from your dashboard.
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        <Label>Referral Code</Label>
+        <div className="relative">
+          <Input value={myCode} readOnly className="border-green-500 pr-10 bg-muted" />
+          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+            <Check className="h-4 w-4 text-green-600" />
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground">Your referral code (auto-selected)</p>
+      </div>
+    );
   };
 
   return (
@@ -181,86 +231,14 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="referralCode">Referral Code</Label>
-            {showCodeSelector && !defaultReferralCode ? (
-              <div>
-                <ReferralCodeSelector
-                  value={selectedCode}
-                  onChange={handleCodeSelectorChange}
-                  placeholder="Search and select referral code..."
-                />
-                {referralCodeValid === true && (
-                  <p className="text-sm text-green-600 mt-1">Valid referral code</p>
-                )}
-                {referralCodeValid === false && (
-                  <p className="text-sm text-destructive mt-1">Invalid or inactive code</p>
-                )}
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="referralCode"
-                    placeholder="Enter referral code"
-                    disabled={!editingCode && !!defaultReferralCode}
-                    className={
-                      referralCodeValid === true
-                        ? "border-green-500 pr-10"
-                        : referralCodeValid === false
-                        ? "border-destructive pr-10"
-                        : "pr-10"
-                    }
-                    {...form.register("referralCode", {
-                      onChange: (e) => validateReferralCode(e.target.value),
-                    })}
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {checkingCode ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    ) : referralCodeValid === true ? (
-                      <Check className="h-4 w-4 text-green-600" />
-                    ) : referralCodeValid === false ? (
-                      <X className="h-4 w-4 text-destructive" />
-                    ) : null}
-                  </div>
-                </div>
-                {defaultReferralCode && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      setEditingCode(!editingCode);
-                      if (editingCode) {
-                        form.setValue("referralCode", defaultReferralCode);
-                        validateReferralCode(defaultReferralCode);
-                      }
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            )}
-            {referralCodeValid === true && !showCodeSelector && (
-              <p className="text-sm text-green-600">Valid referral code</p>
-            )}
-            {referralCodeValid === false && !showCodeSelector && (
-              <p className="text-sm text-destructive">Invalid or inactive code</p>
-            )}
-            {form.formState.errors.referralCode && (
-              <p className="text-sm text-destructive">{form.formState.errors.referralCode.message}</p>
-            )}
-          </div>
+          {renderReferralField()}
+          {form.formState.errors.referralCode && (
+            <p className="text-sm text-destructive">{form.formState.errors.referralCode.message}</p>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
-            <Input
-              id="fullName"
-              placeholder="Enter full name"
-              {...form.register("fullName")}
-            />
+            <Input id="fullName" placeholder="Enter full name" {...form.register("fullName")} />
             {form.formState.errors.fullName && (
               <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
             )}
@@ -287,18 +265,13 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
           </div>
 
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => setOpen(false)}
-            >
+            <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>
               Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1"
-              disabled={isSubmitting || referralCodeValid !== true}
+              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode)}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add User

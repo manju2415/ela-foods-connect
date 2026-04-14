@@ -25,11 +25,12 @@ serve(async (req) => {
       });
     }
 
-    const { data: { user: caller }, error: authError } = await createClient(
+    const anonClient = createClient(
       supabaseUrl,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
-    ).auth.getUser();
+    );
+    const { data: { user: caller }, error: authError } = await anonClient.auth.getUser();
 
     if (authError || !caller) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -39,7 +40,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phone, full_name, referral_code } = body;
+    const { phone, full_name, referral_code, added_by_user_id } = body;
 
     // Validate inputs
     if (!phone || !/^\d{10}$/.test(phone)) {
@@ -77,6 +78,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Determine the actual referrer: the member who added the user (caller),
+    // not necessarily the referral code owner
+    const actualReferrerId = added_by_user_id || caller.id;
 
     // Check if user already exists with this phone (using mock email pattern)
     const cleanPhone = `91${phone}`;
@@ -135,6 +140,15 @@ serve(async (req) => {
       });
     } catch (err) {
       console.error("MLM referral processing error:", err);
+    }
+
+    // Override referred_by to point to the actual adder (caller), not the code owner
+    // This ensures commissions flow to the member who added the user
+    if (actualReferrerId && actualReferrerId !== codeData.user_id) {
+      await supabase
+        .from("profiles")
+        .update({ referred_by: actualReferrerId })
+        .eq("id", newUserId);
     }
 
     return new Response(

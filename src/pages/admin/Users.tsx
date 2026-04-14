@@ -180,7 +180,7 @@ export default function UsersPage() {
               onUserAdded={() => {
                 queryClient.invalidateQueries({ queryKey: ["admin-users"] });
               }}
-              showCodeSelector={true}
+              isAdmin={true}
               trigger={
                 <Button>
                   <UserPlus className="h-4 w-4 mr-2" />
