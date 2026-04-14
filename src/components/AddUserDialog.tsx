@@ -115,9 +115,25 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       });
 
       if (error) {
+        // supabase.functions.invoke puts non-2xx responses in error
+        // Try to extract the actual error message from the response
+        let errorMessage = "An error occurred. Please try again.";
+        try {
+          if (error instanceof Response || (error as any)?.context?.body) {
+            // For FunctionsHttpError, the body may contain JSON
+          }
+          const errorText = typeof error === "object" && "message" in error ? (error as any).message : String(error);
+          if (errorText) errorMessage = errorText;
+        } catch (_) {}
+        
+        // Also check if result has error info despite the error flag
+        if (result?.error) {
+          errorMessage = result.error;
+        }
+        
         toast({
           title: "Failed to add user",
-          description: "An error occurred. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
         setIsSubmitting(false);
