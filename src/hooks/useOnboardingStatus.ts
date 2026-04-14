@@ -33,7 +33,7 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
     checkOnboardingStatus(userId);
   }, [userId]);
 
-  const checkOnboardingStatus = async (uid: string) => {
+  const checkOnboardingStatus = async (uid: string, retryCount = 0) => {
     try {
       // Check profile, delivery partner, and dashboard-eligible roles in parallel
       const [profileRes, partnerRes, memberAccessRes] = await Promise.all([
