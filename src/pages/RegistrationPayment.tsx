@@ -143,7 +143,22 @@ const RegistrationPayment = () => {
           });
 
           setFeePaid(true);
-          setTimeout(() => navigate("/dashboard"), 2000);
+
+          // Redirect to correct dashboard based on role
+          const { data: roles } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id);
+
+          const roleSet = new Set((roles || []).map((r) => r.role));
+
+          let targetRoute = "/customer-app";
+          if (roleSet.has("super_admin")) targetRoute = "/admin";
+          else if (roleSet.has("mlm_admin")) targetRoute = "/mlm-admin";
+          else if (roleSet.has("admin")) targetRoute = "/admin/products";
+          else if (roleSet.has("founding_member") || roleSet.has("member")) targetRoute = "/member-app";
+
+          setTimeout(() => navigate(targetRoute, { replace: true }), 1500);
         },
         onFailure: (error) => {
           console.error("Payment error:", error);
@@ -172,7 +187,7 @@ const RegistrationPayment = () => {
       title: "Registration Skipped",
       description: "You can complete registration payment later from your dashboard.",
     });
-    navigate("/dashboard");
+    navigate("/customer-app");
   };
 
   if (loading) {
