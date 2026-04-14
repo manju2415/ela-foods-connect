@@ -36,9 +36,9 @@ export default function MemberApp() {
     }
   }, [user, authLoading, navigate]);
 
-  // Redirect based on onboarding status (delivery partners skip this)
+  // Redirect based on onboarding status (delivery partners and fully onboarded users skip this)
   useEffect(() => {
-    if (isLoading || !user || isDeliveryPartner) return;
+    if (isLoading || !user || isDeliveryPartner || isFullyOnboarded) return;
     
     if (!isProfileComplete) {
       navigate("/complete-registration", { replace: true });
@@ -49,7 +49,7 @@ export default function MemberApp() {
       navigate("/registration-payment", { replace: true });
       return;
     }
-  }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, navigate]);
+  }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
 
   // Request push notification permission after dashboard is fully loaded and functional
   useEffect(() => {

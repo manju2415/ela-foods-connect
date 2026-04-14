@@ -118,6 +118,9 @@ const Auth = () => {
   };
 
   const handlePostVerifyRedirect = async (isNewUser: boolean) => {
+    // Wait for auth session + RLS context to fully propagate before querying
+    await new Promise(r => setTimeout(r, 800));
+
     const { data: { user: verifiedUser } } = await supabase.auth.getUser();
     if (!verifiedUser) return;
 
