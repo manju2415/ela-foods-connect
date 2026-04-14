@@ -187,7 +187,7 @@ const RegistrationPayment = () => {
       title: "Registration Skipped",
       description: "You can complete registration payment later from your dashboard.",
     });
-    navigate("/dashboard");
+    navigate("/customer-app");
   };
 
   if (loading) {
