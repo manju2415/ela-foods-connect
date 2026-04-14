@@ -13,6 +13,7 @@ import { initiateRazorpayPayment } from "@/utils/razorpay";
 interface RegistrationSettings {
   amount: number;
   wallet_credit: number;
+  non_refundable: number;
 }
 
 const RegistrationPayment = () => {
@@ -22,7 +23,7 @@ const RegistrationPayment = () => {
 
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000 });
+  const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000, non_refundable: 0 });
   const [feePaid, setFeePaid] = useState(false);
 
   useEffect(() => {
@@ -56,10 +57,14 @@ const RegistrationPayment = () => {
       .single();
 
     if (settingsData?.value) {
-      const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number };
+      const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number; non_refundable?: number };
+      const total = value.total || value.amount || 2499;
+      const walletCredit = value.wallet_credit || 1000;
+      const nonRefundable = value.non_refundable || (total - walletCredit);
       setSettings({
-        amount: value.total || value.amount || 2499,
-        wallet_credit: value.wallet_credit || 1000,
+        amount: total,
+        wallet_credit: walletCredit,
+        non_refundable: nonRefundable > 0 ? nonRefundable : 0,
       });
     }
 
