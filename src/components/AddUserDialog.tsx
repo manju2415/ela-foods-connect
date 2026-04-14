@@ -115,9 +115,20 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       });
 
       if (error) {
+        let errorMessage = "An error occurred. Please try again.";
+        try {
+          // FunctionsHttpError stores the Response in .context
+          if ("context" in error && (error as any).context instanceof Response) {
+            const body = await (error as any).context.json();
+            if (body?.error) errorMessage = body.error;
+          } else if ((error as any).message) {
+            errorMessage = (error as any).message;
+          }
+        } catch {}
+        
         toast({
           title: "Failed to add user",
-          description: "An error occurred. Please try again.",
+          description: errorMessage,
           variant: "destructive",
         });
         setIsSubmitting(false);
