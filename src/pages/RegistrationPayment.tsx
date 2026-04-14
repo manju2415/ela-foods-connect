@@ -66,9 +66,38 @@ const RegistrationPayment = () => {
     setLoading(false);
   };
 
+  const getPaymentErrorMessage = (error: unknown) => {
+    if (typeof error === "string" && error) {
+      return error;
+    }
+
+    if (error && typeof error === "object") {
+      const paymentError = error as { description?: string; message?: string; reason?: string };
+      if (paymentError.description) return paymentError.description;
+      if (paymentError.message) return paymentError.message;
+      if (paymentError.reason) return paymentError.reason;
+    }
+
+    return "Something went wrong. Please try again.";
+  };
+
+  const getFriendlyPaymentErrorMessage = (error: unknown) => {
+    const errorMessage = getPaymentErrorMessage(error);
+
+    if (errorMessage.toLowerCase().includes("website does not match registered website")) {
+      return "Razorpay is blocking this preview domain. Add this domain in Razorpay Website settings and try again.";
+    }
+
+    return errorMessage;
+  };
+
   const handlePayment = async () => {
     if (!user) return;
     setProcessing(true);
+
+    const paymentPhone =
+      user.phone ||
+      (typeof user.user_metadata?.phone === "string" ? user.user_metadata.phone : "");
 
     try {
       await initiateRazorpayPayment({
@@ -80,7 +109,7 @@ const RegistrationPayment = () => {
         prefill: {
           name: user.user_metadata?.full_name || "",
           email: user.email || "",
-          contact: user.phone || "",
+          contact: paymentPhone,
         },
         onSuccess: async (response) => {
           // Process registration via server-side edge function (bypasses RLS)
@@ -115,7 +144,7 @@ const RegistrationPayment = () => {
           console.error("Payment error:", error);
           toast({
             title: "Payment Failed",
-            description: "Something went wrong. Please try again.",
+            description: getFriendlyPaymentErrorMessage(error),
             variant: "destructive",
           });
           setProcessing(false);
@@ -125,7 +154,7 @@ const RegistrationPayment = () => {
       console.error("Payment error:", error);
       toast({
         title: "Payment Failed",
-        description: "Something went wrong. Please try again.",
+        description: getFriendlyPaymentErrorMessage(error),
         variant: "destructive",
       });
     }

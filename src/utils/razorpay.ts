@@ -21,6 +21,16 @@ interface RazorpayPaymentOptions {
   onFailure: (error: any) => void;
 }
 
+const formatRazorpayContact = (contact?: string) => {
+  const digits = (contact || "").replace(/\D/g, "");
+
+  if (!digits) {
+    return "";
+  }
+
+  return digits.length > 10 ? digits.slice(-10) : digits;
+};
+
 export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) => {
   // Step 1: Create Razorpay order via edge function
   const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
@@ -46,7 +56,7 @@ export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) =
     prefill: {
       name: options.prefill?.name || "",
       email: options.prefill?.email || "",
-      contact: options.prefill?.contact || "",
+      contact: formatRazorpayContact(options.prefill?.contact),
     },
     theme: {
       color: "#f97316",
