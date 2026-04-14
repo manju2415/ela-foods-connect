@@ -56,9 +56,9 @@ const RegistrationPayment = () => {
       .single();
 
     if (settingsData?.value) {
-      const value = settingsData.value as { amount?: number; wallet_credit?: number };
+      const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number };
       setSettings({
-        amount: value.amount || 2499,
+        amount: value.total || value.amount || 2499,
         wallet_credit: value.wallet_credit || 1000,
       });
     }
