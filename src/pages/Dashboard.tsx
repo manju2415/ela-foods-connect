@@ -366,9 +366,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           </div>
           {!isDeliveryPartner && (
             <AddUserDialog 
-              defaultReferralCode={referralCodes.length > 0 ? referralCodes[0]?.code : undefined}
               onUserAdded={fetchData}
-              showCodeSelector={referralCodes.length === 0}
               trigger={
                 <Button>
                   <UserPlus className="h-4 w-4 mr-2" />
