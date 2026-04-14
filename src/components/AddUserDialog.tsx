@@ -115,21 +115,16 @@ export function AddUserDialog({ defaultReferralCode, onUserAdded, trigger, showC
       });
 
       if (error) {
-        // supabase.functions.invoke puts non-2xx responses in error
-        // Try to extract the actual error message from the response
         let errorMessage = "An error occurred. Please try again.";
         try {
-          if (error instanceof Response || (error as any)?.context?.body) {
-            // For FunctionsHttpError, the body may contain JSON
+          // FunctionsHttpError stores the Response in .context
+          if ("context" in error && (error as any).context instanceof Response) {
+            const body = await (error as any).context.json();
+            if (body?.error) errorMessage = body.error;
+          } else if ((error as any).message) {
+            errorMessage = (error as any).message;
           }
-          const errorText = typeof error === "object" && "message" in error ? (error as any).message : String(error);
-          if (errorText) errorMessage = errorText;
-        } catch (_) {}
-        
-        // Also check if result has error info despite the error flag
-        if (result?.error) {
-          errorMessage = result.error;
-        }
+        } catch {}
         
         toast({
           title: "Failed to add user",
