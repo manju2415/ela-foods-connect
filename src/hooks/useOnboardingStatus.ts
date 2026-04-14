@@ -33,7 +33,7 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
     checkOnboardingStatus(userId);
   }, [userId]);
 
-  const checkOnboardingStatus = async (uid: string) => {
+  const checkOnboardingStatus = async (uid: string, retryCount = 0) => {
     try {
       // Check profile, delivery partner, and dashboard-eligible roles in parallel
       const [profileRes, partnerRes, memberAccessRes] = await Promise.all([
@@ -59,6 +59,13 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
       const profile = profileRes.data;
       const isDeliveryPartner = !!partnerRes.data;
       const hasMemberDashboardAccess = !!memberAccessRes.data || profile?.user_level === "founder";
+
+      // If no role found and no profile yet, retry once after a short delay
+      // (handles race condition where auth session isn't fully propagated to RLS)
+      if (!hasMemberDashboardAccess && !isDeliveryPartner && !profile && retryCount < 2) {
+        await new Promise(r => setTimeout(r, 800));
+        return checkOnboardingStatus(uid, retryCount + 1);
+      }
 
       // Delivery partners and member/admin accounts skip onboarding when entering the member dashboard
       if (isDeliveryPartner || hasMemberDashboardAccess) {
