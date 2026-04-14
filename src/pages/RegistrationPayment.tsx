@@ -240,6 +240,25 @@ const RegistrationPayment = () => {
                 <p className="text-4xl font-bold text-primary">₹{settings.amount}</p>
               </div>
 
+              {/* Fee Breakdown */}
+              <div className="rounded-lg border p-4 space-y-2">
+                <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">Fee Breakdown</h4>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-sm">Wallet Credit (Purchase Only)</span>
+                  <span className="font-medium text-green-600">₹{settings.wallet_credit}</span>
+                </div>
+                {settings.non_refundable > 0 && (
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-sm">Platform Fee (Non-refundable)</span>
+                    <span className="font-medium">₹{settings.non_refundable}</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 flex justify-between items-center font-semibold">
+                  <span>Total</span>
+                  <span>₹{settings.amount}</span>
+                </div>
+              </div>
+
               {/* Benefits */}
               <div className="space-y-4">
                 <h3 className="font-semibold">What you get:</h3>
