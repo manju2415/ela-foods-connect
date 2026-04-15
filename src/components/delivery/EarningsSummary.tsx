@@ -35,8 +35,16 @@ export default function EarningsSummary({ partnerId }: EarningsSummaryProps) {
 
       if (error) throw error;
 
-      // Calculate earnings (assuming 5% commission per delivery)
-      const COMMISSION_RATE = 0.05;
+      // Fetch delivery commission rate from platform settings
+      const { data: commissionSetting } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "delivery_commission")
+        .maybeSingle();
+      
+      const COMMISSION_RATE = commissionSetting?.value 
+        ? (commissionSetting.value as any).percentage / 100 
+        : 0.05;
       const now = new Date();
       const weekStart = startOfWeek(now);
       const monthStart = startOfMonth(now);

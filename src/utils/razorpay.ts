@@ -31,7 +31,32 @@ const formatRazorpayContact = (contact?: string) => {
   return digits.length > 10 ? digits.slice(-10) : digits;
 };
 
+const loadRazorpayScript = (): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+    const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Failed to load Razorpay SDK")));
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    document.head.appendChild(script);
+  });
+};
+
 export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) => {
+  // Ensure Razorpay SDK is loaded
+  await loadRazorpayScript();
+  if (!window.Razorpay) {
+    throw new Error("Razorpay SDK failed to initialize. Please refresh and try again.");
+  }
   // Step 1: Create Razorpay order via edge function
   const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
     body: {

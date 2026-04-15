@@ -60,6 +60,7 @@ const menuItems: MenuItem[] = [
   { title: "Order Assignments", url: "/admin/order-assignments", icon: ClipboardList, storeAdminVisible: true },
   { title: "Delivery Partners", url: "/admin/delivery-partners", icon: Truck, storeAdminVisible: true },
   { title: "Return Requests", url: "/admin/return-requests", icon: RotateCcw, storeAdminVisible: true },
+  { title: "Founding Members", url: "/admin/founding-members", icon: Crown, superAdminOnly: true },
   { title: "Users", url: "/admin/users", icon: Users, storeAdminVisible: true },
   { title: "Stores", url: "/admin/stores", icon: Store, storeAdminVisible: true },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },

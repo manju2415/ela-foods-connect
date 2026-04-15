@@ -39,20 +39,27 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
   const fetchData = async () => {
     setLoading(true);
     
-    const [codesRes, profileRes, referralsRes] = await Promise.all([
+    const [codesRes, profileRes, referralsRes, walletRes] = await Promise.all([
       supabase.from("referral_codes").select("*").eq("user_id", userId).eq("is_active", true),
       supabase.from("profiles").select("referral_count, user_level").eq("id", userId).maybeSingle(),
-      supabase.from("referrals").select("incentive_amount").eq("referrer_id", userId),
+      supabase.from("referrals").select("id").eq("referrer_id", userId),
+      supabase.from("wallets").select("id").eq("user_id", userId).maybeSingle(),
     ]);
 
     if (codesRes.data) {
       setReferralCodes(codesRes.data);
     }
 
-    const totalEarnings = (referralsRes.data || []).reduce(
-      (sum, r) => sum + (Number(r.incentive_amount) || 0),
-      0
-    );
+    // Calculate earnings from wallet_transactions (referral_bonus type)
+    let totalEarnings = 0;
+    if (walletRes.data?.id) {
+      const { data: txns } = await supabase
+        .from("wallet_transactions")
+        .select("amount")
+        .eq("wallet_id", walletRes.data.id)
+        .eq("type", "referral_bonus");
+      totalEarnings = (txns || []).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    }
 
     setStats({
       total_referrals: referralsRes.data?.length || 0,
