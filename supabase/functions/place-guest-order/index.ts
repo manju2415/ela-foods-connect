@@ -81,48 +81,42 @@ serve(async (req) => {
     }
 
     const totalAmount = subtotal - finalDiscount + shippingAmount;
-
-    // Generate order number
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
-    // Create a guest user placeholder or use anonymous UUID
-    const guestUserId = "00000000-0000-0000-0000-000000000000";
+    // Create a real guest user in auth.users
+    const guestEmail = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@elabazar.local`;
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email: guestEmail,
+      password: `guest_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`,
+      email_confirm: true,
+      user_metadata: { full_name: guest_details.full_name || "Guest User", is_guest: true },
+    });
 
-    // Check if guest placeholder user exists, create if not
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", guestUserId)
-      .maybeSingle();
-
-    if (!existingProfile) {
-      // Create the guest user in auth and profile
-      const { error: authErr } = await supabase.auth.admin.createUser({
-        email: "guest@elafoods.local",
-        password: "guest_placeholder_never_login_2026",
-        email_confirm: true,
-        user_metadata: { full_name: "Guest User" },
+    if (authErr || !authData?.user) {
+      console.error("Failed to create guest auth user:", authErr);
+      return new Response(JSON.stringify({ error: "Failed to create guest user" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-      // If auth user creation fails (already exists etc), try to just ensure profile exists
-      if (authErr) {
-        console.log("Guest auth user may already exist:", authErr.message);
-      }
-      
-      // Upsert profile for guest
-      await supabase.from("profiles").upsert({
-        id: guestUserId,
-        email: "guest@elafoods.local",
-        full_name: "Guest User",
-      }, { onConflict: "id" });
-
-      // Ensure wallet exists
-      await supabase.from("wallets").upsert({
-        user_id: guestUserId,
-        balance: 0,
-      }, { onConflict: "user_id" });
     }
 
-    // Insert order using service role (bypasses RLS)
+    const guestUserId = authData.user.id;
+
+    // Ensure profile exists (trigger should create it, but upsert to be safe)
+    await supabase.from("profiles").upsert({
+      id: guestUserId,
+      email: guestEmail,
+      full_name: guest_details.full_name || "Guest User",
+      phone: guest_details.phone || null,
+    }, { onConflict: "id" });
+
+    // Ensure wallet exists
+    await supabase.from("wallets").upsert({
+      user_id: guestUserId,
+      balance: 0,
+    }, { onConflict: "user_id" });
+
+    // Insert order
     const { data: order, error: orderErr } = await supabase
       .from("orders")
       .insert({
@@ -166,25 +160,18 @@ serve(async (req) => {
     // Insert order items
     const itemsWithOrderId = orderItems.map((i: any) => ({ ...i, order_id: order.id }));
     const { error: itemsErr } = await supabase.from("order_items").insert(itemsWithOrderId);
-
     if (itemsErr) {
       console.error("Order items insert error:", itemsErr);
     }
 
     // Update coupon usage if applied
     if (coupon_code) {
-      await supabase
-        .from("coupons")
-        .update({ usage_count: supabase.rpc ? undefined : 0 })
-        .eq("code", coupon_code);
-      
-      // Increment usage count
       const { data: coupon } = await supabase
         .from("coupons")
         .select("usage_count")
         .eq("code", coupon_code)
         .single();
-      
+
       if (coupon) {
         await supabase
           .from("coupons")
