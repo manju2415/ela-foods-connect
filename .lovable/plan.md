@@ -1,29 +1,49 @@
 
 
-## Plan: Fix "Failed to Place Order" for COD
+## Plan: Fix 3 Issues (Member Redirect, Order Amount, Assignment Notifications)
 
-### Root Cause
-The `place-guest-order` Edge Function uses a hardcoded UUID (`00000000-...`) as a fake guest user. The `orders` table has a foreign key (`orders_user_id_fkey`) referencing `auth.users(id)`. After the recent test data reset, no such user exists in `auth.users`, causing the FK violation error:
+### Issue 1: Phone 9999000006 redirects to Admin instead of Member App
 
+**Root cause**: The user created with phone `9999000006` likely has a stale `admin` or `super_admin` role in `user_roles` from before the trigger cleanup. The `resolveRoleRedirect` function checks `is_admin()` (which returns true for `admin` or `super_admin`) before checking for `member` role, so admin takes priority.
+
+**Fix**:
+- Database migration: Delete any `admin`/`super_admin`/`mlm_admin` roles for the user with phone `9999000006`, keeping only the `member` role.
+- Query: `DELETE FROM user_roles WHERE user_id = (SELECT id FROM profiles WHERE phone LIKE '%9999000006') AND role NOT IN ('member');`
+
+### Issue 2: Order amount not displayed in Delivery App
+
+**Root cause**: The `orders` table RLS only allows SELECT for the order's own `user_id` or admins. Delivery partners are neither, so when the dashboard queries `orders` for assigned order details, the rows are filtered out by RLS — returning empty results, causing `total_amount` to show as 0 or "N/A".
+
+**Fix**:
+- Database migration: Add a new RLS policy on `orders` table allowing delivery partners to SELECT orders that are assigned to them:
+```sql
+CREATE POLICY "Delivery partners can view their assigned orders"
+ON public.orders FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM order_assignments oa
+    JOIN delivery_partners dp ON dp.id = oa.delivery_partner_id
+    WHERE oa.order_id = orders.id AND dp.user_id = auth.uid()
+  )
+);
 ```
-Key (user_id)=(00000000-0000-0000-0000-000000000000) is not present in table "users"
-```
 
-This affects **both COD and online payment** for guest checkouts.
+### Issue 3: Delivery partner notification on order assignment
 
-### Fix
-Update the `place-guest-order` Edge Function to create a real anonymous auth user per guest order instead of using a hardcoded UUID. Each guest order will get a unique, real `auth.users` entry.
+**Status**: Already implemented. The `OrderAssignments.tsx` (line 193) calls `supabase.rpc("create_notification", ...)` with title "New Order Assigned" when an order is assigned. The `NotificationBell` component subscribes to real-time inserts on the `notifications` table. The `DeliveryDashboard` (lines 160-180) also subscribes to real-time changes on `order_assignments` and shows a toast.
 
-| File | Change |
-|------|--------|
-| `supabase/functions/place-guest-order/index.ts` | Replace hardcoded UUID with `supabase.auth.admin.createUser()` to create a real guest user per order. Use the guest's phone/email to create a deterministic account, or create a disposable one. Ensure profile and wallet are created for the new user. |
+**Verification needed**: The notification system works for in-app notifications. Push notifications (FCM) require the `FCM_SERVER_KEY` secret which is not currently configured — push will only work once that's set up. But in-app notifications and real-time toasts should work now.
 
-### Approach
-- Generate a unique email like `guest_{timestamp}@elabazar.local` for each guest order
-- Create a real auth user via `admin.createUser()`
-- Use the returned user ID for the order insert
-- This satisfies the FK constraint and keeps orders traceable
+No code changes needed for Issue 3.
 
-### If the user is authenticated
-The authenticated checkout flow (`Checkout.tsx`) should already work for COD. If there's also an issue there, it would be a separate RLS or session problem — but the DB logs only show the guest FK error.
+---
+
+### Files to change
+
+| Change | Type |
+|--------|------|
+| Clean up stale roles for phone `9999000006` | Database migration |
+| Add RLS policy on `orders` for delivery partners | Database migration |
+
+Both fixes are a single database migration.
 
