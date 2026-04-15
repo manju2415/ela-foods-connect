@@ -1,41 +1,61 @@
 
 
-## Plan: Phone-Only Login + Commission Attribution to Adding Member
+## Plan: Fix 7 Platform Issues
 
-### Problem
-1. **Login**: Some users (e.g., test123@gmail.com) have no phone number, making phone-based login impossible. All logins must be phone-only.
-2. **Commission attribution**: Currently, commissions go to the **referral code owner**, not the **member who added the user**. When a member adds a new user, their own referral code should be auto-selected (not a dropdown of all codes).
+### Issue 1: New users getting Super Admin role
+**Root cause**: The `handle_new_user` database trigger includes phone `9108682966` in the super_admin pattern. User "charan" already has this role incorrectly.
 
-### Changes
+**Fix**:
+- Database migration: Update `handle_new_user` trigger to remove `9108682966` from super_admin patterns.
+- Data fix (insert tool): Delete the incorrect `super_admin` role for user "charan" (phone `09108682966`).
 
-#### 1. AddUserDialog — Auto-select the logged-in member's referral code
-**File**: `src/components/AddUserDialog.tsx`
-- Import `useAuth` to get the current user.
-- On dialog open, fetch the logged-in user's own referral code from `referral_codes` table.
-- Auto-populate and lock the referral code field to this code (no selector, no editing).
-- Remove `showCodeSelector` prop usage — always use the caller's code.
-- If the logged-in user has no referral code, show a message asking them to generate one first.
+### Issue 2: Member Dashboard earnings not updating
+**Root cause**: `ReferralSection.tsx` (line 45) calculates earnings from `referrals.incentive_amount`, which defaults to 0. Actual commissions are in `wallet_transactions`.
 
-#### 2. Dashboard — Simplify AddUserDialog usage
-**File**: `src/pages/Dashboard.tsx` (line ~368)
-- Remove `defaultReferralCode` and `showCodeSelector` props — the dialog now self-resolves the caller's code.
+**Fix**: Update `ReferralSection.tsx` to query `wallet_transactions` (type `referral_bonus`) joined through `wallets` for the user, summing amounts where `source_user_id` matches referred users.
 
-#### 3. Admin Users page — Keep selector for admins
-**File**: `src/pages/admin/Users.tsx` (line ~179)  
-- Add a new prop `isAdmin={true}` to `AddUserDialog` so admins can still pick any referral code via the selector.
+### Issue 3: Super Admin can't create founding members
+**Root cause**: Founding Members page exists at `/admin/founding-members` but is missing from `AdminSidebar.tsx`. Also, no user removal feature exists.
 
-#### 4. Edge Function — Accept `added_by` user ID
-**File**: `supabase/functions/add-network-user/index.ts`
-- Accept an optional `added_by_user_id` field in the request body.
-- When present, set `profiles.referred_by` to `added_by_user_id` (the caller) regardless of referral code ownership.
-- The referral code is still validated and its `usage_count` incremented, but the **referral relationship** and **commission chain** point to the caller.
+**Fix**:
+- Add `{ title: "Founding Members", url: "/admin/founding-members", icon: Crown, superAdminOnly: true }` to `AdminSidebar.tsx`.
+- Add a "Remove User" button in `Users.tsx` with a new `remove-user` edge function that calls `supabase.auth.admin.deleteUser()`.
 
-#### 5. Ensure all test users have phone numbers
-- Use the database insert tool to update `test123@gmail.com`'s profile with a phone number so they can log in via phone OTP.
+### Issue 4: Founding member form asks for email
+**Root cause**: `FoundingMembers.tsx` uses email input and searches `profiles.email`.
 
-### Technical Details
+**Fix**: Change to a 10-digit phone input, search by `profiles.phone` using `+91` prefix, update labels and placeholders.
 
-**Commission flow change**: Currently `process_mlm_referral` sets `referred_by = referral_code_owner`. The edge function will now explicitly set `referred_by = caller_id` **after** calling `process_mlm_referral`, overriding the code owner. Alternatively, the edge function can set `referred_by` before calling the RPC and skip the RPC's own `referred_by` update (since it already exists).
+### Issue 5: Referral bonus & commission on registration
+**Status**: Already working — `process_mlm_referral` credits referrer and `credit_founder_commission` handles upline. Will verify flow is intact after trigger fix in Issue 1.
 
-**AddUserDialog changes**: The component will fetch the current user's referral code on mount. The referral code field becomes read-only for non-admin users, showing the auto-resolved code. If no code exists, a "Generate Code" button is shown instead of the form.
+### Issue 6: Delivery app fixed ₹50 charge
+**Root cause**: `EarningsSummary.tsx` uses hardcoded `COMMISSION_RATE = 0.05` (5%). The shipping flat rate (₹50) from `useShippingSettings` is separate.
+
+**Fix**: Add a `delivery_commission` setting to `platform_settings` and read it in `EarningsSummary.tsx`. Also add a "Delivery Commission" field in admin Settings page.
+
+### Issue 7: Razorpay "Failed to create order"
+**Root cause**: Likely the Razorpay SDK script not loaded, or the preview URL not whitelisted in Razorpay dashboard.
+
+**Fix**:
+- Add SDK load check in `razorpay.ts`: if `!window.Razorpay`, dynamically load the script or show a clear error.
+- Check edge function logs for `razorpay-create-order` errors.
+- The hardcoded `keyId` in the edge function (`rzp_live_SbI9NJkqWwYUvV`) should be moved to a secret for security.
+
+---
+
+### Files to create/edit
+
+| File | Change |
+|------|--------|
+| Database migration | Update `handle_new_user` trigger (remove `9108682966`) |
+| Data fix | Delete charan's `super_admin` role |
+| `src/components/admin/AdminSidebar.tsx` | Add "Founding Members" menu item |
+| `src/pages/admin/FoundingMembers.tsx` | Change email → phone input and search |
+| `src/components/dashboard/ReferralSection.tsx` | Fix earnings to use `wallet_transactions` |
+| `src/components/delivery/EarningsSummary.tsx` | Configurable commission from `platform_settings` |
+| `src/pages/admin/Settings.tsx` | Add delivery commission setting field |
+| `src/utils/razorpay.ts` | Add SDK load guard with dynamic script injection |
+| `src/pages/admin/Users.tsx` | Add remove user button |
+| `supabase/functions/remove-user/index.ts` | New edge function for user deletion |
 
