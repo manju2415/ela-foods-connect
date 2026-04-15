@@ -42,7 +42,7 @@ interface FoundingMember {
 const FoundingMembers = () => {
   const [members, setMembers] = useState<FoundingMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isAdding, setIsAdding] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [generatingCode, setGeneratingCode] = useState<string | null>(null);
@@ -65,7 +65,7 @@ const FoundingMembers = () => {
     const membersWithDetails = await Promise.all(
       (roles || []).map(async (role) => {
         const [profileRes, codesRes] = await Promise.all([
-          supabase.from("profiles").select("full_name, email").eq("id", role.user_id).maybeSingle(),
+          supabase.from("profiles").select("full_name, email, phone").eq("id", role.user_id).maybeSingle(),
           supabase.from("referral_codes").select("code, is_active").eq("user_id", role.user_id),
         ]);
 
@@ -86,22 +86,24 @@ const FoundingMembers = () => {
   }, []);
 
   const handleAddFoundingMember = async () => {
-    if (!email.trim()) {
-      toast({ title: "Please enter an email", variant: "destructive" });
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length !== 10) {
+      toast({ title: "Please enter a valid 10-digit phone number", variant: "destructive" });
       return;
     }
 
     setIsAdding(true);
 
-    // Find user by email
+    // Find user by phone (try multiple formats)
+    const phoneVariants = [digits, `+91${digits}`, `91${digits}`, `0${digits}`];
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("email", email.trim().toLowerCase())
+      .in("phone", phoneVariants)
       .maybeSingle();
 
     if (profileError || !profile) {
-      toast({ title: "User not found with this email", variant: "destructive" });
+      toast({ title: "User not found with this phone number", variant: "destructive" });
       setIsAdding(false);
       return;
     }
@@ -132,7 +134,7 @@ const FoundingMembers = () => {
     }
 
     toast({ title: "Founding member added successfully!" });
-    setEmail("");
+    setPhone("");
     setDialogOpen(false);
     setIsAdding(false);
     fetchMembers();
@@ -189,13 +191,14 @@ const FoundingMembers = () => {
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">User Email</Label>
+                  <Label htmlFor="phone">Phone Number</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter 10-digit phone number"
+                    maxLength={10}
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                   />
                   <p className="text-xs text-muted-foreground">
                     The user must already have an account
@@ -226,7 +229,7 @@ const FoundingMembers = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Referral Codes</TableHead>
                     <TableHead>Added</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -238,7 +241,7 @@ const FoundingMembers = () => {
                       <TableCell className="font-medium">
                         {member.profile?.full_name || "N/A"}
                       </TableCell>
-                      <TableCell>{member.profile?.email || "N/A"}</TableCell>
+                      <TableCell>{(member.profile as any)?.phone || "N/A"}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {member.referral_codes.length === 0 ? (

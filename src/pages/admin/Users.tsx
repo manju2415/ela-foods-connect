@@ -31,8 +31,18 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog } from "lucide-react";
+import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { AddUserDialog } from "@/components/AddUserDialog";
@@ -63,6 +73,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
@@ -133,6 +144,24 @@ export default function UsersPage() {
       } else {
         toast.error("Failed to add role");
       }
+    },
+  });
+
+  const removeUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke("remove-user", {
+        body: { user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("User removed successfully");
+      setUserToDelete(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to remove user");
     },
   });
 
@@ -280,6 +309,13 @@ export default function UsersPage() {
                         >
                           Manage Roles
                         </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setUserToDelete(user)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -394,6 +430,26 @@ export default function UsersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Remove User Confirmation */}
+        <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove User</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to permanently remove {userToDelete?.full_name || userToDelete?.phone}? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => userToDelete && removeUserMutation.mutate(userToDelete.id)}
+              >
+                {removeUserMutation.isPending ? "Removing..." : "Remove"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AdminLayout>
   );
