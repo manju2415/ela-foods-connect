@@ -237,6 +237,46 @@ export default function CustomerProfilePage() {
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
           </Button>
+
+          {/* Delete Account */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button className="w-full text-center text-sm text-muted-foreground underline underline-offset-2 hover:text-destructive transition-colors py-2">
+                <Trash2 className="h-3.5 w-3.5 inline mr-1" />
+                Request Account Deletion
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will send a request to permanently delete your account and all associated data including order history, wallet balance, and network information. This action cannot be undone. Our team will process your request within 7 working days.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={async () => {
+                    if (!user) return;
+                    try {
+                      await supabase.rpc("create_notification", {
+                        p_user_id: user.id,
+                        p_title: "Account Deletion Requested",
+                        p_message: `User ${profile?.full_name || profile?.email} (${profile?.phone || 'no phone'}) has requested account deletion.`,
+                        p_type: "warning",
+                      });
+                      toast.success("Account deletion request submitted. Our team will contact you shortly.");
+                    } catch {
+                      toast.error("Failed to submit request. Please contact support.");
+                    }
+                  }}
+                >
+                  Yes, delete my account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </PullToRefresh>
     </div>
