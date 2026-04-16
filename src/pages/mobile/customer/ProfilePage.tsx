@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { User, Mail, Phone, MapPin, LogOut, ChevronRight, Heart, Settings } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { User, Mail, Phone, MapPin, LogOut, ChevronRight, Heart, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface Profile {
