@@ -1,62 +1,89 @@
 
-The user already has MSG91 integrated (edge functions `msg91-send-otp`, `msg91-verify-otp`, `msg91-config` exist with `MSG91_AUTH_TOKEN` and `MSG91_TEMPLATE_ID` secrets configured). The frontend is still using mock OTP `000000`. I need to wire the existing MSG91 functions into the auth flows and remove all mock OTP code.
+Goal: debug the OTP flow with evidence, then fix the real delivery issue instead of assuming it works.
 
-Per system rules, I cannot add backend rate limiting (no primitives). I'll mention this to the user and rely on MSG91's built-in rate limiting + simple client-side resend cooldown.
+What I verified already
+- The `msg91-send-otp` backend function is being triggered for the real number `9108682966`.
+- Frontend phone formatting is correct:
+  - UI collects `9108682966`
+  - frontend sends `+919108682966`
+  - backend normalizes it to `919108682966`
+- Live backend logs show two actual MSG91 API calls:
 
-Files using `MOCK_OTP = "000000"`:
-- `src/pages/Auth.tsx` (main login/signup)
-- `src/pages/MLMLogin.tsx` (network manager login)
+```text
+2026-04-20T07:13:03Z
+[msg91-send-otp] Sending OTP to: 919108682966
+[msg91-send-otp] Request body: {"mobile":"919108682966","template_id":"MSG91_TEMPLATE_ID=69b906d98a47e8b5070e0862","otp_length":6}
+[msg91-send-otp] HTTP Status: 200
+[msg91-send-otp] Response: {"request_id":"3664746c51636a71454b5350","type":"success"}
 
-Plan is straightforward: replace mock verification with calls to the existing edge functions.
+2026-04-20T07:13:37Z
+[msg91-send-otp] Sending OTP to: 919108682966
+[msg91-send-otp] Request body: {"mobile":"919108682966","template_id":"MSG91_TEMPLATE_ID=69b906d98a47e8b5070e0862","otp_length":6}
+[msg91-send-otp] HTTP Status: 200
+[msg91-send-otp] Response: {"request_id":"3664746c514c616671383452","type":"success"}
+```
 
-## Plan: Replace Mock OTP with Real MSG91 SMS OTP
+Most important finding
+- The configured template value is malformed in the request.
+- It is currently being sent as:
+  - `MSG91_TEMPLATE_ID=69b906d98a47e8b5070e0862`
+- It should almost certainly be only the raw template id:
+  - `69b906d98a47e8b5070e0862`
 
-### Current State (already done)
-- MSG91 edge functions deployed: `msg91-send-otp`, `msg91-verify-otp`
-- Secrets configured: `MSG91_AUTH_TOKEN`, `MSG91_TEMPLATE_ID`
-- DLT-registered template ID is set on the backend
+Why this matters
+- This explains why the backend “looks successful” while delivery can still fail or behave incorrectly.
+- The current code only returns `{ success: true }` on provider success, so the UI hides useful diagnostics.
+- I cannot confirm dashboard-side DLT status from code alone, but the malformed template value is a real issue visible in logs and should be fixed first.
 
-### What's Broken
-Frontend (`Auth.tsx`, `MLMLogin.tsx`) still uses hardcoded `MOCK_OTP = "000000"` and never calls MSG91. So real SMS is never sent or verified.
+What I will change after approval
+1. Fix the MSG91 template handling
+- Correct the runtime secret so it stores only the raw template id.
+- Also harden the backend to sanitize bad secret formats like `KEY=value` so this cannot silently break again.
 
-### Changes
+2. Add proper backend diagnostics
+- Update `msg91-send-otp` to return structured debug info:
+  - normalized mobile
+  - provider HTTP status
+  - provider response body
+  - request id
+  - sanitized template id info
+  - clear error reason when delivery setup is rejected
+- Do the same for `msg91-verify-otp`.
 
-**1. `src/pages/Auth.tsx`**
-- Remove `MOCK_OTP` constant
-- In `handleSendLoginOtp` / `handleSendSignupOtp`: call `supabase.functions.invoke('msg91-send-otp', { body: { phone: fullPhone } })` after `signOut()`. Show error toast if it fails.
-- In `handleVerifyOtp`: call `supabase.functions.invoke('msg91-verify-otp', { body: { phone, otp } })`. If success, proceed to `createSessionForPhone`. If not, show "Invalid OTP" error.
-- Add a 30-second resend cooldown timer + "Resend OTP" button on the OTP step.
+3. Stop swallowing errors in the UI
+- Update `Auth.tsx` and `MLMLogin.tsx` to log the full function response in the browser console.
+- Show the real backend/provider error message in the toast instead of generic failures.
 
-**2. `src/pages/MLMLogin.tsx`**
-- Same treatment: remove `MOCK_OTP`, call real MSG91 send/verify, add resend cooldown.
+4. Re-test the flow with evidence
+- Trigger OTP again for a real number.
+- Confirm fresh logs show the corrected template id format.
+- Capture the new MSG91 response and request id.
+- If send still reports success but SMS is not delivered, use the request id to isolate the dashboard-side issue.
 
-**3. Test account exception (important)**
-The 6 hardcoded test accounts (`9999000001`–`9999000006`) used by team for QA won't receive real SMS (fake numbers). Keep a tiny bypass: if phone matches one of these test numbers AND OTP is `000000`, skip MSG91 verify. This preserves your QA workflow without exposing the bypass to real users.
+5. Validate dashboard-side DLT configuration
+- Check that the template is ACTIVE in MSG91.
+- Check it is linked to:
+  - Entity: `Ela Foods and Snacks Pvt Ltd`
+  - correct Sender ID, e.g. `ELABZR`
+  - the approved Airtel DLT setup
+- If code-side fix is done and SMS still does not arrive, this is the next likely root cause.
 
-**4. Verify DLT template alignment**
-You mentioned:
-- Entity: `Ela Foods and Snacks Pvt Ltd`
-- DLT Reg No: `1001428719051529349`
-- Telecom: Airtel DLT
+Additional security fix I should include
+- `supabase/functions/msg91-config/index.ts` currently exposes `MSG91_AUTH_TOKEN` to the client.
+- That secret should not be returned to the browser.
+- I should remove that leakage while fixing the OTP flow.
 
-The MSG91 template (`MSG91_TEMPLATE_ID` secret) must be approved on MSG91's dashboard with this DLT entity + an approved sender ID (typically 6 chars like `ELABZR`). I'll add a note in the chat after implementation reminding you to confirm the template is approved and the sender ID is set on MSG91 — these are configured in the MSG91 dashboard, not in code.
+Technical details
+- Current send function confirms provider acceptance, not actual handset delivery.
+- There are no `msg91-verify-otp` logs yet, so verification has not completed successfully in the tested real-phone flow.
+- The backend secret exists, so this does not look like a missing-key problem.
+- The API key appears accepted enough to get a MSG91 `request_id`, but I still need to surface provider diagnostics properly to distinguish:
+  - accepted by API
+  - rejected by DLT/template
+  - accepted but not delivered by route/template setup
 
-### About Rate Limiting
-The Lovable backend doesn't have rate limiting primitives yet. MSG91 enforces its own per-number rate limits (default ~3 OTP/min/number on their side). I'll add a 30-second client-side resend cooldown for UX — but a real client can bypass this. For stronger protection, MSG91's account-level limits will catch abuse.
-
-### Provider Recommendation
-**MSG91** is already integrated and is the best choice for India + DLT:
-- Native DLT compliance
-- Airtel DLT supported out-of-box
-- Built-in OTP API with auto-generation, retry, and verify
-- Good delivery rates on Indian networks
-
-No need to switch providers.
-
-### Files Changed
-| File | Change |
-|------|--------|
-| `src/pages/Auth.tsx` | Replace mock OTP with MSG91 calls + resend cooldown |
-| `src/pages/MLMLogin.tsx` | Replace mock OTP with MSG91 calls + resend cooldown |
-
-No database changes. No new edge functions. No new secrets.
+Expected result after implementation
+- You will be able to see the exact backend/provider response instead of a vague success/failure.
+- The template id will be sent correctly.
+- We will know whether the remaining issue is code/config or MSG91 dashboard DLT setup.
+- If the SMS still does not arrive, the request ids already captured (`3664746c51636a71454b5350`, `3664746c514c616671383452`) can be checked against MSG91 reports to confirm the exact delivery/DLT rejection reason.
