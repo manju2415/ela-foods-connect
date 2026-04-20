@@ -14,7 +14,31 @@ import { Loader2, Network, Phone, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import elaLogo from "@/assets/ela-foods-logo.png";
 
-const MOCK_OTP = "000000";
+// Test accounts bypass real SMS for QA. Real users always go through MSG91.
+const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const TEST_OTP = "000000";
+const RESEND_COOLDOWN_SECONDS = 30;
+
+const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
+
+const sendOtpViaMsg91 = async (phone: string) => {
+  if (isTestPhone(phone)) return { success: true as const };
+  const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Failed to send OTP" };
+  return { success: true as const };
+};
+
+const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
+  if (isTestPhone(phone)) {
+    if (otp === TEST_OTP) return { success: true as const };
+    return { success: false as const, error: "Invalid OTP" };
+  }
+  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
+  return { success: true as const };
+};
 
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
@@ -27,6 +51,7 @@ const MLMLogin = () => {
   const [otpCode, setOtpCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
 
   const { user, createSessionForPhone, signOut } = useAuth();
@@ -48,28 +73,62 @@ const MLMLogin = () => {
     }
   }, [user, navigate, hasAttemptedLogin]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
   const handleSendOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
+    const result = await sendOtpViaMsg91(fullPhone);
+    setIsSubmitting(false);
+
+    if (!result.success) {
+      toast({ title: "Failed to send OTP", description: result.error, variant: "destructive" });
+      return;
+    }
+
     setPhoneNumber(fullPhone);
     setStep("otp");
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({
+      title: "OTP Sent",
+      description: isTestPhone(fullPhone)
+        ? `Test account — use ${TEST_OTP}`
+        : `A 6-digit code was sent to ${fullPhone}`,
+    });
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || !phoneNumber) return;
+    setIsSubmitting(true);
+    const result = await sendOtpViaMsg91(phoneNumber);
     setIsSubmitting(false);
-    toast({ title: "OTP Sent", description: `Use code ${MOCK_OTP} to verify` });
+    if (!result.success) {
+      toast({ title: "Failed to resend OTP", description: result.error, variant: "destructive" });
+      return;
+    }
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({ title: "OTP Resent", description: `A new code was sent to ${phoneNumber}` });
   };
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
-    if (otpCode !== MOCK_OTP) {
-      toast({ title: "Verification failed", description: "Invalid OTP. Use 000000.", variant: "destructive" });
+    setIsSubmitting(true);
+    const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
+
+    if (!verify.success) {
+      setIsSubmitting(false);
+      toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
       setOtpCode("");
       return;
     }
-
-    setIsSubmitting(true);
 
     const { error } = await createSessionForPhone(phoneNumber);
     setIsSubmitting(false);
@@ -128,11 +187,26 @@ const MLMLogin = () => {
               Verify & Sign In
             </Button>
 
+            <div className="text-center text-sm">
+              {resendCooldown > 0 ? (
+                <span className="text-muted-foreground">Resend code in {resendCooldown}s</span>
+              ) : (
+                <button
+                  type="button"
+                  className="text-primary hover:underline disabled:opacity-50"
+                  onClick={handleResendOtp}
+                  disabled={isSubmitting}
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
+
             <div className="text-center">
               <button
                 type="button"
                 className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1"
-                onClick={() => { setStep("phone"); setOtpCode(""); setPhoneNumber(""); setHasAttemptedLogin(false); }}
+                onClick={() => { setStep("phone"); setOtpCode(""); setPhoneNumber(""); setResendCooldown(0); setHasAttemptedLogin(false); }}
               >
                 <ArrowLeft className="h-3 w-3" /> Change phone number
               </button>

@@ -14,7 +14,31 @@ import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
-const MOCK_OTP = "000000";
+// Test accounts bypass real SMS for QA. Real users always go through MSG91.
+const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const TEST_OTP = "000000";
+const RESEND_COOLDOWN_SECONDS = 30;
+
+const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
+
+const sendOtpViaMsg91 = async (phone: string) => {
+  if (isTestPhone(phone)) return { success: true as const };
+  const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Failed to send OTP" };
+  return { success: true as const };
+};
+
+const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
+  if (isTestPhone(phone)) {
+    if (otp === TEST_OTP) return { success: true as const };
+    return { success: false as const, error: "Invalid OTP" };
+  }
+  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
+  return { success: true as const };
+};
 
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
@@ -35,6 +59,7 @@ const Auth = () => {
   const [otpCode, setOtpCode] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
@@ -177,7 +202,7 @@ const Auth = () => {
     navigate(dest, { replace: true });
   };
 
-  // ── Send OTP (Login) — mock: just go to OTP screen ──
+  // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
@@ -185,11 +210,24 @@ const Auth = () => {
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
+    const result = await sendOtpViaMsg91(fullPhone);
+    setIsSubmitting(false);
+
+    if (!result.success) {
+      toast({ title: "Failed to send OTP", description: result.error, variant: "destructive" });
+      return;
+    }
+
     pendingSignupRef.current = null;
     setPhoneNumber(fullPhone);
     setStep("otp");
-    setIsSubmitting(false);
-    toast({ title: "OTP Sent", description: `Use code ${MOCK_OTP} to verify` });
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({
+      title: "OTP Sent",
+      description: isTestPhone(fullPhone)
+        ? `Test account — use ${TEST_OTP}`
+        : `A 6-digit code was sent to ${fullPhone}`,
+    });
   };
 
   // ── Send OTP (Signup) ──
@@ -204,24 +242,52 @@ const Auth = () => {
     hasAttemptedLoginRef.current = true;
 
     const fullPhone = `+91${data.phone}`;
-    pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
-    setPhoneNumber(fullPhone);
-    setStep("otp");
+    const result = await sendOtpViaMsg91(fullPhone);
     setIsSubmitting(false);
-    toast({ title: "OTP Sent", description: `Use code ${MOCK_OTP} to verify` });
-  };
 
-  // ── Verify OTP (mock: accept 000000) ──
-  const handleVerifyOtp = async () => {
-    if (otpCode.length !== 6) return;
-
-    if (otpCode !== MOCK_OTP) {
-      toast({ title: "Verification failed", description: "Invalid OTP. Use 000000.", variant: "destructive" });
-      setOtpCode("");
+    if (!result.success) {
+      toast({ title: "Failed to send OTP", description: result.error, variant: "destructive" });
       return;
     }
 
+    pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
+    setPhoneNumber(fullPhone);
+    setStep("otp");
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({
+      title: "OTP Sent",
+      description: isTestPhone(fullPhone)
+        ? `Test account — use ${TEST_OTP}`
+        : `A 6-digit code was sent to ${fullPhone}`,
+    });
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0 || !phoneNumber) return;
     setIsSubmitting(true);
+    const result = await sendOtpViaMsg91(phoneNumber);
+    setIsSubmitting(false);
+    if (!result.success) {
+      toast({ title: "Failed to resend OTP", description: result.error, variant: "destructive" });
+      return;
+    }
+    setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    toast({ title: "OTP Resent", description: `A new code was sent to ${phoneNumber}` });
+  };
+
+  // ── Verify OTP ──
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) return;
+
+    setIsSubmitting(true);
+    const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
+
+    if (!verify.success) {
+      setIsSubmitting(false);
+      toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
+      setOtpCode("");
+      return;
+    }
 
     const { error, isNewUser } = await createSessionForPhone(
       phoneNumber,
@@ -244,10 +310,19 @@ const Auth = () => {
     setStep("phone");
     setOtpCode("");
     setPhoneNumber("");
+    setResendCooldown(0);
     setHasAttemptedLogin(false);
     hasAttemptedLoginRef.current = false;
     pendingSignupRef.current = null;
   };
+
+  // Resend cooldown ticker
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
 
   // ── OTP Verification Screen ──
   if (step === "otp") {
@@ -285,6 +360,21 @@ const Auth = () => {
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Verify & Continue
             </Button>
+
+            <div className="text-center text-sm">
+              {resendCooldown > 0 ? (
+                <span className="text-muted-foreground">Resend code in {resendCooldown}s</span>
+              ) : (
+                <button
+                  type="button"
+                  className="text-primary hover:underline disabled:opacity-50"
+                  onClick={handleResendOtp}
+                  disabled={isSubmitting}
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
 
             <div className="text-center">
               <button
