@@ -5,13 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const sanitizeSecret = (raw: string | undefined): string => {
+  if (!raw) return '';
+  const trimmed = raw.trim().replace(/^["']|["']$/g, '');
+  const eqIdx = trimmed.indexOf('=');
+  if (eqIdx > -1 && /^[A-Z_][A-Z0-9_]*$/i.test(trimmed.slice(0, eqIdx))) {
+    return trimmed.slice(eqIdx + 1).trim();
+  }
+  return trimmed;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const authKey = Deno.env.get('MSG91_AUTH_TOKEN');
+    const authKey = sanitizeSecret(Deno.env.get('MSG91_AUTH_TOKEN'));
     if (!authKey) {
       return new Response(
         JSON.stringify({ success: false, error: 'MSG91 not configured' }),
@@ -27,7 +37,6 @@ serve(async (req) => {
       );
     }
 
-    // Ensure format: 91XXXXXXXXXX (no +)
     let mobile = phone.replace(/^\+/, '').replace(/\s+/g, '');
     if (mobile.length === 10) {
       mobile = '91' + mobile;
@@ -45,32 +54,42 @@ serve(async (req) => {
     console.log('[msg91-verify-otp] HTTP Status:', response.status);
     console.log('[msg91-verify-otp] Response:', responseText);
 
-    let data;
+    let data: any = {};
     try {
       data = JSON.parse(responseText);
     } catch {
-      console.error('[msg91-verify-otp] Failed to parse response:', responseText);
       return new Response(
-        JSON.stringify({ success: false, error: 'Invalid response from SMS provider' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: 'Invalid response from SMS provider',
+          providerStatus: response.status,
+          providerResponse: responseText,
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     if (data.type === 'success') {
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, providerResponse: data }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     return new Response(
-      JSON.stringify({ success: false, error: data.message || 'OTP verification failed' }),
+      JSON.stringify({
+        success: false,
+        error: data.message || data.type || 'OTP verification failed',
+        providerStatus: response.status,
+        providerResponse: data,
+        mobile,
+      }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {
     console.error('[msg91-verify-otp] Error:', err);
     return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
+      JSON.stringify({ success: false, error: err instanceof Error ? err.message : 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
