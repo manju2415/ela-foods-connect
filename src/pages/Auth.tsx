@@ -14,7 +14,31 @@ import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
-const MOCK_OTP = "000000";
+// Test accounts bypass real SMS for QA. Real users always go through MSG91.
+const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const TEST_OTP = "000000";
+const RESEND_COOLDOWN_SECONDS = 30;
+
+const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
+
+const sendOtpViaMsg91 = async (phone: string) => {
+  if (isTestPhone(phone)) return { success: true as const };
+  const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Failed to send OTP" };
+  return { success: true as const };
+};
+
+const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
+  if (isTestPhone(phone)) {
+    if (otp === TEST_OTP) return { success: true as const };
+    return { success: false as const, error: "Invalid OTP" };
+  }
+  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
+  if (error) return { success: false as const, error: error.message };
+  if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
+  return { success: true as const };
+};
 
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
