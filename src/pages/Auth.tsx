@@ -361,6 +361,21 @@ const Auth = () => {
               Verify & Continue
             </Button>
 
+            <div className="text-center text-sm">
+              {resendCooldown > 0 ? (
+                <span className="text-muted-foreground">Resend code in {resendCooldown}s</span>
+              ) : (
+                <button
+                  type="button"
+                  className="text-primary hover:underline disabled:opacity-50"
+                  onClick={handleResendOtp}
+                  disabled={isSubmitting}
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
+
             <div className="text-center">
               <button
                 type="button"
