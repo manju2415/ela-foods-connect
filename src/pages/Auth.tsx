@@ -24,8 +24,18 @@ const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p)
 const sendOtpViaMsg91 = async (phone: string) => {
   if (isTestPhone(phone)) return { success: true as const };
   const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
-  if (error) return { success: false as const, error: error.message };
-  if (!data?.success) return { success: false as const, error: data?.error || "Failed to send OTP" };
+  console.log("[Auth] msg91-send-otp response:", { data, error });
+  if (error) {
+    // FunctionsHttpError has the body in error.context
+    const ctx: any = (error as any).context;
+    let body: any = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    console.error("[Auth] msg91-send-otp error body:", body);
+    return { success: false as const, error: body?.error || error.message || "Failed to send OTP" };
+  }
+  if (!data?.success) {
+    return { success: false as const, error: data?.error || "Failed to send OTP" };
+  }
   return { success: true as const };
 };
 
@@ -35,7 +45,14 @@ const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
     return { success: false as const, error: "Invalid OTP" };
   }
   const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
-  if (error) return { success: false as const, error: error.message };
+  console.log("[Auth] msg91-verify-otp response:", { data, error });
+  if (error) {
+    const ctx: any = (error as any).context;
+    let body: any = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    console.error("[Auth] msg91-verify-otp error body:", body);
+    return { success: false as const, error: body?.error || error.message || "Invalid OTP" };
+  }
   if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
   return { success: true as const };
 };
