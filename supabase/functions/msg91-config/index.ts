@@ -5,23 +5,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// SECURITY: Do NOT return MSG91_AUTH_TOKEN to the client. The widget-based
+// frontend flow is not used (we go through msg91-send-otp / msg91-verify-otp
+// edge functions instead). This endpoint now only confirms configuration
+// status without leaking the auth key.
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const tokenAuth = Deno.env.get('MSG91_AUTH_TOKEN');
-  if (!tokenAuth) {
-    return new Response(
-      JSON.stringify({ error: 'MSG91 is not configured' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
+  const hasToken = !!Deno.env.get('MSG91_AUTH_TOKEN');
+  const hasTemplate = !!Deno.env.get('MSG91_TEMPLATE_ID');
 
   return new Response(
     JSON.stringify({
-      widgetId: '36637067444a333332313632',
-      tokenAuth,
+      configured: hasToken && hasTemplate,
+      hasToken,
+      hasTemplate,
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
