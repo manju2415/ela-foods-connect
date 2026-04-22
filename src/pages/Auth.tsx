@@ -36,7 +36,13 @@ const sendOtpViaMsg91 = async (phone: string) => {
   if (!data?.success) {
     return { success: false as const, error: data?.error || "Failed to send OTP" };
   }
-  return { success: true as const };
+  return { success: true as const, requestId: data.requestId as string | undefined, mobile: data.mobile as string | undefined };
+};
+
+const getOtpSentDescription = (phone: string, result: { requestId?: string; mobile?: string }) => {
+  if (isTestPhone(phone)) return `Test account — use ${TEST_OTP}`;
+  const details = result.requestId ? ` MSG91 ID: ${result.requestId}` : "";
+  return `A 6-digit code was accepted by MSG91 for ${phone}.${details}`;
 };
 
 const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
@@ -241,9 +247,7 @@ const Auth = () => {
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
     toast({
       title: "OTP Sent",
-      description: isTestPhone(fullPhone)
-        ? `Test account — use ${TEST_OTP}`
-        : `A 6-digit code was sent to ${fullPhone}`,
+      description: getOtpSentDescription(fullPhone, result),
     });
   };
 
@@ -273,9 +277,7 @@ const Auth = () => {
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
     toast({
       title: "OTP Sent",
-      description: isTestPhone(fullPhone)
-        ? `Test account — use ${TEST_OTP}`
-        : `A 6-digit code was sent to ${fullPhone}`,
+      description: getOtpSentDescription(fullPhone, result),
     });
   };
 
@@ -289,7 +291,7 @@ const Auth = () => {
       return;
     }
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
-    toast({ title: "OTP Resent", description: `A new code was sent to ${phoneNumber}` });
+    toast({ title: "OTP Resent", description: getOtpSentDescription(phoneNumber, result) });
   };
 
   // ── Verify OTP ──
