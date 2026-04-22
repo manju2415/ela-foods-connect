@@ -1,48 +1,71 @@
 
-## Plan: Add 4 Founding Members (fresh)
+## OTP Flow Check Result for 9108682966
 
-### What you asked for
-1. Delete the existing Manoj Kumar account (`+919611485193`) from the database.
-2. Create fresh accounts for all 4 users with the details you gave.
-3. Mark all 4 as Founding Members so they appear in `/admin/founding-members`, `/mlm-admin/founding-members`, and `/admin/founders` / `/mlm-admin/founders`.
+### What I found
+The app did send the OTP request successfully.
 
-### The 4 users
+For mobile `9108682966`, the backend sent this to MSG91:
 
-| Name | Phone | Email |
-|------|-------|-------|
-| Shyju V M | 8050090300 | shyjuvm@gmail.com |
-| Sudevan P M | 9845121558 | info@addblr.com |
-| Manoj Kumar | 9611485193 | mnrmanoj02@gmail.com |
-| Vinod M S | 9845482617 | indexgr@rediffmail.com |
+```text
+mobile: 919108682966
+template_id: 69b906d98a47e8b5070e0862
+otp_length: 6
+```
 
-### Approach
+MSG91 responded successfully:
 
-**1. New edge function `seed-founding-members`** (service-role)
-For each of the 4 users:
-- Look up any existing auth user by phone (variants `+91XXXXXXXXXX`, `91XXXXXXXXXX`, `XXXXXXXXXX`).
-- If found (e.g. existing Manoj Kumar), delete it via `auth.admin.deleteUser` so the cascade clears `profiles`, `wallets`, `referral_codes`, etc.
-- Create a fresh auth user via `auth.admin.createUser` using the standard pattern already used in the app:
-  - login email: `<digits>@elabazar.local` (so MSG91 OTP login keeps working)
-  - phone: `+91XXXXXXXXXX`, `phone_confirm: true`
-  - `user_metadata.full_name`: real name
-- The existing `handle_new_user` trigger creates the `profiles` row + wallet automatically.
-- Update `profiles` with the **real email** (e.g. `shyjuvm@gmail.com`), `full_name`, `user_level = 'founder'`, `is_designated_founder = true`.
-- Insert `('user_id','founding_member')` into `user_roles` (idempotent).
-- Call `generate_user_referral_code(user_id)` so each gets an `ELA…` referral code.
-- Return a per-user status report.
+```text
+HTTP Status: 200
+Response: {"request_id":"3664766b7976686871796f42","type":"success"}
+```
 
-**2. Invoke once** via the edge-function test tool, then verify all 4 show up in the database.
+So the app/backend flow is working up to MSG91. The issue is likely on the MSG91 delivery side, such as:
+- DLT/template approval issue
+- Sender ID route issue
+- SMS delivery blocked/delayed by operator
+- Template content mismatch in MSG91
+- Number-specific delivery failure
 
-### How they'll log in
-On `/auth`, each user enters their 10-digit phone, gets an MSG91 OTP, and `createSessionForPhone` signs them into the `<phone>@elabazar.local` account we created. The "real" email shown in admin lists is the one stored on `profiles.email`.
+### Important database finding
+The number `9108682966` exists multiple times in profiles as guest/member-style profiles, but it does not currently appear as an admin/super-admin account in the public app data I can see.
 
-### Files
-| File | Change |
-|------|--------|
-| `supabase/functions/seed-founding-members/index.ts` | New one-shot edge function |
-| (deploy + invoke once) | Run, then confirm 4 founding members exist |
+So even after OTP verification, this number may not be allowed into `/admin` unless we assign the correct admin role.
 
-### Notes
-- Manoj Kumar's old data (wallet balance, referrals, etc.) will be wiped, since you asked for a fresh account.
-- The function is idempotent: if run again it will delete + recreate cleanly, so we can safely re-run if any user fails.
-- No frontend changes needed — both `/admin/founding-members` and `/mlm-admin/founding-members` already render from the same data, so all 4 will appear automatically.
+## Plan to fix/check fully
+
+### 1. Verify MSG91 delivery using the request ID
+Use this MSG91 request ID to check delivery in MSG91 logs:
+
+```text
+3664766b7976686871796f42
+```
+
+This will confirm whether MSG91 actually delivered, failed, or blocked the SMS.
+
+### 2. Improve app-side OTP debugging
+Update the OTP send flow so admin/test debugging shows:
+- whether MSG91 accepted the request
+- masked mobile number
+- request ID
+- clearer delivery message if MSG91 says success but SMS is not received
+
+This will help identify future OTP issues faster.
+
+### 3. Clean up/check `9108682966` account access
+Check whether `9108682966` should be:
+- Super Admin for `/admin`
+- MLM Admin for `/mlm-admin`
+- normal member/customer
+
+If you want this number to login to `/admin`, I will add the proper admin role using a secure backend change.
+
+### 4. Keep MSG91 OTP sending as-is unless MSG91 logs show a provider error
+Since MSG91 returned success, I will not change the template ID or API call unless the MSG91 delivery report shows an error.
+
+### Files/functions involved
+| Area | Action |
+|---|---|
+| `msg91-send-otp` backend function | Keep current send logic, optionally add better diagnostics |
+| `/auth` login flow | Show clearer OTP send status/debug info |
+| Database roles | Assign admin role to `9108682966` only if you confirm this number should access `/admin` |
+
