@@ -1,85 +1,96 @@
 
-## Plan: Make `8050000300` Super Admin + Network Manager only
+## Plan: Fix Super Admin mobile responsiveness and back navigation
+
+### Issues to fix
+
+1. **Admin header is not responsive on phone**
+   - The title `Ela Bazar Admin` is wrapping/breaking because the mobile header also shows:
+     ```text
+     Visit Site
+     Logout
+     ```
+   - On narrow screens, there is not enough horizontal space.
+
+2. **Back navigation inside Super Admin features is not clear/working**
+   - After opening modules like Products, Categories, Orders, Network Admin, etc., the user needs an easy way to return to the previous admin screen.
+   - The current admin layout only has the sidebar toggle, title, Visit Site, and Logout.
 
 ### What will change
 
-1. **Keep `8050000300` as the main Super Admin login**
-   - Supported formats:
+1. **Make the Super Admin header mobile-friendly**
+   - Keep `Ela Bazar Admin` on one line using `truncate` / `whitespace-nowrap`.
+   - On mobile:
+     - show compact icon-only buttons for Visit Site and Logout,
+     - reduce spacing,
+     - prevent the title from wrapping.
+   - On desktop:
+     - keep the current full text buttons:
+       ```text
+       Visit Site
+       Logout
+       ```
+
+2. **Add a real Back button to the admin header**
+   - Add a back arrow button in the admin header when the user is not on the main `/admin` dashboard.
+   - Example behavior:
      ```text
-     8050000300
-     918050000300
-     +918050000300
+     /admin/products           -> Back returns to previous admin screen
+     /admin/categories         -> Back returns to previous admin screen
+     /admin/network-admin      -> Back returns to previous admin screen
+     /admin/network-analytics  -> Back returns to previous admin screen
      ```
-   - This number will keep `super_admin` access.
-   - When logging in through `/auth`, it will go to:
+   - If there is no useful previous page, it will safely return to:
      ```text
      /admin
      ```
 
-2. **Keep `8050000300` as Network Manager**
-   - This number will also keep `mlm_admin` access.
-   - When logging in through `/mlm-login`, it will go to:
-     ```text
-     /mlm-admin
-     ```
+3. **Close the sidebar automatically after selecting a module on mobile**
+   - When the mobile sidebar is open and the user taps a menu item, the sidebar drawer should close automatically.
+   - This prevents the screen from looking stuck behind the sidebar overlay.
 
-3. **Remove the extra roles from this number**
-   - I will remove the previously added roles that are no longer wanted:
+4. **Improve admin content spacing on mobile**
+   - Reduce page padding on small screens:
      ```text
-     member
-     delivery_partner
+     mobile: p-3 or p-4
+     desktop: p-6
      ```
-   - I will also remove its delivery partner record, so it does not behave like a driver account.
+   - This gives more room for admin tables, cards, and forms on phones.
 
-4. **Update future auto-role assignment**
-   - The backend signup/login role assignment will be updated so `8050000300` automatically receives only:
+5. **Keep Super Admin access unchanged**
+   - The number:
      ```text
-     super_admin
-     mlm_admin
+     8050000300
      ```
-   - It will no longer automatically receive:
+     will still default to:
      ```text
-     member
-     delivery_partner
+     /admin
      ```
-
-5. **Ensure app OTP login defaults to Super Admin**
-   - The OTP login flow in `/auth` already prioritizes Super Admin above MLM Admin.
-   - I will keep/verify that priority so this happens:
-     ```text
-     App OTP login / /auth + 8050000300 -> /admin
-     ```
-   - This means the number will land in the Super Admin dashboard by default and see all Super Admin modules, including the integrated Network Admin section.
-
-6. **Keep Network Manager login separate**
-   - If the same number is used on `/mlm-login`, it will still enter the standalone Network Manager dashboard:
-     ```text
-     /mlm-login + 8050000300 -> /mlm-admin
-     ```
+   - It will still see all Super Admin modules, including the integrated Network Admin section.
 
 ### Technical details
 
-- Update the backend `handle_new_user()` function so the all-access behavior is removed for `8050000300`.
-- Run data updates to:
-  - delete `member` and `delivery_partner` roles for the `8050000300` account,
-  - keep `super_admin` and `mlm_admin`,
-  - delete any `delivery_partners` record for this user.
-- Review `/auth` redirect logic to ensure Super Admin stays highest priority and lands on `/admin`.
-- Update project memory so future changes remember:
-  ```text
-  8050000300 = Super Admin + Network Manager only
-  ```
+- Update `src/components/admin/AdminLayout.tsx`:
+  - add mobile-safe header layout,
+  - add a conditional back button using `useNavigate`,
+  - make title non-wrapping/truncated,
+  - make Visit Site and Logout icon-only on small screens,
+  - adjust main content padding responsively.
+
+- Update `src/components/admin/AdminSidebar.tsx`:
+  - use `setOpenMobile(false)` from `useSidebar()` when a sidebar link is clicked,
+  - keep desktop sidebar behavior unchanged.
+
+- No database changes are needed.
 
 ### Expected result
 
 ```text
-/auth + 8050000300      -> /admin
-/mlm-login + 8050000300 -> /mlm-admin
+/auth + 8050000300 -> /admin
 
-/admin                  -> allowed
-/admin/network-admin    -> allowed
-/mlm-admin              -> allowed
-
-/driver-app             -> not treated as this user's default role
-/member-app             -> not treated as this user's default role
+Mobile admin header:
+- "Ela Bazar Admin" stays on one line
+- Visit Site / Logout no longer force title wrapping
+- Back arrow appears inside feature pages
+- Sidebar closes after tapping a module
+- Super Admin can still see all modules
 ```
