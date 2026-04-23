@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -281,24 +282,24 @@ export default function Banners() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Banners</h1>
             <p className="text-muted-foreground">Manage promotional banners and hero sections</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Banner
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2">
               <Image className="h-5 w-5" />
               All Banners ({banners.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -306,7 +307,8 @@ export default function Banners() {
             ) : banners.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No banners found</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -369,17 +371,40 @@ export default function Banners() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {banners.map((banner) => (
+                  <AdminMobileCard key={banner.id}>
+                    <div className="flex gap-3">
+                      {banner.image_url ? <img src={banner.image_url} alt={banner.title} className="h-14 w-20 shrink-0 rounded object-cover" /> : <div className="h-14 w-20 shrink-0 rounded bg-muted flex items-center justify-center"><Image className="h-6 w-6 text-muted-foreground" /></div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium break-words">{banner.title}</div>
+                        <div className="text-sm text-muted-foreground break-words line-clamp-2">{banner.subtitle}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Order">{banner.display_order}</AdminMobileField>
+                      <AdminMobileField label="Status"><Badge variant={banner.is_active ? "default" : "secondary"}>{banner.is_active ? "Active" : "Inactive"}</Badge></AdminMobileField>
+                      <AdminMobileField label="Location" className="col-span-2"><Badge variant="outline">{getLocationLabel(banner.location)}</Badge></AdminMobileField>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(banner)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDeletingBanner(banner); setIsDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingBanner ? "Edit Banner" : "Add Banner"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="title">Title *</Label>
                   <Input
@@ -412,7 +437,7 @@ export default function Banners() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cta_text">Button Text</Label>
                   <Input
@@ -433,7 +458,7 @@ export default function Banners() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="location">Location</Label>
                   <Select
@@ -473,7 +498,7 @@ export default function Banners() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="starts_at">Start Date (Optional)</Label>
                   <Input

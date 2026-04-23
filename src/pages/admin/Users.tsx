@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useUserRole } from "@/hooks/useUserRole";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -219,8 +220,8 @@ export default function UsersPage() {
             />
           </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <UsersIcon className="h-5 w-5" />
@@ -237,7 +238,7 @@ export default function UsersPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -247,6 +248,8 @@ export default function UsersPage() {
                 No users found
               </div>
             ) : (
+              <>
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -321,6 +324,52 @@ export default function UsersPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
+              <div className="space-y-3 md:hidden">
+                {filteredUsers.map((user) => (
+                  <AdminMobileCard key={user.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{user.full_name || "N/A"}</div>
+                        <div className="text-sm text-muted-foreground break-all">{user.email}</div>
+                      </div>
+                      <Badge variant={user.is_active ? "default" : "secondary"} className="shrink-0">
+                        {user.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3">
+                      <AdminMobileField label="Phone">{user.phone || "N/A"}</AdminMobileField>
+                      <AdminMobileField label="Roles">
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.length === 0 ? (
+                            <Badge variant="outline">No roles</Badge>
+                          ) : (
+                            user.roles.map(role => (
+                              <Badge key={role} className={`${ROLE_COLORS[role]} flex items-center gap-1`} variant="secondary">
+                                {getRoleIcon(role)}
+                                {role.replace("_", " ")}
+                              </Badge>
+                            ))
+                          )}
+                        </div>
+                      </AdminMobileField>
+                      <AdminMobileField label="Joined">{format(new Date(user.created_at), "MMM d, yyyy")}</AdminMobileField>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
+                        <UserCog className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => setSelectedUser(user)} className="flex-1">
+                        Manage Roles
+                      </Button>
+                      <Button variant="destructive" size="sm" onClick={() => setUserToDelete(user)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>

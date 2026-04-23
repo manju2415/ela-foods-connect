@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -372,18 +373,18 @@ export default function Products() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Products</h1>
             <p className="text-muted-foreground">Manage your product catalog</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Product
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
@@ -415,7 +416,7 @@ export default function Products() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -423,7 +424,8 @@ export default function Products() {
             ) : filteredProducts.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No products found</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -494,17 +496,55 @@ export default function Products() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {filteredProducts.map((product) => (
+                  <AdminMobileCard key={product.id}>
+                    <div className="flex gap-3">
+                      {product.images?.[0] ? (
+                        <img src={product.images[0]} alt={product.name} className="h-14 w-14 shrink-0 rounded object-cover" />
+                      ) : (
+                        <div className="h-14 w-14 shrink-0 rounded bg-muted flex items-center justify-center">
+                          <Package className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium break-words">{product.name}</div>
+                        <div className="text-sm text-muted-foreground break-all">{product.sku || "No SKU"}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Category">{getCategoryName(product.category_id)}</AdminMobileField>
+                      <AdminMobileField label="Stock">{product.stock_quantity}</AdminMobileField>
+                      <AdminMobileField label="Price">
+                        ₹{Number(product.price).toFixed(2)}
+                        {product.compare_at_price && <span className="ml-2 text-muted-foreground line-through">₹{Number(product.compare_at_price).toFixed(2)}</span>}
+                      </AdminMobileField>
+                      <AdminMobileField label="Status">
+                        <div className="flex flex-wrap gap-1">
+                          <Badge variant={product.is_active ? "default" : "secondary"}>{product.is_active ? "Active" : "Inactive"}</Badge>
+                          {product.is_featured && <Badge variant="outline">Featured</Badge>}
+                        </div>
+                      </AdminMobileField>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(product)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDeletingProduct(product); setIsDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input
@@ -544,7 +584,7 @@ export default function Products() {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="price">MRP Price *</Label>
                   <Input
@@ -579,7 +619,7 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="sku">SKU</Label>
                   <Input
@@ -608,7 +648,7 @@ export default function Products() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="unit_type">Unit Type</Label>
                   <Select
@@ -662,7 +702,7 @@ export default function Products() {
                 </Select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gst_percentage">GST Percentage (%)</Label>
                   <Input

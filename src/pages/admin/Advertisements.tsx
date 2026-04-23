@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -278,24 +279,24 @@ export default function Advertisements() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Advertisements</h1>
             <p className="text-muted-foreground">Manage ads displayed across the site</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Advertisement
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <CardTitle className="flex items-center gap-2">
               <Megaphone className="h-5 w-5" />
               All Advertisements ({ads.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -303,7 +304,8 @@ export default function Advertisements() {
             ) : ads.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No advertisements found</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -366,12 +368,35 @@ export default function Advertisements() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {ads.map((ad) => (
+                  <AdminMobileCard key={ad.id}>
+                    <div className="flex gap-3">
+                      {ad.image_url ? <img src={ad.image_url} alt={ad.title} className="h-14 w-20 shrink-0 rounded object-cover" /> : <div className="h-14 w-20 shrink-0 rounded bg-muted flex items-center justify-center"><Megaphone className="h-6 w-6 text-muted-foreground" /></div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium break-words">{ad.title}</div>
+                        <div className="text-sm text-muted-foreground break-words line-clamp-2">{ad.description}</div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Order">{ad.display_order}</AdminMobileField>
+                      <AdminMobileField label="Status"><Badge variant={ad.is_active ? "default" : "secondary"}>{ad.is_active ? "Active" : "Inactive"}</Badge></AdminMobileField>
+                      <AdminMobileField label="Placement" className="col-span-2"><Badge variant="outline">{getPlacementLabel(ad.placement)}</Badge></AdminMobileField>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(ad)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDeletingAd(ad); setIsDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingAd ? "Edit Advertisement" : "Add Advertisement"}</DialogTitle>
             </DialogHeader>
@@ -398,7 +423,7 @@ export default function Advertisements() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="link_url">Link URL</Label>
                   <Input
@@ -419,7 +444,7 @@ export default function Advertisements() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="placement">Placement</Label>
                   <Select
@@ -459,7 +484,7 @@ export default function Advertisements() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="starts_at">Start Date (Optional)</Label>
                   <Input

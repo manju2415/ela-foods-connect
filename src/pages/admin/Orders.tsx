@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -188,15 +189,15 @@ export default function Orders() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
             <p className="text-muted-foreground">Manage and track customer orders</p>
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
@@ -228,7 +229,7 @@ export default function Orders() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -238,7 +239,8 @@ export default function Orders() {
                 No orders found
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -315,18 +317,51 @@ export default function Orders() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {filteredOrders.map((order) => (
+                  <AdminMobileCard key={order.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium break-all">{order.order_number}</div>
+                        <div className="text-sm text-muted-foreground break-words">{order.profiles?.full_name || "N/A"}</div>
+                        <div className="text-xs text-muted-foreground break-all">{order.profiles?.email}</div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => handleViewOrder(order)} className="shrink-0">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Date">{format(new Date(order.created_at), "MMM d, yyyy")}</AdminMobileField>
+                      <AdminMobileField label="Total">₹{Number(order.total_amount).toFixed(2)}</AdminMobileField>
+                    </div>
+                    <AdminMobileField label="Status">
+                      <Select value={order.status} onValueChange={(value: OrderStatus) => updateStatusMutation.mutate({ orderId: order.id, status: value })}>
+                        <SelectTrigger className="h-9 w-full"><Badge className={statusColors[order.status]} variant="secondary">{order.status}</Badge></SelectTrigger>
+                        <SelectContent>{ORDER_STATUSES.map((status) => <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </AdminMobileField>
+                    <AdminMobileField label="Payment">
+                      <Select value={order.payment_status} onValueChange={(value: PaymentStatus) => updatePaymentMutation.mutate({ orderId: order.id, payment_status: value })}>
+                        <SelectTrigger className="h-9 w-full"><Badge className={paymentColors[order.payment_status]} variant="secondary">{order.payment_status}</Badge></SelectTrigger>
+                        <SelectContent>{PAYMENT_STATUSES.map((status) => <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </AdminMobileField>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Order Details - {selectedOrder?.order_number}</DialogTitle>
             </DialogHeader>
             {selectedOrder && (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <h4 className="font-medium mb-2">Customer</h4>
                     <p>{selectedOrder.profiles?.full_name || "N/A"}</p>
