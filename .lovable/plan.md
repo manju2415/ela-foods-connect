@@ -1,44 +1,91 @@
 
-## Plan: Replace admin login number and keep login paths separate
+## Plan: Switch super admin to `8050000300` and allow all dashboard logins
+
+### Confirmation
+
+The number currently configured from the previous change is:
+
+```text
+8050090300
+```
+
+Your confirmed number is different:
+
+```text
+8050000300
+```
+
+I will update the system so `8050000300` becomes the active super admin/all-access login number.
 
 ### What will change
 
-1. **Remove `9108682966` as an admin number**
-   - Remove it from the current `handle_new_user` role assignment logic.
-   - Remove any existing `super_admin`, `admin`, and `mlm_admin` roles attached to users whose profile phone is:
-     - `9108682966`
-     - `09108682966`
-     - `919108682966`
-     - `+919108682966`
-
-2. **Add `8050090300` as the new admin number**
-   - Update backend role assignment so new signups/logins for:
-     - `8050090300`
-     - `918050090300`
-     - `+918050090300`
-   - receive admin access.
-
-3. **Make `/auth` login go to `/admin` for `8050090300`**
-   - Assign `super_admin` to `8050090300`.
-   - Because `/auth` already redirects super admins to `/admin`, this will make the login flow work as requested:
+1. **Make `8050000300` the all-access admin number**
+   - Support these phone formats:
      ```text
-     /auth + 8050090300 login -> /admin
+     8050000300
+     918050000300
+     +918050000300
+     ```
+   - Automatically assign this number:
+     - `super_admin` for `/admin`
+     - `mlm_admin` for `/mlm-login` → `/mlm-admin`
+     - `member` or founding/member access for member dashboard access
+     - delivery partner access for `/driver-app`
+
+2. **Remove privileged access from old/mistaken numbers**
+   - Keep removing admin access from:
+     ```text
+     9108682966
+     ```
+   - Also remove privileged roles from the previously configured mistaken number:
+     ```text
+     8050090300
+     ```
+   - This avoids two real numbers having super admin access accidentally.
+
+3. **Fix `/auth` redirect priority**
+   - If a user has both super admin and delivery partner access, the current `/auth` role resolver would send them to `/driver-app` first.
+   - I will update the redirect priority so:
+     ```text
+     /auth + 8050000300 -> /admin
      ```
 
-4. **Keep `/mlm-login` separate**
-   - I will not make `8050090300` an `mlm_admin`.
-   - So if the same number logs in from `/mlm-login`, it will remain on the MLM login flow and show access denied instead of entering MLM admin:
+4. **Allow `/mlm-login` for the same number**
+   - Because the confirmed number should access all dashboards/logins:
      ```text
-     /mlm-login + 8050090300 login -> stays/returns to /mlm-login
+     /mlm-login + 8050000300 -> /mlm-admin
      ```
-   - This matches your wording: `/auth` should open `/admin`, while `/mlm-login` should remain `/mlm-login`.
+
+5. **Ensure direct dashboard access works**
+   - The same account should be allowed to access:
+     ```text
+     /admin
+     /mlm-admin
+     /member-app
+     /driver-app
+     /customer-app
+     ```
 
 ### Technical details
 
-- Create a backend migration to replace the current phone mapping in `public.handle_new_user()`.
-- Use data update SQL to:
-  - remove privileged roles from the old `9108682966` account(s),
-  - add `super_admin` to existing user profile(s) for `8050090300` if already present.
-- Update project memory for the new real admin number so it is not accidentally reverted later.
-- No MSG91 template changes are needed for this request.
-- No direct edits will be made to generated backend client/type files.
+- Update the backend `handle_new_user()` role assignment function so future logins/signups use `8050000300`, not `8050090300`.
+- Run database data updates to:
+  - remove privileged roles from `9108682966`,
+  - remove privileged roles from `8050090300`,
+  - add required roles to `8050000300`,
+  - create/ensure a delivery partner record for `8050000300`.
+- Update frontend redirect logic in `/auth` so super admin has priority over delivery partner when deciding the landing page.
+- Keep `/mlm-login` behavior role-based, but now `8050000300` will pass because it will have the `mlm_admin` role.
+- Update project memory so future changes do not revert to `8050090300`.
+
+### Expected result
+
+```text
+/auth + 8050000300      -> /admin
+/mlm-login + 8050000300 -> /mlm-admin
+/direct /driver-app     -> allowed
+/direct /member-app     -> allowed
+/direct /customer-app   -> allowed
+```
+
+No MSG91 template changes are needed for this request.
