@@ -90,9 +90,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full max-w-full overflow-hidden">
         <AdminSidebar />
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
           <header className="h-14 border-b border-border bg-card flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 overflow-hidden">
             <SidebarTrigger className="shrink-0" />
             {showBackButton && (
@@ -110,7 +110,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               <span className="hidden sm:inline">Logout</span>
             </Button>
           </header>
-          <div className="flex-1 p-3 sm:p-4 lg:p-6 bg-background">{children}</div>
+          <div className="flex-1 min-w-0 max-w-full overflow-x-hidden p-3 sm:p-4 lg:p-6 bg-background">{children}</div>
         </main>
       </div>
     </SidebarProvider>
