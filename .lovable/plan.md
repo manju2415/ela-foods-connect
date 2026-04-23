@@ -1,71 +1,44 @@
 
-## OTP Flow Check Result for 9108682966
+## Plan: Replace admin login number and keep login paths separate
 
-### What I found
-The app did send the OTP request successfully.
+### What will change
 
-For mobile `9108682966`, the backend sent this to MSG91:
+1. **Remove `9108682966` as an admin number**
+   - Remove it from the current `handle_new_user` role assignment logic.
+   - Remove any existing `super_admin`, `admin`, and `mlm_admin` roles attached to users whose profile phone is:
+     - `9108682966`
+     - `09108682966`
+     - `919108682966`
+     - `+919108682966`
 
-```text
-mobile: 919108682966
-template_id: 69b906d98a47e8b5070e0862
-otp_length: 6
-```
+2. **Add `8050090300` as the new admin number**
+   - Update backend role assignment so new signups/logins for:
+     - `8050090300`
+     - `918050090300`
+     - `+918050090300`
+   - receive admin access.
 
-MSG91 responded successfully:
+3. **Make `/auth` login go to `/admin` for `8050090300`**
+   - Assign `super_admin` to `8050090300`.
+   - Because `/auth` already redirects super admins to `/admin`, this will make the login flow work as requested:
+     ```text
+     /auth + 8050090300 login -> /admin
+     ```
 
-```text
-HTTP Status: 200
-Response: {"request_id":"3664766b7976686871796f42","type":"success"}
-```
+4. **Keep `/mlm-login` separate**
+   - I will not make `8050090300` an `mlm_admin`.
+   - So if the same number logs in from `/mlm-login`, it will remain on the MLM login flow and show access denied instead of entering MLM admin:
+     ```text
+     /mlm-login + 8050090300 login -> stays/returns to /mlm-login
+     ```
+   - This matches your wording: `/auth` should open `/admin`, while `/mlm-login` should remain `/mlm-login`.
 
-So the app/backend flow is working up to MSG91. The issue is likely on the MSG91 delivery side, such as:
-- DLT/template approval issue
-- Sender ID route issue
-- SMS delivery blocked/delayed by operator
-- Template content mismatch in MSG91
-- Number-specific delivery failure
+### Technical details
 
-### Important database finding
-The number `9108682966` exists multiple times in profiles as guest/member-style profiles, but it does not currently appear as an admin/super-admin account in the public app data I can see.
-
-So even after OTP verification, this number may not be allowed into `/admin` unless we assign the correct admin role.
-
-## Plan to fix/check fully
-
-### 1. Verify MSG91 delivery using the request ID
-Use this MSG91 request ID to check delivery in MSG91 logs:
-
-```text
-3664766b7976686871796f42
-```
-
-This will confirm whether MSG91 actually delivered, failed, or blocked the SMS.
-
-### 2. Improve app-side OTP debugging
-Update the OTP send flow so admin/test debugging shows:
-- whether MSG91 accepted the request
-- masked mobile number
-- request ID
-- clearer delivery message if MSG91 says success but SMS is not received
-
-This will help identify future OTP issues faster.
-
-### 3. Clean up/check `9108682966` account access
-Check whether `9108682966` should be:
-- Super Admin for `/admin`
-- MLM Admin for `/mlm-admin`
-- normal member/customer
-
-If you want this number to login to `/admin`, I will add the proper admin role using a secure backend change.
-
-### 4. Keep MSG91 OTP sending as-is unless MSG91 logs show a provider error
-Since MSG91 returned success, I will not change the template ID or API call unless the MSG91 delivery report shows an error.
-
-### Files/functions involved
-| Area | Action |
-|---|---|
-| `msg91-send-otp` backend function | Keep current send logic, optionally add better diagnostics |
-| `/auth` login flow | Show clearer OTP send status/debug info |
-| Database roles | Assign admin role to `9108682966` only if you confirm this number should access `/admin` |
-
+- Create a backend migration to replace the current phone mapping in `public.handle_new_user()`.
+- Use data update SQL to:
+  - remove privileged roles from the old `9108682966` account(s),
+  - add `super_admin` to existing user profile(s) for `8050090300` if already present.
+- Update project memory for the new real admin number so it is not accidentally reverted later.
+- No MSG91 template changes are needed for this request.
+- No direct edits will be made to generated backend client/type files.
