@@ -4,7 +4,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AdminSidebar } from "./AdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, LogOut, ExternalLink } from "lucide-react";
+import { ArrowLeft, Loader2, LogOut, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLayoutOverride } from "@/contexts/AdminLayoutContext";
 
@@ -21,6 +21,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const LayoutOverride = useLayoutOverride();
 
   const isMLMRoute = location.pathname.startsWith("/mlm-admin");
+  const showBackButton = !isMLMRoute && location.pathname !== "/admin";
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -63,6 +64,14 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     window.open("/", "_blank");
   };
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/admin", { replace: true });
+    }
+  };
+
   if (authLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -84,19 +93,24 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="min-h-screen flex w-full">
         <AdminSidebar />
         <main className="flex-1 flex flex-col">
-          <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
-            <SidebarTrigger />
-            <h1 className="font-semibold text-lg flex-1">Ela Bazar Admin</h1>
-            <Button variant="ghost" size="sm" onClick={handleVisitSite}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Visit Site
+          <header className="h-14 border-b border-border bg-card flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 overflow-hidden">
+            <SidebarTrigger className="shrink-0" />
+            {showBackButton && (
+              <Button variant="ghost" size="icon" onClick={handleBack} className="h-9 w-9 shrink-0" aria-label="Go back">
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <h1 className="font-semibold text-base sm:text-lg flex-1 min-w-0 truncate whitespace-nowrap">Ela Bazar Admin</h1>
+            <Button variant="ghost" size="sm" onClick={handleVisitSite} className="shrink-0 px-2 sm:px-3" aria-label="Visit site">
+              <ExternalLink className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Visit Site</span>
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Logout
+            <Button variant="ghost" size="sm" onClick={handleLogout} className="shrink-0 px-2 sm:px-3" aria-label="Logout">
+              <LogOut className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Logout</span>
             </Button>
           </header>
-          <div className="flex-1 p-6 bg-background">{children}</div>
+          <div className="flex-1 p-3 sm:p-4 lg:p-6 bg-background">{children}</div>
         </main>
       </div>
     </SidebarProvider>
