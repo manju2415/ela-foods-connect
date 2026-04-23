@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -282,18 +283,18 @@ export default function Categories() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
             <p className="text-muted-foreground">Organize your product catalog</p>
           </div>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Category
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <FolderTree className="h-5 w-5" />
@@ -310,7 +311,7 @@ export default function Categories() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -318,7 +319,8 @@ export default function Categories() {
             ) : filteredCategories.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No categories found</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -395,12 +397,40 @@ export default function Categories() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {filteredCategories.map((category) => (
+                  <AdminMobileCard key={category.id}>
+                    <div className="flex gap-3">
+                      {category.image_url ? (
+                        <img src={category.image_url} alt={category.name} className="h-12 w-12 shrink-0 rounded object-cover" />
+                      ) : (
+                        <div className="h-12 w-12 shrink-0 rounded bg-muted flex items-center justify-center"><FolderTree className="h-5 w-5 text-muted-foreground" /></div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium break-words">{category.parent_id ? "└ " : ""}{category.name}</div>
+                        <div className="text-sm text-muted-foreground break-all">{category.slug}</div>
+                      </div>
+                      <Badge variant={category.is_active ? "default" : "secondary"} className="shrink-0">{category.is_active ? "Active" : "Inactive"}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Order">{category.display_order}</AdminMobileField>
+                      <AdminMobileField label="Products">{getChildCount(category.id)} subcategories</AdminMobileField>
+                      <AdminMobileField label="Parent" className="col-span-2">{category.parent_id ? <Badge variant="outline">{getParentName(category.parent_id)}</Badge> : <Badge>Parent Category</Badge>}</AdminMobileField>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(category)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDeletingCategory(category); setIsDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="max-w-lg max-h-[85vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[85vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
               <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
             </DialogHeader>
@@ -435,7 +465,7 @@ export default function Categories() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="parent">Parent Category</Label>
                   <Select
