@@ -15,6 +15,7 @@ import AuthGuard from "@/components/AuthGuard";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { MLMAdminLayout } from "./components/mlm-admin/MLMAdminLayout";
+import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
@@ -157,8 +158,8 @@ function App() {
                         <Route path="/delivery" element={<DeliveryDashboard />} />
                         <Route path="/admin" element={<AdminDashboard />} />
                         <Route path="/admin/network-admin" element={<NetworkAdmin />} />
-                        <Route path="/admin/founding-members" element={<FoundingMembers />} />
-                        <Route path="/admin/referral-codes" element={<ReferralCodes />} />
+                        <Route path="/admin/founding-members" element={<SuperAdminGuard><FoundingMembers /></SuperAdminGuard>} />
+                        <Route path="/admin/referral-codes" element={<SuperAdminGuard><ReferralCodes /></SuperAdminGuard>} />
                         <Route path="/admin/orders" element={<AdminOrders />} />
                         <Route path="/admin/products" element={<AdminProducts />} />
                         <Route path="/admin/categories" element={<AdminCategories />} />
@@ -169,13 +170,13 @@ function App() {
                         <Route path="/admin/analytics" element={<AdminAnalytics />} />
                         <Route path="/admin/inventory" element={<AdminInventory />} />
                         <Route path="/admin/users" element={<AdminUsers />} />
-                        <Route path="/admin/mlm-settings" element={<MLMSettings />} />
-                        <Route path="/admin/withdrawals" element={<AdminWithdrawals />} />
-                        <Route path="/admin/network-analytics" element={<NetworkAnalytics />} />
+                        <Route path="/admin/mlm-settings" element={<SuperAdminGuard><MLMSettings /></SuperAdminGuard>} />
+                        <Route path="/admin/withdrawals" element={<SuperAdminGuard><AdminWithdrawals /></SuperAdminGuard>} />
+                        <Route path="/admin/network-analytics" element={<SuperAdminGuard><NetworkAnalytics /></SuperAdminGuard>} />
                         <Route path="/admin/testimonials" element={<AdminTestimonials />} />
                         <Route path="/admin/banners" element={<AdminBanners />} />
                         <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
-                        <Route path="/admin/founders" element={<AdminFounders />} />
+                        <Route path="/admin/founders" element={<SuperAdminGuard><AdminFounders /></SuperAdminGuard>} />
                         <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                         <Route path="/admin/policies" element={<AdminPolicies />} />
                         <Route path="/admin/stores" element={<AdminStores />} />
