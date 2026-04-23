@@ -22,6 +22,7 @@ import {
   RotateCcw,
   FileText,
   Store,
+  ShieldCheck,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -67,6 +68,17 @@ const menuItems: MenuItem[] = [
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 ];
 
+const networkMenuItems: MenuItem[] = [
+  { title: "Network Admin", url: "/admin/network-admin", icon: ShieldCheck, superAdminOnly: true },
+  { title: "Network Analytics", url: "/admin/network-analytics", icon: Network, superAdminOnly: true },
+  { title: "Network Users", url: "/admin/users", icon: Users, superAdminOnly: true },
+  { title: "Founding Members", url: "/admin/founding-members", icon: Crown, superAdminOnly: true },
+  { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
+  { title: "Founders", url: "/admin/founders", icon: UserCog, superAdminOnly: true },
+  { title: "MLM Settings", url: "/admin/mlm-settings", icon: Settings, superAdminOnly: true },
+  { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
+];
+
 export function AdminSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
@@ -103,6 +115,29 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        {isSuperAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Network Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {networkMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === item.url}
+                      tooltip={item.title}
+                    >
+                      <NavLink to={item.url} end>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
     </Sidebar>
   );
