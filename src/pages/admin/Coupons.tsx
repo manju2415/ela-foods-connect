@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -212,18 +213,18 @@ export default function Coupons() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Coupons</h1>
             <p className="text-muted-foreground">Manage discount codes</p>
           </div>
-          <Button onClick={openCreate}>
+          <Button onClick={openCreate} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" /> Add Coupon
           </Button>
         </div>
 
-        <Card>
-          <CardHeader>
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle className="flex items-center gap-2">
                 <Ticket className="h-5 w-5" />
@@ -240,7 +241,7 @@ export default function Coupons() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -248,7 +249,8 @@ export default function Coupons() {
             ) : filteredCoupons.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">No coupons found</div>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <div className="hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -309,17 +311,41 @@ export default function Coupons() {
                   </TableBody>
                 </Table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {filteredCoupons.map((coupon) => (
+                  <AdminMobileCard key={coupon.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-mono font-semibold break-all">{coupon.code}</div>
+                        <div className="text-sm text-muted-foreground break-words">{coupon.description || "No description"}</div>
+                      </div>
+                      <Badge variant={coupon.is_active ? "default" : "secondary"} className="shrink-0">{coupon.is_active ? "Active" : "Inactive"}</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AdminMobileField label="Discount">{coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`}{coupon.max_discount_amount && <span className="block text-xs text-muted-foreground">Max: ₹{coupon.max_discount_amount}</span>}</AdminMobileField>
+                      <AdminMobileField label="Min Order">₹{coupon.min_order_amount || 0}</AdminMobileField>
+                      <AdminMobileField label="Usage">{coupon.usage_count} / {coupon.usage_limit || "∞"}</AdminMobileField>
+                      <AdminMobileField label="Valid Until">{coupon.valid_until ? new Date(coupon.valid_until).toLocaleDateString() : "No expiry"}</AdminMobileField>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button variant="outline" size="sm" onClick={() => openEdit(coupon)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="sm" onClick={() => { setDeletingCoupon(coupon); setIsDeleteDialogOpen(true); }}><Trash2 className="h-4 w-4" /></Button>
+                    </div>
+                  </AdminMobileCard>
+                ))}
+              </div>
+              </>
             )}
           </CardContent>
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingCoupon ? "Edit Coupon" : "Add Coupon"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Code *</Label>
                   <Input
@@ -352,7 +378,7 @@ export default function Coupons() {
                   placeholder="Save 20% on your order"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Discount Value *</Label>
                   <Input
@@ -372,7 +398,7 @@ export default function Coupons() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Min Order Amount (₹)</Label>
                   <Input
@@ -392,7 +418,7 @@ export default function Coupons() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Valid Until</Label>
                   <Input
