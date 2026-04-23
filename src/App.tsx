@@ -64,6 +64,7 @@ const AdminPolicies = lazy(() => import("./pages/admin/Policies"));
 const AdminStores = lazy(() => import("./pages/admin/Stores"));
 const AdminStoreInventory = lazy(() => import("./pages/admin/StoreInventory"));
 const AdminAdvertisements = lazy(() => import("./pages/admin/Advertisements"));
+const NetworkAdmin = lazy(() => import("./pages/admin/NetworkAdmin"));
 
 // MLM Admin
 const MLMDashboard = lazy(() => import("./pages/mlm-admin/MLMDashboard"));
@@ -155,6 +156,7 @@ function App() {
                         <Route path="/contact" element={<Contact />} />
                         <Route path="/delivery" element={<DeliveryDashboard />} />
                         <Route path="/admin" element={<AdminDashboard />} />
+                        <Route path="/admin/network-admin" element={<NetworkAdmin />} />
                         <Route path="/admin/founding-members" element={<FoundingMembers />} />
                         <Route path="/admin/referral-codes" element={<ReferralCodes />} />
                         <Route path="/admin/orders" element={<AdminOrders />} />
