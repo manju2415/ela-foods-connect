@@ -25,7 +25,11 @@ export function useUserRole() {
         supabase.rpc("is_admin", { _user_id: user.id }),
         supabase.rpc("is_super_admin", { _user_id: user.id }),
         supabase.rpc("is_mlm_admin", { _user_id: user.id }),
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .in("role", ["founding_member", "member"]),
       ]);
 
       setIsAdmin(!!adminResult.data);
