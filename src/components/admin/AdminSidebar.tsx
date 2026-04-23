@@ -80,10 +80,16 @@ const networkMenuItems: MenuItem[] = [
 ];
 
 export function AdminSidebar() {
-  const { state } = useSidebar();
+  const { state, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { isSuperAdmin } = useUserRole();
+
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const visibleMenuItems = menuItems.filter((item) => {
     if (isSuperAdmin) return true;
@@ -105,7 +111,7 @@ export function AdminSidebar() {
                     isActive={location.pathname === item.url}
                     tooltip={item.title}
                   >
-                    <NavLink to={item.url} end>
+                    <NavLink to={item.url} end onClick={handleMenuClick}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </NavLink>
@@ -127,7 +133,7 @@ export function AdminSidebar() {
                       isActive={location.pathname === item.url}
                       tooltip={item.title}
                     >
-                      <NavLink to={item.url} end>
+                      <NavLink to={item.url} end onClick={handleMenuClick}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
                       </NavLink>
