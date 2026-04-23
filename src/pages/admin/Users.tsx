@@ -153,7 +153,7 @@ export default function UsersPage() {
         body: { user_id: userId },
       });
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.ok === false || data?.error) throw new Error(data.error || "Failed to remove user");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
