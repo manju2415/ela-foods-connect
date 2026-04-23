@@ -13,17 +13,6 @@ export default function RoleBasedRedirect() {
     if (!user) return;
 
     const resolve = async () => {
-      // Check if delivery partner
-      const { data: partnerData } = await supabase
-        .from("delivery_partners")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (partnerData) {
-        navigate("/driver-app", { replace: true });
-        return;
-      }
-
       // Check roles
       const { data: roles } = await supabase
         .from("user_roles")
@@ -47,6 +36,17 @@ export default function RoleBasedRedirect() {
       // Store admin → products page (no dashboard)
       if (roleSet.has("admin")) {
         navigate("/admin/products", { replace: true });
+        return;
+      }
+
+      // Delivery partner → driver app
+      const { data: partnerData } = await supabase
+        .from("delivery_partners")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (partnerData) {
+        navigate("/driver-app", { replace: true });
         return;
       }
 
