@@ -1,96 +1,130 @@
 
-## Plan: Fix Super Admin mobile responsiveness and back navigation
+## Plan: Make Super Admin modules responsive in mobile view
 
-### Issues to fix
+### Problem to fix
 
-1. **Admin header is not responsive on phone**
-   - The title `Ela Bazar Admin` is wrapping/breaking because the mobile header also shows:
-     ```text
-     Visit Site
-     Logout
-     ```
-   - On narrow screens, there is not enough horizontal space.
+In the Super Admin app, many admin pages use desktop-style tables and fixed-width layouts. On mobile, this causes horizontal overflow, so users must scroll sideways to see full content.
 
-2. **Back navigation inside Super Admin features is not clear/working**
-   - After opening modules like Products, Categories, Orders, Network Admin, etc., the user needs an easy way to return to the previous admin screen.
-   - The current admin layout only has the sidebar toggle, title, Visit Site, and Logout.
+This is happening across multiple modules, including **Users Management**, because the current layout mostly relies on wide tables.
 
 ### What will change
 
-1. **Make the Super Admin header mobile-friendly**
-   - Keep `Ela Bazar Admin` on one line using `truncate` / `whitespace-nowrap`.
-   - On mobile:
-     - show compact icon-only buttons for Visit Site and Logout,
-     - reduce spacing,
-     - prevent the title from wrapping.
-   - On desktop:
-     - keep the current full text buttons:
-       ```text
-       Visit Site
-       Logout
-       ```
+1. **Fix the admin shell width behavior**
+   - Update the Super Admin layout so the main content area can shrink properly on small screens.
+   - Add safe width handling such as:
+     ```text
+     min-w-0
+     max-w-full
+     overflow-hidden where appropriate
+     ```
+   - This prevents the sidebar + content flex layout from forcing the page wider than the mobile viewport.
 
-2. **Add a real Back button to the admin header**
-   - Add a back arrow button in the admin header when the user is not on the main `/admin` dashboard.
-   - Example behavior:
+2. **Add reusable responsive admin list components**
+   - Create a shared responsive pattern for admin modules:
+     - desktop/tablet: keep normal table view,
+     - mobile: show stacked cards instead of wide tables.
+   - This avoids fixing one page at a time with inconsistent UI.
+
+3. **Convert major admin tables to mobile card views**
+   - On mobile, rows will become readable cards with labels and actions.
+   - Example for Users Management:
      ```text
-     /admin/products           -> Back returns to previous admin screen
-     /admin/categories         -> Back returns to previous admin screen
-     /admin/network-admin      -> Back returns to previous admin screen
-     /admin/network-analytics  -> Back returns to previous admin screen
+     User card
+     - Name / email
+     - Phone
+     - Roles
+     - Status
+     - Joined date
+     - Actions: edit, manage roles, remove
      ```
-   - If there is no useful previous page, it will safely return to:
+   - Desktop view will remain table-based.
+
+4. **Apply the pattern across Super Admin modules**
+   - Prioritize all modules that currently render tables:
      ```text
-     /admin
+     Users
+     Products
+     Orders
+     Categories
+     Coupons
+     Banners
+     Advertisements
+     Inventory
+     Stores
+     Store Inventory
+     Delivery Partners
+     Order Assignments
+     Return Requests
+     Testimonials
+     Founding Members
+     Founders
+     Referral Codes
+     Withdrawals
+     ```
+   - Each page will use:
+     ```text
+     hidden md:block      for desktop tables
+     md:hidden            for mobile cards
      ```
 
-3. **Close the sidebar automatically after selecting a module on mobile**
-   - When the mobile sidebar is open and the user taps a menu item, the sidebar drawer should close automatically.
-   - This prevents the screen from looking stuck behind the sidebar overlay.
+5. **Improve mobile headers and filters**
+   - Page headers will stack vertically on mobile.
+   - Search inputs, filters, and action buttons will use full width on small screens.
+   - Long titles, emails, names, SKUs, and addresses will wrap or truncate safely instead of pushing the layout wider.
 
-4. **Improve admin content spacing on mobile**
-   - Reduce page padding on small screens:
+6. **Fix dialogs and forms that overflow**
+   - Update admin dialogs/forms with responsive grids:
      ```text
-     mobile: p-3 or p-4
-     desktop: p-6
+     grid-cols-1 on mobile
+     sm:grid-cols-2 / md:grid-cols-3 on larger screens
      ```
-   - This gives more room for admin tables, cards, and forms on phones.
+   - Ensure dialogs stay inside the viewport:
+     ```text
+     max-w-[calc(100vw-2rem)]
+     max-h-[90vh]
+     overflow-y-auto
+     ```
 
-5. **Keep Super Admin access unchanged**
-   - The number:
-     ```text
-     8050000300
-     ```
-     will still default to:
-     ```text
-     /admin
-     ```
-   - It will still see all Super Admin modules, including the integrated Network Admin section.
+7. **Keep desktop behavior unchanged**
+   - Desktop tables will remain available and functional.
+   - Existing actions, filters, role management, order updates, remove user, and edit flows will continue working.
 
 ### Technical details
 
 - Update `src/components/admin/AdminLayout.tsx`:
-  - add mobile-safe header layout,
-  - add a conditional back button using `useNavigate`,
-  - make title non-wrapping/truncated,
-  - make Visit Site and Logout icon-only on small screens,
-  - adjust main content padding responsively.
+  - add `min-w-0` to the main layout container,
+  - prevent child content from expanding beyond the viewport,
+  - keep existing header/back/sidebar behavior.
 
-- Update `src/components/admin/AdminSidebar.tsx`:
-  - use `setOpenMobile(false)` from `useSidebar()` when a sidebar link is clicked,
-  - keep desktop sidebar behavior unchanged.
+- Update `src/components/ui/table.tsx` carefully:
+  - keep table behavior for desktop,
+  - avoid global changes that still force horizontal scroll on mobile.
 
-- No database changes are needed.
+- Add reusable admin mobile helpers, likely under:
+  ```text
+  src/components/admin/
+  ```
+  Examples:
+  ```text
+  AdminMobileCard
+  AdminMobileField
+  AdminResponsiveList
+  ```
+  These will standardize labels, values, badges, and action buttons.
+
+- Update admin pages with table-heavy layouts:
+  - keep existing `<Table>` markup for `md` and above,
+  - add mobile card rendering below `md`,
+  - replace fixed grids like `grid-cols-2` / `grid-cols-3` in dialogs with responsive classes.
 
 ### Expected result
 
 ```text
-/auth + 8050000300 -> /admin
-
-Mobile admin header:
-- "Ela Bazar Admin" stays on one line
-- Visit Site / Logout no longer force title wrapping
-- Back arrow appears inside feature pages
-- Sidebar closes after tapping a module
-- Super Admin can still see all modules
+Mobile Super Admin app:
+- no sideways page scrolling
+- Users Management renders as cards
+- Products, Orders, Inventory, Stores, etc. render responsively
+- buttons and filters fit within the screen
+- dialogs/forms fit within mobile viewport
+- desktop layout remains table-based
 ```
