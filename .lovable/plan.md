@@ -1,95 +1,85 @@
 
-## Plan: Add Network Admin as a Super Admin dashboard module
-
-### Current setup
-
-Yes — currently the app has two separate admin areas:
-
-```text
-/admin      -> Super Admin / E-commerce Admin dashboard
-/mlm-admin  -> MLM / Network Manager dashboard
-```
-
-The Network Manager pages already exist, but they are mostly available through the separate `/mlm-admin` dashboard. I will add them into the Super Admin dashboard as a dedicated **Network Admin** module, while keeping `/mlm-admin` available for standalone network managers.
+## Plan: Make `8050000300` Super Admin + Network Manager only
 
 ### What will change
 
-1. **Add a Network Admin section inside `/admin`**
-   - Add a separate Network Admin module in the Super Admin sidebar.
-   - This will appear only for Super Admin users.
-   - Store admins will not see or access this module.
+1. **Keep `8050000300` as the main Super Admin login**
+   - Supported formats:
+     ```text
+     8050000300
+     918050000300
+     +918050000300
+     ```
+   - This number will keep `super_admin` access.
+   - When logging in through `/auth`, it will go to:
+     ```text
+     /admin
+     ```
 
-2. **Add a Network Admin dashboard page inside Super Admin**
-   - Add a route like:
+2. **Keep `8050000300` as Network Manager**
+   - This number will also keep `mlm_admin` access.
+   - When logging in through `/mlm-login`, it will go to:
+     ```text
+     /mlm-admin
+     ```
 
-   ```text
-   /admin/network-admin
-   ```
+3. **Remove the extra roles from this number**
+   - I will remove the previously added roles that are no longer wanted:
+     ```text
+     member
+     delivery_partner
+     ```
+   - I will also remove its delivery partner record, so it does not behave like a driver account.
 
-   - This page will show the network overview stats currently shown in the MLM dashboard:
-     - Total members
-     - Founders
-     - Masters
-     - Associates
-     - Total referrals
-     - Referral codes
-     - Wallet balance
-     - Pending withdrawals
+4. **Update future auto-role assignment**
+   - The backend signup/login role assignment will be updated so `8050000300` automatically receives only:
+     ```text
+     super_admin
+     mlm_admin
+     ```
+   - It will no longer automatically receive:
+     ```text
+     member
+     delivery_partner
+     ```
 
-3. **Move Network-related links into the Super Admin module**
-   - Add Network Admin links under the `/admin` dashboard, such as:
+5. **Ensure app OTP login defaults to Super Admin**
+   - The OTP login flow in `/auth` already prioritizes Super Admin above MLM Admin.
+   - I will keep/verify that priority so this happens:
+     ```text
+     App OTP login / /auth + 8050000300 -> /admin
+     ```
+   - This means the number will land in the Super Admin dashboard by default and see all Super Admin modules, including the integrated Network Admin section.
 
-   ```text
-   /admin/network-admin
-   /admin/network-analytics
-   /admin/users
-   /admin/founding-members
-   /admin/referral-codes
-   /admin/founders
-   /admin/mlm-settings
-   /admin/withdrawals
-   ```
-
-   - These pages will continue using the Super Admin layout when accessed from `/admin`.
-
-4. **Keep `/mlm-admin` as a separate login/dashboard**
-   - The standalone Network Manager dashboard will remain available:
-
-   ```text
-   /mlm-login -> /mlm-admin
-   ```
-
-   - This is useful for users who should only manage the network side without seeing the full Super Admin e-commerce dashboard.
-
-5. **Protect Network Admin pages properly**
-   - Network Admin pages inside `/admin` will be restricted to Super Admin access.
-   - Regular store admins should not be able to manually open network admin routes.
+6. **Keep Network Manager login separate**
+   - If the same number is used on `/mlm-login`, it will still enter the standalone Network Manager dashboard:
+     ```text
+     /mlm-login + 8050000300 -> /mlm-admin
+     ```
 
 ### Technical details
 
-- Create/reuse a shared Network Dashboard content component so both dashboards can display the same network stats without duplicating logic.
-- Update `src/App.tsx` with the new Super Admin route:
-
-```text
-/admin/network-admin
-```
-
-- Update `src/components/admin/AdminSidebar.tsx` to include a separate **Network Admin** section or grouped links.
-- Ensure the new module is visible only when `isSuperAdmin` is true.
-- Keep the existing `/mlm-admin` routes and `MLMAdminLayout` unchanged for dedicated Network Manager users.
-- Add route/page guarding where needed so network management pages are not accessible by store admins through direct URLs.
+- Update the backend `handle_new_user()` function so the all-access behavior is removed for `8050000300`.
+- Run data updates to:
+  - delete `member` and `delivery_partner` roles for the `8050000300` account,
+  - keep `super_admin` and `mlm_admin`,
+  - delete any `delivery_partners` record for this user.
+- Review `/auth` redirect logic to ensure Super Admin stays highest priority and lands on `/admin`.
+- Update project memory so future changes remember:
+  ```text
+  8050000300 = Super Admin + Network Manager only
+  ```
 
 ### Expected result
 
 ```text
-/auth + Super Admin login
-  -> /admin
-  -> sidebar includes Network Admin module
+/auth + 8050000300      -> /admin
+/mlm-login + 8050000300 -> /mlm-admin
 
-/admin/network-admin
-  -> network dashboard inside Super Admin layout
+/admin                  -> allowed
+/admin/network-admin    -> allowed
+/mlm-admin              -> allowed
 
-/mlm-login + Network Manager login
-  -> /mlm-admin
-  -> standalone Network Manager dashboard remains available
+/driver-app             -> not treated as this user's default role
+/member-app             -> not treated as this user's default role
 ```
