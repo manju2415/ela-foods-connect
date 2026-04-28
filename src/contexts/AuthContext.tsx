@@ -52,72 +52,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
-   * After MSG91 OTP verification succeeds, create a Supabase session for the user.
-   * Uses deterministic email/password based on phone number.
-   * Optionally processes MLM signup if signupData is provided.
+   * After MSG91 OTP verification succeeds, sign in the user.
+   * Login-only: the user MUST already exist (created by an admin/member via invite).
+   * No client-side signUp — all onboarding goes through server-side admin.createUser flows.
+   * The `signupData` arg is accepted for backwards compatibility but ignored.
    */
   const createSessionForPhone = async (
     phone: string,
-    signupData?: { fullName: string; referralCode: string }
+    _signupData?: { fullName: string; referralCode: string }
   ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
     const cleanPhone = phone.replace(/\+/g, '');
     const mockEmail = `${cleanPhone}@elabazar.local`;
     const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
 
-    // Try to sign up first (will fail silently if user exists)
-    const { error: signUpError } = await supabase.auth.signUp({
-      email: mockEmail,
-      password: tempPassword,
-      options: {
-        data: {
-          full_name: signupData?.fullName || '',
-          phone: phone,
-        }
-      }
-    });
-
-    if (signUpError && !signUpError.message.includes('already registered')) {
-      console.log("[Auth] Signup attempt:", signUpError.message);
-    }
-
-    // Small delay to let handle_new_user trigger fire for new users
-    await new Promise(r => setTimeout(r, 500));
-
-    // Sign in
     const { data, error } = await supabase.auth.signInWithPassword({
       email: mockEmail,
       password: tempPassword,
     });
 
     if (error) {
-      return { error: error as Error };
+      return { error: new Error("Account not found. Please contact admin to be added.") };
     }
 
-    // If signup data provided, process MLM referral and update profile
-    if (signupData && data.user) {
-      await supabase
-        .from("profiles")
-        .update({ full_name: signupData.fullName, phone: phone })
-        .eq("id", data.user.id);
-
-      try {
-        await supabase.rpc("process_mlm_referral", {
-          p_referral_code: signupData.referralCode.toUpperCase(),
-          p_referred_user_id: data.user.id,
-          p_registration_fee: 0,
-        });
-      } catch (err) {
-        console.error("Error processing MLM referral:", err);
-      }
-
-      return { error: null, isNewUser: true };
-    }
-
-    // Update phone on profile if not set
     if (data.user) {
       await supabase
         .from("profiles")
-        .update({ phone: phone })
+        .update({ phone })
         .eq("id", data.user.id);
     }
 
