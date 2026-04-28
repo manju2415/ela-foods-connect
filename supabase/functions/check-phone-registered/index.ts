@@ -25,9 +25,15 @@ serve(async (req) => {
   }
 
   try {
-    const { phone } = await req.json().catch(() => ({}));
+    const { phone, source } = await req.json().catch(() => ({}));
     if (typeof phone !== "string") {
       return json(200, { ok: false, registered: false, error: "Phone is required" });
+    }
+
+    // Invite-only restriction applies ONLY to mobile app callers.
+    // Web/desktop callers (no source flag) bypass the check and are treated as registered.
+    if (source !== "app") {
+      return json(200, { ok: true, registered: true, skipped: true });
     }
 
     // Normalize: strip +, spaces, leading country code → keep last 10 digits
