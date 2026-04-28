@@ -21,6 +21,15 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
 
+const checkPhoneRegistered = async (phone: string): Promise<boolean> => {
+  const { data, error } = await supabase.functions.invoke("check-phone-registered", { body: { phone } });
+  if (error) {
+    console.error("[Auth] check-phone-registered error:", error);
+    return false;
+  }
+  return !!data?.registered;
+};
+
 const sendOtpViaMsg91 = async (phone: string) => {
   if (isTestPhone(phone)) return { success: true as const };
   const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
@@ -233,6 +242,19 @@ const Auth = () => {
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
+
+    // Pre-check: only registered phones (added by admin/member) may receive OTP
+    const registered = await checkPhoneRegistered(fullPhone);
+    if (!registered) {
+      setIsSubmitting(false);
+      toast({
+        title: "Login blocked",
+        description: "You are not added by any member. Please contact admin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = await sendOtpViaMsg91(fullPhone);
     setIsSubmitting(false);
 

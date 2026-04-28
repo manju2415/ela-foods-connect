@@ -2,3 +2,6 @@ project_id = "xisbpiahuomfvawcoicz"
 
 [functions.seed-test-data]
 verify_jwt = false
+
+[functions.check-phone-registered]
+verify_jwt = false
