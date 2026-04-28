@@ -114,6 +114,18 @@ const MLMLogin = () => {
     await signOut();
 
     const fullPhone = `+91${data.phone}`;
+
+    const registered = await checkPhoneRegistered(fullPhone);
+    if (!registered) {
+      setIsSubmitting(false);
+      toast({
+        title: "Login blocked",
+        description: "You are not added by any member. Please contact admin.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const result = await sendOtpViaMsg91(fullPhone);
     setIsSubmitting(false);
 
