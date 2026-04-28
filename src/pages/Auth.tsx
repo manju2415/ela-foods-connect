@@ -21,6 +21,15 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
 
+const checkPhoneRegistered = async (phone: string): Promise<boolean> => {
+  const { data, error } = await supabase.functions.invoke("check-phone-registered", { body: { phone } });
+  if (error) {
+    console.error("[Auth] check-phone-registered error:", error);
+    return false;
+  }
+  return !!data?.registered;
+};
+
 const sendOtpViaMsg91 = async (phone: string) => {
   if (isTestPhone(phone)) return { success: true as const };
   const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
