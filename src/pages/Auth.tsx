@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
 
 // Test accounts bypass real SMS for QA. Real users always go through MSG91.
 const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
@@ -22,7 +23,7 @@ const RESEND_COOLDOWN_SECONDS = 30;
 const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
 
 const checkPhoneRegistered = async (phone: string): Promise<boolean> => {
-  const { data, error } = await supabase.functions.invoke("check-phone-registered", { body: { phone } });
+  const { data, error } = await supabase.functions.invoke("check-phone-registered", { body: { phone, source: "app" } });
   if (error) {
     console.error("[Auth] check-phone-registered error:", error);
     return false;
@@ -243,16 +244,19 @@ const Auth = () => {
 
     const fullPhone = `+91${data.phone}`;
 
-    // Pre-check: only registered phones (added by admin/member) may receive OTP
-    const registered = await checkPhoneRegistered(fullPhone);
-    if (!registered) {
-      setIsSubmitting(false);
-      toast({
-        title: "Login blocked",
-        description: "You are not added by any member. Please contact admin.",
-        variant: "destructive",
-      });
-      return;
+    // Pre-check (mobile app only): only registered phones may receive OTP.
+    // Web/desktop keeps the existing open OTP flow.
+    if (Capacitor.isNativePlatform()) {
+      const registered = await checkPhoneRegistered(fullPhone);
+      if (!registered) {
+        setIsSubmitting(false);
+        toast({
+          title: "Login blocked",
+          description: "You are not added by any member. Please contact admin.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const result = await sendOtpViaMsg91(fullPhone);
