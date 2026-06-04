@@ -75,7 +75,7 @@ export default function TermsAndConditions() {
               <section>
                 <h2 className="text-lg font-semibold text-foreground mb-2">7. INTELLECTUAL PROPERTY</h2>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li>All content on the Platform, including logos, text, graphics, images, and software, is the property of Elabazar or its licensors.</li>
+                  <li>All content on the Platform, including logos, text, graphics, images, and software, is the property of ELA FOODS AND SNACKS PRIVATE LIMITED or its licensors.</li>
                   <li>Unauthorized use, reproduction, or distribution of content is strictly prohibited.</li>
                 </ul>
               </section>
