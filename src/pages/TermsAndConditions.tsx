@@ -88,7 +88,7 @@ export default function TermsAndConditions() {
                   <li>Uninterrupted or error-free operation</li>
                   <li>Accuracy or reliability of information</li>
                 </ul>
-                <p className="mt-2">To the fullest extent permitted by law, Elabazar shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the Platform.</p>
+                <p className="mt-2">To the fullest extent permitted by law, ELA FOODS AND SNACKS PRIVATE LIMITED shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the Platform.</p>
               </section>
 
               <section>
