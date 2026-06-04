@@ -11,10 +11,10 @@ export interface StoreSettings {
 }
 
 const defaultStoreSettings: StoreSettings = {
-  store_name: "ELA Foods",
-  store_email: "contact@elafoods.com",
-  store_phone: "",
-  store_address: "",
+  store_name: "ELA FOODS AND SNACKS PRIVATE LIMITED",
+  store_email: "elabazar6@gmail.com",
+  store_phone: "+919659108119",
+  store_address: "No 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090",
   currency: "INR",
   currency_symbol: "₹",
 };

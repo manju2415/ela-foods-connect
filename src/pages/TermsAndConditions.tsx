@@ -16,7 +16,7 @@ export default function TermsAndConditions() {
               <section>
                 <h2 className="text-lg font-semibold text-foreground mb-2">1. DEFINITIONS</h2>
                 <p>"User" refers to any individual or entity who registers on the Platform to access or use its services.</p>
-                <p className="mt-2">"Platform" refers to Elabazar, including its website, mobile applications, and all associated services.</p>
+                <p className="mt-2">"Platform" refers to ELA FOODS AND SNACKS PRIVATE LIMITED, including its website, mobile applications, and all associated services.</p>
               </section>
 
               <section>
@@ -75,7 +75,7 @@ export default function TermsAndConditions() {
               <section>
                 <h2 className="text-lg font-semibold text-foreground mb-2">7. INTELLECTUAL PROPERTY</h2>
                 <ul className="list-disc ml-5 space-y-1">
-                  <li>All content on the Platform, including logos, text, graphics, images, and software, is the property of Elabazar or its licensors.</li>
+                  <li>All content on the Platform, including logos, text, graphics, images, and software, is the property of ELA FOODS AND SNACKS PRIVATE LIMITED or its licensors.</li>
                   <li>Unauthorized use, reproduction, or distribution of content is strictly prohibited.</li>
                 </ul>
               </section>
@@ -88,7 +88,7 @@ export default function TermsAndConditions() {
                   <li>Uninterrupted or error-free operation</li>
                   <li>Accuracy or reliability of information</li>
                 </ul>
-                <p className="mt-2">To the fullest extent permitted by law, Elabazar shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the Platform.</p>
+                <p className="mt-2">To the fullest extent permitted by law, ELA FOODS AND SNACKS PRIVATE LIMITED shall not be liable for any direct, indirect, incidental, or consequential damages arising from the use of the Platform.</p>
               </section>
 
               <section>
