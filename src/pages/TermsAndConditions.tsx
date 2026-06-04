@@ -16,7 +16,7 @@ export default function TermsAndConditions() {
               <section>
                 <h2 className="text-lg font-semibold text-foreground mb-2">1. DEFINITIONS</h2>
                 <p>"User" refers to any individual or entity who registers on the Platform to access or use its services.</p>
-                <p className="mt-2">"Platform" refers to Elabazar, including its website, mobile applications, and all associated services.</p>
+                <p className="mt-2">"Platform" refers to ELA FOODS AND SNACKS PRIVATE LIMITED, including its website, mobile applications, and all associated services.</p>
               </section>
 
               <section>
