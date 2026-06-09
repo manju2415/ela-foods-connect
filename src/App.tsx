@@ -144,6 +144,7 @@ function App() {
                       <Routes>
                         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
                         <Route path="/auth" element={<Auth />} />
+                        <Route path="/signup" element={<Signup />} />
                         <Route path="/shop" element={<Index />} />
                         <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
                         <Route path="/dashboard" element={<Dashboard />} />
