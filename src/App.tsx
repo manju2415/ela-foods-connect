@@ -24,6 +24,7 @@ import Products from "./pages/Products";
 
 // Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Signup = lazy(() => import("./pages/Signup"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const About = lazy(() => import("./pages/About"));
