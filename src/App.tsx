@@ -24,6 +24,7 @@ import Products from "./pages/Products";
 
 // Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Signup = lazy(() => import("./pages/Signup"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const About = lazy(() => import("./pages/About"));
@@ -143,6 +144,7 @@ function App() {
                       <Routes>
                         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
                         <Route path="/auth" element={<Auth />} />
+                        <Route path="/signup" element={<Signup />} />
                         <Route path="/shop" element={<Index />} />
                         <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
                         <Route path="/dashboard" element={<Dashboard />} />

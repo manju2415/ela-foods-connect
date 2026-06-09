@@ -1,0 +1,267 @@
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, ArrowLeft, UserPlus } from "lucide-react";
+import elaLogo from "@/assets/ela-foods-logo.png";
+import { supabase } from "@/integrations/supabase/client";
+
+const DEMO_PHONES = ["8888888888", "9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const DEMO_OTP = "000000";
+const RESEND_COOLDOWN = 30;
+
+const isDemoPhone = (p: string) => DEMO_PHONES.some((x) => p.endsWith(x));
+
+const signupSchema = z.object({
+  fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
+  phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
+});
+type SignupData = z.infer<typeof signupSchema>;
+
+const sendOtp = async (phone: string) => {
+  if (isDemoPhone(phone)) return { success: true as const };
+  const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
+  if (error || !data?.success) {
+    return { success: false as const, error: data?.error || error?.message || "Failed to send OTP" };
+  }
+  return { success: true as const, requestId: data.requestId as string | undefined };
+};
+
+const verifyOtp = async (phone: string, otp: string) => {
+  if (isDemoPhone(phone)) {
+    return otp === DEMO_OTP
+      ? { success: true as const }
+      : { success: false as const, error: "Invalid OTP" };
+  }
+  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
+  if (error || !data?.success) {
+    return { success: false as const, error: data?.error || error?.message || "Invalid OTP" };
+  }
+  return { success: true as const };
+};
+
+export default function Signup() {
+  const [step, setStep] = useState<"form" | "otp">("form");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [otp, setOtp] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  const { user, createSessionForPhone, signOut } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const form = useForm<SignupData>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: { fullName: "", phone: "" },
+  });
+
+  useEffect(() => {
+    if (user && step === "form") navigate("/customer-app", { replace: true });
+  }, [user, step, navigate]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const onSubmit = async (data: SignupData) => {
+    setSubmitting(true);
+    await signOut();
+    const full = `+91${data.phone}`;
+    const result = await sendOtp(full);
+    setSubmitting(false);
+    if (!result.success) {
+      toast({ title: "Failed to send OTP", description: result.error, variant: "destructive" });
+      return;
+    }
+    setFullName(data.fullName);
+    setPhoneNumber(full);
+    setStep("otp");
+    setCooldown(RESEND_COOLDOWN);
+    toast({
+      title: "OTP Sent",
+      description: isDemoPhone(full) ? `Demo account — use ${DEMO_OTP}` : `Sent to ${full}`,
+    });
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || !phoneNumber) return;
+    setSubmitting(true);
+    const r = await sendOtp(phoneNumber);
+    setSubmitting(false);
+    if (!r.success) {
+      toast({ title: "Failed to resend OTP", description: r.error, variant: "destructive" });
+      return;
+    }
+    setCooldown(RESEND_COOLDOWN);
+    toast({ title: "OTP Resent" });
+  };
+
+  const handleVerify = async () => {
+    if (otp.length !== 6) return;
+    setSubmitting(true);
+
+    const v = await verifyOtp(phoneNumber, otp);
+    if (!v.success) {
+      setSubmitting(false);
+      toast({ title: "Verification failed", description: v.error, variant: "destructive" });
+      setOtp("");
+      return;
+    }
+
+    // Create the account server-side (idempotent)
+    const { data: created, error: createErr } = await supabase.functions.invoke("signup-create-user", {
+      body: { phone: phoneNumber, fullName },
+    });
+
+    if (createErr || !created?.success) {
+      setSubmitting(false);
+      toast({
+        title: "Signup failed",
+        description: created?.error || createErr?.message || "Could not create account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Sign in with the deterministic credentials created by the edge function
+    const { error } = await createSessionForPhone(phoneNumber);
+    setSubmitting(false);
+
+    if (error) {
+      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Welcome to Elabazar!", description: "Your account is ready." });
+    // Small delay so auth context settles, then go to customer app
+    setTimeout(() => navigate("/customer-app", { replace: true }), 600);
+  };
+
+  if (step === "otp") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-4">
+            <div className="flex justify-center">
+              <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
+            </div>
+            <CardTitle className="text-2xl">Verify OTP</CardTitle>
+            <CardDescription>Enter the 6-digit code sent to {phoneNumber}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex justify-center">
+              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                <InputOTPGroup>
+                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                    <InputOTPSlot key={i} index={i} />
+                  ))}
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <Button className="w-full" disabled={otp.length !== 6 || submitting} onClick={handleVerify}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Account
+            </Button>
+            <div className="text-center text-sm">
+              {cooldown > 0 ? (
+                <span className="text-muted-foreground">Resend in {cooldown}s</span>
+              ) : (
+                <button type="button" className="text-primary hover:underline" onClick={handleResend} disabled={submitting}>
+                  Resend OTP
+                </button>
+              )}
+            </div>
+            <div className="text-center">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground hover:underline inline-flex items-center gap-1"
+                onClick={() => {
+                  setStep("form");
+                  setOtp("");
+                }}
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Change details
+              </button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center space-y-4">
+          <div className="flex justify-center">
+            <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
+          </div>
+          <CardTitle className="text-2xl">Create your account</CardTitle>
+          <CardDescription>Sign up with your mobile number — no referral required.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <Input id="fullName" placeholder="John Doe" {...form.register("fullName")} />
+              {form.formState.errors.fullName && (
+                <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Mobile Number</Label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-input bg-muted text-muted-foreground text-sm">
+                  +91
+                </span>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="9876543210"
+                  className="rounded-l-none"
+                  maxLength={10}
+                  {...form.register("phone")}
+                />
+              </div>
+              {form.formState.errors.phone && (
+                <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
+              )}
+            </div>
+
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <UserPlus className="mr-2 h-4 w-4" />
+              Send OTP
+            </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link to="/auth" className="text-primary hover:underline">
+                Log in
+              </Link>
+            </p>
+
+            <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Demo credentials</p>
+              <p>Phone: <span className="font-mono">8888888888</span></p>
+              <p>OTP: <span className="font-mono">{DEMO_OTP}</span></p>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
