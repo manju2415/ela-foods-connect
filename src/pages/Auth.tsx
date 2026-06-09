@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 
 // Test accounts bypass real SMS for QA. Real users always go through MSG91.
-const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006", "8888888888"];
 const TEST_OTP = "000000";
 const RESEND_COOLDOWN_SECONDS = 30;
 
