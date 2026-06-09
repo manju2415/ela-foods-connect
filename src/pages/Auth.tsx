@@ -480,6 +480,10 @@ const Auth = () => {
                 <Phone className="mr-2 h-4 w-4" />
                 Send OTP
               </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                New to Elabazar?{" "}
+                <a href="/signup" className="text-primary hover:underline">Create an account</a>
+              </p>
             </form>
           ) : (
             <form onSubmit={signupForm.handleSubmit(handleSendSignupOtp)} className="space-y-4">
