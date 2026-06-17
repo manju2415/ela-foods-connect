@@ -20,7 +20,7 @@ serve(async (req) => {
       });
     }
 
-    const keyId = "rzp_live_SbI9NJkqWwYUvV";
+    const keyId = "rzp_live_T2arUsQZHfGFov";
     const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 
     const orderPayload = {
