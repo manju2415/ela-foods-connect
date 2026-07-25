@@ -109,6 +109,9 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
               <Link to="/terms-and-conditions" className="text-card/60 hover:text-secondary transition-colors">
                 Terms & Conditions
               </Link>
+              <Link to="/account-deletion" className="text-card/60 hover:text-secondary transition-colors">
+                Delete Account
+              </Link>
             </div>
           </div>
         </div>
