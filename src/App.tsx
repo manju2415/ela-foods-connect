@@ -40,6 +40,7 @@ const Policies = lazy(() => import("./pages/Policies"));
 const TermsAndConditions = lazy(() => import("./pages/TermsAndConditions"));
 const StoreLocator = lazy(() => import("./pages/StoreLocator"));
 const MobileApps = lazy(() => import("./pages/MobileApps"));
+const AccountDeletion = lazy(() => import("./pages/AccountDeletion"));
 
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
@@ -199,6 +200,8 @@ function App() {
                         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                         <Route path="/complete-registration" element={<CompleteRegistration />} />
                         <Route path="/registration-payment" element={<RegistrationPayment />} />
+                        <Route path="/account-deletion" element={<AccountDeletion />} />
+                        <Route path="/delete-account" element={<AccountDeletion />} />
                         {/* Mobile App Entry Points */}
                         <Route path="/mobile-apps" element={<MobileApps />} />
                         <Route path="/driver-app" element={<DriverApp />} />
