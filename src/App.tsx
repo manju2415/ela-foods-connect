@@ -200,6 +200,8 @@ function App() {
                         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                         <Route path="/complete-registration" element={<CompleteRegistration />} />
                         <Route path="/registration-payment" element={<RegistrationPayment />} />
+                        <Route path="/account-deletion" element={<AccountDeletion />} />
+                        <Route path="/delete-account" element={<AccountDeletion />} />
                         {/* Mobile App Entry Points */}
                         <Route path="/mobile-apps" element={<MobileApps />} />
                         <Route path="/driver-app" element={<DriverApp />} />
