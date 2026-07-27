@@ -13,7 +13,7 @@ interface SeedUser {
 }
 
 const USERS: SeedUser[] = [
-  { full_name: "Shyju V M", phone10: "8050090300", email: "shyjuvm@gmail.com" },
+  { full_name: "Shyju V M", phone10: "9448493280", email: "shyjuvm@gmail.com" },
   { full_name: "Sudevan P M", phone10: "9845121558", email: "info@addblr.com" },
   { full_name: "Manoj Kumar", phone10: "9611485193", email: "mnrmanoj02@gmail.com" },
   { full_name: "Vinod M S", phone10: "9845482617", email: "indexgr@rediffmail.com" },
