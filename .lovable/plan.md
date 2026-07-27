@@ -1,39 +1,40 @@
-# Plan: Apply invite-only login restriction to mobile app only
+## Goal
 
-Currently the `check-phone-registered` pre-check runs for every login attempt on `/auth` and `/mlm-login`, blocking unregistered numbers from receiving OTP on **both** web and mobile app. We need to scope this restriction to the mobile (Capacitor) app only — desktop/web should retain its existing behavior (allow OTP for any number).
+Wipe every account currently in Ela Bazar and re-seed with a clean set: one super admin plus four founding members. Each founder gets a fresh account with the number/email you provided; they complete their own profile after first login via OTP.
 
-## Approach
+## Accounts to create
 
-Gate the pre-check using `Capacitor.isNativePlatform()`:
-- **Native app** → run `check-phone-registered`; block if not registered.
-- **Web** → skip the pre-check; proceed straight to `msg91-send-otp`.
+**Super Admin**
+- 8050000300 — full access (super_admin + mlm_admin, keep as-is per earlier decision)
 
-For defense-in-depth, also pass an explicit `source: "app"` flag to the edge function and have the function only enforce the block when that flag is present. If a future caller forgets to send the flag, the function will allow OTP (matching the web behavior).
+**Founding Members**
+| Name | Phone | Email |
+|---|---|---|
+| Shyju V M | 9448493280 | shyjuvm@gmail.com |
+| Sudevan P M | 9845121558 | info@addblr.com |
+| Manoj Kumar | 9611485193 | mnrmanoj02@gmail.com |
+| Vinod M S | 9845482617 | indexgr@rediffmail.com |
 
-## Files to edit
+Note: this replaces Shyju's previous number 8050090300 with 9448493280.
 
-### 1. `src/pages/Auth.tsx`
-- Import `Capacitor` from `@capacitor/core`.
-- Wrap the existing `checkPhoneRegistered(...)` call (around line 247) in `if (Capacitor.isNativePlatform()) { ... }`.
-- When skipped, proceed directly to `sendOtpViaMsg91(...)`.
-- Pass `{ phone, source: "app" }` in the invoke body when called.
+## Steps
 
-### 2. `src/pages/MLMLogin.tsx`
-- Same change as Auth.tsx (line 118 area).
+1. **Full reset via existing `reset-test-data` edge function**
+   - Deletes every auth user and cleans dependent tables (wallets, referrals, orders, addresses, cart, wishlist, withdrawals, notifications, reviews, testimonials, etc.).
+   - Recreates the 6 default test accounts (`9999000001`–`9999000006`, OTP `000000`) so QA logins keep working.
+   - Super admin `8050000300` is auto-assigned super_admin + mlm_admin on first login via the existing `handle_new_user` trigger — no seeding needed.
 
-### 3. `supabase/functions/check-phone-registered/index.ts`
-- Read optional `source` field from request body.
-- If `source !== "app"` → always return `{ ok: true, registered: true, skipped: true }` (web bypass).
-- Existing whitelist + profile lookup logic only runs when `source === "app"`.
+2. **Re-run `seed-founding-members` edge function with updated list**
+   - Update the `USERS` array so Shyju's number becomes `9448493280` (was `8050090300`).
+   - Function creates each auth user with synthetic login email `91<phone>@elabazar.local`, assigns `founding_member` role, sets `user_level=founder`, generates a referral code, and ensures a wallet exists.
+   - Real emails are stored on the profile for records/notifications.
 
-## What stays the same
-- Supabase auth config (`auto_confirm_email`), MSG91 OTP send, login/session creation in `AuthContext.createSessionForPhone`, healed-user migration, whitelist for QA/super admin numbers.
-- Web users continue to log in via OTP exactly as before today.
-- Native app users still see the "You are not added by any member. Please contact admin." block when their number isn't registered.
+3. **Login flow for founders** (no code change needed — works today)
+   - Founder opens the app, enters their 10-digit mobile → OTP via MSG91 → lands in dashboard.
+   - They can then fill out any remaining profile details (address, bank info for withdrawals, etc.) from the profile page.
 
-## Test cases after implementation
-1. Web `/auth`: unknown number → OTP sent (existing behavior preserved).
-2. Web `/mlm-login`: unknown number → OTP sent.
-3. Native app `/auth`: unknown number → blocked with invite-only message, no OTP.
-4. Native app `/auth`: registered number → OTP sent → login works.
-5. Whitelisted test accounts (`9999000001`–`06`, `8050000300`) → always allowed on app.
+## Notes / confirmations needed
+
+- Super admin number `8050000300` — no seeding action required; role auto-assigned on first OTP login. Confirm you don't also want it pre-created.
+- Test accounts `9999000001`–`06` will be recreated as part of reset. Say the word if you want them removed instead.
+- Reset is destructive and irreversible — all current orders, wallets, referral trees, and testimonials will be gone.
