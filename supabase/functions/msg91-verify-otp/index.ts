@@ -69,9 +69,11 @@ serve(async (req) => {
       );
     }
 
-    if (data.type === 'success') {
+    const msg = (data.message || '').toString().toLowerCase();
+    const alreadyVerified = msg.includes('already verified');
+    if (data.type === 'success' || alreadyVerified) {
       return new Response(
-        JSON.stringify({ success: true, providerResponse: data }),
+        JSON.stringify({ success: true, providerResponse: data, alreadyVerified }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
