@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!assets/|icons/|placeholder.svg|robots.txt|manifest-customer.json|manifest-driver.json|manifest-member.json).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
