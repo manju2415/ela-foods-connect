@@ -419,8 +419,8 @@ export default function ProductDetail() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
-                      disabled={quantity >= product.stock_quantity}
+                      onClick={() => setQuantity(Math.min(effectiveStock, quantity + 1))}
+                      disabled={quantity >= effectiveStock}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -438,17 +438,17 @@ export default function ProductDetail() {
                   <Button
                     size="lg"
                     onClick={handleAddToCart}
-                    disabled={isAddingToCart || product.stock_quantity === 0}
+                    disabled={isAddingToCart || effectiveStock === 0}
                     className="flex-1"
                   >
                     <ShoppingCart className="mr-2 h-5 w-5" />
-                    {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                    {effectiveStock === 0 ? "Out of Stock" : "Add to Cart"}
                   </Button>
                   <Button
                     size="lg"
                     variant="secondary"
                     onClick={handleBuyNow}
-                    disabled={isBuyingNow || product.stock_quantity === 0}
+                    disabled={isBuyingNow || effectiveStock === 0}
                     className="flex-1"
                   >
                     <Zap className="mr-2 h-5 w-5" />
@@ -457,9 +457,9 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {product.stock_quantity > 0 && product.stock_quantity <= 10 && (
+              {effectiveStock > 0 && effectiveStock <= 10 && (
                 <p className="text-sm text-destructive">
-                  Only {product.stock_quantity} left in stock!
+                  Only {effectiveStock} left in stock!
                 </p>
               )}
 
