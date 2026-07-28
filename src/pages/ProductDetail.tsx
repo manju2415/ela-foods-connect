@@ -338,12 +338,39 @@ export default function ProductDetail() {
                 )}
               </div>
 
+              {variants.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Select Pack Size:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {variants.map((v: any) => {
+                      const isSelected = (activeVariant?.id === v.id);
+                      const outOfStock = (v.stock_quantity || 0) <= 0;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => { setSelectedVariantId(v.id); setQuantity(1); }}
+                          disabled={outOfStock}
+                          className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-input hover:border-primary"
+                          } ${outOfStock ? "opacity-50 line-through cursor-not-allowed" : ""}`}
+                        >
+                          {v.label} · ₹{Number(v.price).toFixed(0)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
                   <span className="text-sm text-muted-foreground">MRP:</span>
                   <span className={`font-bold ${isMember ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
-                    ₹{Number(product.price).toFixed(2)}
+                    ₹{Number(basePrice).toFixed(2)}
                   </span>
                   {product.compare_at_price && product.compare_at_price > product.price && (
                     <span className="text-lg text-muted-foreground line-through">
