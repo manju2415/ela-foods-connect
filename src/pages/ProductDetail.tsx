@@ -58,6 +58,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],
@@ -106,12 +107,41 @@ export default function ProductDetail() {
     enabled: !!product?.category_id && !!product?.id,
   });
 
+  const { data: variants = [] } = useQuery({
+    queryKey: ["product-variants", product?.id],
+    queryFn: async () => {
+      if (!product?.id) return [] as any[];
+      const { data, error } = await (supabase as any)
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", product.id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!product?.id,
+  });
+
+  // Auto-select default variant on load
+  const activeVariant = variants.find((v: any) => v.id === selectedVariantId)
+    || variants.find((v: any) => v.is_default)
+    || variants[0]
+    || null;
+
+  const effectivePrice = activeVariant?.price ?? product?.price ?? 0;
+  const effectiveStock = activeVariant?.stock_quantity ?? product?.stock_quantity ?? 0;
+
   const handleAddToCart = async () => {
     if (!product) return;
+    if (variants.length > 0 && !activeVariant) {
+      toast.error("Please select a variant");
+      return;
+    }
     setIsAddingToCart(true);
     try {
-      await addToCart(product.id, quantity);
-      toast.success(`${product.name} added to cart`);
+      await addToCart(product.id, quantity, activeVariant?.id || null);
+      toast.success(`${product.name}${activeVariant ? ` (${activeVariant.label})` : ""} added to cart`);
     } catch {
       toast.error("Failed to add to cart");
     } finally {
@@ -121,9 +151,13 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!product) return;
+    if (variants.length > 0 && !activeVariant) {
+      toast.error("Please select a variant");
+      return;
+    }
     setIsBuyingNow(true);
     try {
-      await buyNow(product.id, quantity);
+      await buyNow(product.id, quantity, activeVariant?.id || null);
     } catch {
       toast.error("Failed to process. Please try again.");
     } finally {
