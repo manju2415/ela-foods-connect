@@ -10,6 +10,7 @@ import { useOfflineStorage } from "@/hooks/useOfflineStorage";
 import { useUndeliveryFlow } from "@/hooks/useUndeliveryFlow";
 import { UndeliveryDialog, type UndeliveryReason } from "@/components/delivery/UndeliveryDialog";
 import { ReturnConfirmDialog } from "@/components/delivery/ReturnConfirmDialog";
+import { PackagePhotoCapture } from "@/components/delivery/PackagePhotoCapture";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,9 @@ export default function DriverOrdersPage() {
   const [undeliveryDialogOpen, setUndeliveryDialogOpen] = useState(false);
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const [processingReturn, setProcessingReturn] = useState(false);
+
+  // Photo capture state
+  const [photoDialog, setPhotoDialog] = useState<null | { kind: "pickup" | "delivery"; assignment: Assignment; nextStatus: string }>(null);
 
   const fetchAssignments = useCallback(async () => {
     if (!user) return;
@@ -120,10 +124,30 @@ export default function DriverOrdersPage() {
 
   const { markAsUndelivered, markReturnCompleted } = useUndeliveryFlow(partnerId, fetchAssignments);
 
-  const updateStatus = async (assignment: Assignment, newStatus: string) => {
+  const updateStatus = async (assignment: Assignment, newStatus: string, photoUrl?: string) => {
+    // Photo required for picked_up and delivered
+    if (!photoUrl && (newStatus === "picked_up" || newStatus === "delivered")) {
+      if (!isOnline) {
+        toast.error("Photo capture requires internet connection");
+        return;
+      }
+      setPhotoDialog({
+        kind: newStatus === "picked_up" ? "pickup" : "delivery",
+        assignment,
+        nextStatus: newStatus,
+      });
+      return;
+    }
+
     const updates: any = { status: newStatus };
-    if (newStatus === "picked_up") updates.picked_up_at = new Date().toISOString();
-    if (newStatus === "delivered") updates.delivered_at = new Date().toISOString();
+    if (newStatus === "picked_up") {
+      updates.picked_up_at = new Date().toISOString();
+      if (photoUrl) updates.pickup_photo_url = photoUrl;
+    }
+    if (newStatus === "delivered") {
+      updates.delivered_at = new Date().toISOString();
+      if (photoUrl) updates.delivery_photo_url = photoUrl;
+    }
 
     const orderStatusMap: Record<string, "pending" | "confirmed" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "cancelled"> = {
       picked_up: "shipped",
@@ -486,6 +510,25 @@ export default function DriverOrdersPage() {
         onConfirm={handleReturnConfirm}
         isProcessing={processingReturn}
       />
+
+      {/* Package Photo Capture */}
+      {photoDialog && (
+        <PackagePhotoCapture
+          open={!!photoDialog}
+          onOpenChange={(v) => { if (!v) setPhotoDialog(null); }}
+          orderId={photoDialog.assignment.order_id}
+          kind={photoDialog.kind}
+          title={photoDialog.kind === "pickup" ? "Photo before pickup" : "Photo at delivery"}
+          description={photoDialog.kind === "pickup"
+            ? "Capture a clear photo of the package before you leave the warehouse."
+            : "Capture a photo of the delivered package as proof of delivery."}
+          onUploaded={async (url) => {
+            const { assignment, nextStatus } = photoDialog;
+            setPhotoDialog(null);
+            await updateStatus(assignment, nextStatus, url);
+          }}
+        />
+      )}
     </div>
     </MobileAppLayout>
   );

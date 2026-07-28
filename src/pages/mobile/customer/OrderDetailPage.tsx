@@ -48,6 +48,7 @@ export default function CustomerOrderDetailPage() {
   const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [proofPhotos, setProofPhotos] = useState<{ pickup?: string | null; delivery?: string | null }>({});
   const [loading, setLoading] = useState(true);
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
 
@@ -55,7 +56,7 @@ export default function CustomerOrderDetailPage() {
     if (!user || !orderId) return;
 
     setLoading(true);
-    const [orderRes, itemsRes] = await Promise.all([
+    const [orderRes, itemsRes, assignmentRes] = await Promise.all([
       supabase
         .from("orders")
         .select("*")
@@ -66,6 +67,11 @@ export default function CustomerOrderDetailPage() {
         .from("order_items")
         .select("*")
         .eq("order_id", orderId),
+      supabase
+        .from("order_assignments")
+        .select("pickup_photo_url, delivery_photo_url" as any)
+        .eq("order_id", orderId)
+        .maybeSingle(),
     ]);
 
     if (orderRes.data) {
@@ -77,6 +83,13 @@ export default function CustomerOrderDetailPage() {
 
     if (itemsRes.data) {
       setOrderItems(itemsRes.data);
+    }
+
+    if (assignmentRes.data) {
+      const a: any = assignmentRes.data;
+      setProofPhotos({ pickup: a.pickup_photo_url, delivery: a.delivery_photo_url });
+    } else {
+      setProofPhotos({});
     }
 
     setLoading(false);
@@ -221,6 +234,29 @@ export default function CustomerOrderDetailPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Delivery Proof Photos */}
+            {(proofPhotos.pickup || proofPhotos.delivery) && (
+              <Card>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold mb-3">Delivery Proof</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {proofPhotos.pickup && (
+                      <a href={proofPhotos.pickup} target="_blank" rel="noopener noreferrer">
+                        <p className="text-xs text-muted-foreground mb-1">Before Pickup</p>
+                        <img src={proofPhotos.pickup} alt="Pickup proof" className="w-full aspect-square object-cover rounded-lg border" />
+                      </a>
+                    )}
+                    {proofPhotos.delivery && (
+                      <a href={proofPhotos.delivery} target="_blank" rel="noopener noreferrer">
+                        <p className="text-xs text-muted-foreground mb-1">At Delivery</p>
+                        <img src={proofPhotos.delivery} alt="Delivery proof" className="w-full aspect-square object-cover rounded-lg border" />
+                      </a>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Return/Exchange Button - only for delivered orders */}
             {order.status === "delivered" && (

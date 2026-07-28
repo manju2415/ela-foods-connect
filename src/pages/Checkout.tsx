@@ -370,21 +370,25 @@ const Checkout = () => {
     }
 
     // Create order items
-    const orderItems = items.map((item) => {
-      const itemPrice = isMember 
-        ? (item.product.member_price || item.product.price) 
-        : item.product.price;
+    const orderItems = items.map((item: any) => {
+      const variant = item.variant;
+      const basePrice = variant?.price ?? item.product.price;
+      const memberPrice = variant ? (variant.member_price ?? variant.price) : (item.product.member_price ?? item.product.price);
+      const itemPrice = isMember ? memberPrice : basePrice;
+      const displayName = variant ? `${item.product.name} (${variant.label})` : item.product.name;
       return {
         order_id: order.id,
         product_id: item.product_id,
-        product_name: item.product.name,
+        product_name: displayName,
         product_price: itemPrice,
         quantity: item.quantity,
         total_price: itemPrice * item.quantity,
+        variant_id: variant?.id || null,
+        variant_label: variant?.label || null,
       };
     });
 
-    await supabase.from("order_items").insert(orderItems);
+    await supabase.from("order_items").insert(orderItems as any);
 
     if (appliedCoupon) {
       await supabase

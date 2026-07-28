@@ -208,6 +208,7 @@ export type Database = {
           quantity: number
           updated_at: string
           user_id: string
+          variant_id: string | null
         }
         Insert: {
           created_at?: string
@@ -216,6 +217,7 @@ export type Database = {
           quantity: number
           updated_at?: string
           user_id: string
+          variant_id?: string | null
         }
         Update: {
           created_at?: string
@@ -224,6 +226,7 @@ export type Database = {
           quantity?: number
           updated_at?: string
           user_id?: string
+          variant_id?: string | null
         }
         Relationships: [
           {
@@ -231,6 +234,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
             referencedColumns: ["id"]
           },
         ]
@@ -480,12 +490,14 @@ export type Database = {
           created_at: string
           delivered_at: string | null
           delivery_partner_id: string
+          delivery_photo_url: string | null
           id: string
           is_return_assignment: boolean | null
           notes: string | null
           order_id: string
           original_assignment_id: string | null
           picked_up_at: string | null
+          pickup_photo_url: string | null
           status: string
           undelivery_reason:
             | Database["public"]["Enums"]["undelivery_reason"]
@@ -497,12 +509,14 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_partner_id: string
+          delivery_photo_url?: string | null
           id?: string
           is_return_assignment?: boolean | null
           notes?: string | null
           order_id: string
           original_assignment_id?: string | null
           picked_up_at?: string | null
+          pickup_photo_url?: string | null
           status?: string
           undelivery_reason?:
             | Database["public"]["Enums"]["undelivery_reason"]
@@ -514,12 +528,14 @@ export type Database = {
           created_at?: string
           delivered_at?: string | null
           delivery_partner_id?: string
+          delivery_photo_url?: string | null
           id?: string
           is_return_assignment?: boolean | null
           notes?: string | null
           order_id?: string
           original_assignment_id?: string | null
           picked_up_at?: string | null
+          pickup_photo_url?: string | null
           status?: string
           undelivery_reason?:
             | Database["public"]["Enums"]["undelivery_reason"]
@@ -560,6 +576,8 @@ export type Database = {
           product_price: number
           quantity: number
           total_price: number
+          variant_id: string | null
+          variant_label: string | null
         }
         Insert: {
           created_at?: string
@@ -570,6 +588,8 @@ export type Database = {
           product_price: number
           quantity: number
           total_price: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Update: {
           created_at?: string
@@ -580,6 +600,8 @@ export type Database = {
           product_price?: number
           quantity?: number
           total_price?: number
+          variant_id?: string | null
+          variant_label?: string | null
         }
         Relationships: [
           {
@@ -815,6 +837,65 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "product_reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_variants: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_default: boolean
+          label: string
+          member_price: number | null
+          price: number
+          product_id: string
+          sku: string | null
+          stock_quantity: number
+          unit_type: string
+          unit_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          label: string
+          member_price?: number | null
+          price: number
+          product_id: string
+          sku?: string | null
+          stock_quantity?: number
+          unit_type?: string
+          unit_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          label?: string
+          member_price?: number | null
+          price?: number
+          product_id?: string
+          sku?: string | null
+          stock_quantity?: number
+          unit_type?: string
+          unit_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"

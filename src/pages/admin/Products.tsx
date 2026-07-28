@@ -45,6 +45,7 @@ import {
 import { Search, Plus, Pencil, Trash2, Package, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { compressImages } from "@/utils/imageCompression";
+import { VariantsEditor, VariantDraft, emptyVariant } from "@/components/admin/VariantsEditor";
 
 interface Product {
   id: string;
@@ -125,6 +126,7 @@ export default function Products() {
   const [formData, setFormData] = useState<ProductFormData>(initialFormData);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [variantDrafts, setVariantDrafts] = useState<VariantDraft[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
 
@@ -190,6 +192,30 @@ export default function Products() {
     return urls;
   };
 
+  const saveVariants = async (productId: string) => {
+    // Delete existing then insert current drafts (simple approach)
+    await (supabase as any).from("product_variants").delete().eq("product_id", productId);
+    const rows = variantDrafts
+      .filter((v) => v.label.trim() && v.price)
+      .map((v, i) => ({
+        product_id: productId,
+        label: v.label.trim(),
+        unit_value: parseFloat(v.unit_value) || 0,
+        unit_type: v.unit_type || "g",
+        price: parseFloat(v.price),
+        member_price: v.member_price ? parseFloat(v.member_price) : null,
+        stock_quantity: parseInt(v.stock_quantity) || 0,
+        sku: v.sku || null,
+        is_default: v.is_default,
+        is_active: v.is_active,
+        display_order: i,
+      }));
+    if (rows.length > 0) {
+      const { error } = await (supabase as any).from("product_variants").insert(rows);
+      if (error) throw error;
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: async (data: ProductFormData) => {
       setIsUploading(true);
@@ -197,7 +223,7 @@ export default function Products() {
       if (imageFiles.length > 0) {
         imageUrls = await uploadImages(imageFiles);
       }
-      const { error } = await supabase.from("products").insert({
+      const { data: created, error } = await supabase.from("products").insert({
         name: data.name,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),
         description: data.description || null,
@@ -216,8 +242,9 @@ export default function Products() {
         images: imageUrls,
         gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
         gst_inclusive: data.gst_inclusive,
-      });
+      }).select("id").single();
       if (error) throw error;
+      if (created) await saveVariants(created.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
@@ -262,6 +289,7 @@ export default function Products() {
         })
         .eq("id", id);
       if (error) throw error;
+      await saveVariants(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
@@ -295,10 +323,11 @@ export default function Products() {
     setFormData(initialFormData);
     setImageFiles([]);
     setExistingImages([]);
+    setVariantDrafts([]);
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (product: Product) => {
+  const openEditDialog = async (product: Product) => {
     setEditingProduct(product);
     setFormData({
       name: product.name,
@@ -321,6 +350,27 @@ export default function Products() {
     });
     setExistingImages(product.images || []);
     setImageFiles([]);
+    // Load variants
+    const { data } = await (supabase as any)
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", product.id)
+      .order("display_order", { ascending: true });
+    setVariantDrafts(
+      (data || []).map((v: any) => ({
+        id: v.id,
+        label: v.label || "",
+        unit_value: v.unit_value?.toString() || "",
+        unit_type: v.unit_type || "g",
+        price: v.price?.toString() || "",
+        member_price: v.member_price?.toString() || "",
+        stock_quantity: v.stock_quantity?.toString() || "0",
+        sku: v.sku || "",
+        is_default: !!v.is_default,
+        is_active: v.is_active !== false,
+        display_order: v.display_order || 0,
+      }))
+    );
     setIsDialogOpen(true);
   };
 
@@ -330,6 +380,7 @@ export default function Products() {
     setFormData(initialFormData);
     setImageFiles([]);
     setExistingImages([]);
+    setVariantDrafts([]);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -800,6 +851,8 @@ export default function Products() {
                   <Label htmlFor="is_featured">Featured</Label>
                 </div>
               </div>
+
+              <VariantsEditor variants={variantDrafts} onChange={setVariantDrafts} />
 
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={closeDialog}>

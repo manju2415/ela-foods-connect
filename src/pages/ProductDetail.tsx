@@ -58,6 +58,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],
@@ -106,12 +107,41 @@ export default function ProductDetail() {
     enabled: !!product?.category_id && !!product?.id,
   });
 
+  const { data: variants = [] } = useQuery({
+    queryKey: ["product-variants", product?.id],
+    queryFn: async () => {
+      if (!product?.id) return [] as any[];
+      const { data, error } = await (supabase as any)
+        .from("product_variants")
+        .select("*")
+        .eq("product_id", product.id)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!product?.id,
+  });
+
+  // Auto-select default variant on load
+  const activeVariant = variants.find((v: any) => v.id === selectedVariantId)
+    || variants.find((v: any) => v.is_default)
+    || variants[0]
+    || null;
+
+  const effectivePrice = activeVariant?.price ?? product?.price ?? 0;
+  const effectiveStock = activeVariant?.stock_quantity ?? product?.stock_quantity ?? 0;
+
   const handleAddToCart = async () => {
     if (!product) return;
+    if (variants.length > 0 && !activeVariant) {
+      toast.error("Please select a variant");
+      return;
+    }
     setIsAddingToCart(true);
     try {
-      await addToCart(product.id, quantity);
-      toast.success(`${product.name} added to cart`);
+      await addToCart(product.id, quantity, activeVariant?.id || null);
+      toast.success(`${product.name}${activeVariant ? ` (${activeVariant.label})` : ""} added to cart`);
     } catch {
       toast.error("Failed to add to cart");
     } finally {
@@ -121,9 +151,13 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!product) return;
+    if (variants.length > 0 && !activeVariant) {
+      toast.error("Please select a variant");
+      return;
+    }
     setIsBuyingNow(true);
     try {
-      await buyNow(product.id, quantity);
+      await buyNow(product.id, quantity, activeVariant?.id || null);
     } catch {
       toast.error("Failed to process. Please try again.");
     } finally {
@@ -144,12 +178,15 @@ export default function ProductDetail() {
   };
 
   // Auto-calculate member price if not set (10% discount)
-  const effectiveMemberPrice = product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0);
-  // Calculate discount for compare_at_price
+  const basePrice = activeVariant?.price ?? product?.price ?? 0;
+  const effectiveMemberPrice = activeVariant
+    ? (activeVariant.member_price ?? Math.round(activeVariant.price * 0.9))
+    : (product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0));
+  // Calculate discount for compare_at_price (base product only)
   const discount = product?.compare_at_price && product?.price
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : 0;
-  const memberDiscount = product?.price ? Math.round(((product.price - effectiveMemberPrice) / product.price) * 100) : 0;
+  const memberDiscount = basePrice ? Math.round(((basePrice - effectiveMemberPrice) / basePrice) * 100) : 0;
 
   if (productLoading) {
     return (
@@ -301,12 +338,39 @@ export default function ProductDetail() {
                 )}
               </div>
 
+              {variants.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Select Pack Size:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {variants.map((v: any) => {
+                      const isSelected = (activeVariant?.id === v.id);
+                      const outOfStock = (v.stock_quantity || 0) <= 0;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => { setSelectedVariantId(v.id); setQuantity(1); }}
+                          disabled={outOfStock}
+                          className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-input hover:border-primary"
+                          } ${outOfStock ? "opacity-50 line-through cursor-not-allowed" : ""}`}
+                        >
+                          {v.label} · ₹{Number(v.price).toFixed(0)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-3">
                 {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
                   <span className="text-sm text-muted-foreground">MRP:</span>
                   <span className={`font-bold ${isMember ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
-                    ₹{Number(product.price).toFixed(2)}
+                    ₹{Number(basePrice).toFixed(2)}
                   </span>
                   {product.compare_at_price && product.compare_at_price > product.price && (
                     <span className="text-lg text-muted-foreground line-through">
@@ -355,8 +419,8 @@ export default function ProductDetail() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setQuantity(Math.min(product.stock_quantity, quantity + 1))}
-                      disabled={quantity >= product.stock_quantity}
+                      onClick={() => setQuantity(Math.min(effectiveStock, quantity + 1))}
+                      disabled={quantity >= effectiveStock}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
@@ -374,17 +438,17 @@ export default function ProductDetail() {
                   <Button
                     size="lg"
                     onClick={handleAddToCart}
-                    disabled={isAddingToCart || product.stock_quantity === 0}
+                    disabled={isAddingToCart || effectiveStock === 0}
                     className="flex-1"
                   >
                     <ShoppingCart className="mr-2 h-5 w-5" />
-                    {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                    {effectiveStock === 0 ? "Out of Stock" : "Add to Cart"}
                   </Button>
                   <Button
                     size="lg"
                     variant="secondary"
                     onClick={handleBuyNow}
-                    disabled={isBuyingNow || product.stock_quantity === 0}
+                    disabled={isBuyingNow || effectiveStock === 0}
                     className="flex-1"
                   >
                     <Zap className="mr-2 h-5 w-5" />
@@ -393,9 +457,9 @@ export default function ProductDetail() {
                 </div>
               </div>
 
-              {product.stock_quantity > 0 && product.stock_quantity <= 10 && (
+              {effectiveStock > 0 && effectiveStock <= 10 && (
                 <p className="text-sm text-destructive">
-                  Only {product.stock_quantity} left in stock!
+                  Only {effectiveStock} left in stock!
                 </p>
               )}
 

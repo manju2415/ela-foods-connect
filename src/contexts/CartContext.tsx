@@ -8,6 +8,14 @@ interface CartItem {
   id: string;
   product_id: string;
   quantity: number;
+  variant_id?: string | null;
+  variant?: {
+    id: string;
+    label: string;
+    price: number;
+    member_price: number | null;
+    stock_quantity: number;
+  } | null;
   product: {
     id: string;
     name: string;
@@ -21,13 +29,14 @@ interface GuestCartItem {
   id: string;
   product_id: string;
   quantity: number;
+  variant_id?: string | null;
 }
 
 interface CartContextType {
   items: CartItem[];
   loading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
-  buyNow: (productId: string, quantity?: number) => Promise<void>;
+  addToCart: (productId: string, quantity?: number, variantId?: string | null) => Promise<void>;
+  buyNow: (productId: string, quantity?: number, variantId?: string | null) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -158,23 +167,33 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         id,
         product_id,
         quantity,
+        variant_id,
         product:products (
           id,
           name,
           price,
           member_price,
           images
+        ),
+        variant:product_variants (
+          id,
+          label,
+          price,
+          member_price,
+          stock_quantity
         )
-      `)
+      ` as any)
       .eq("user_id", user.id);
 
     if (error) {
       console.error("Error fetching cart:", error);
     } else {
-      const transformedItems = (data || []).map((item: any) => ({
+      const transformedItems = ((data as any[]) || []).map((item: any) => ({
         id: item.id,
         product_id: item.product_id,
         quantity: item.quantity,
+        variant_id: item.variant_id,
+        variant: item.variant || null,
         product: item.product,
       }));
       setItems(transformedItems);
@@ -182,10 +201,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  const addToCart = async (productId: string, quantity = 1) => {
+  const addToCart = async (productId: string, quantity = 1, variantId: string | null = null) => {
     if (user) {
       // Logged in user - use database
-      const existingItem = items.find((item) => item.product_id === productId);
+      const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
 
       if (existingItem) {
         await updateQuantity(existingItem.id, existingItem.quantity + quantity);
@@ -194,7 +213,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           user_id: user.id,
           product_id: productId,
           quantity,
-        });
+          variant_id: variantId,
+        } as any);
 
         if (error) {
           console.error("Error adding to cart:", error);
@@ -216,7 +236,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
       let guestItems: GuestCartItem[] = guestCartJson ? JSON.parse(guestCartJson) : [];
       
-      const existingIndex = guestItems.findIndex(item => item.product_id === productId);
+      const existingIndex = guestItems.findIndex(item => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
       
       if (existingIndex >= 0) {
         guestItems[existingIndex].quantity += quantity;
@@ -225,6 +245,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           product_id: productId,
           quantity,
+          variant_id: variantId,
         });
       }
       
@@ -240,8 +261,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const navigate = useNavigate();
 
-  const buyNow = async (productId: string, quantity = 1) => {
-    await addToCart(productId, quantity);
+  const buyNow = async (productId: string, quantity = 1, variantId: string | null = null) => {
+    await addToCart(productId, quantity, variantId);
     if (user) {
       navigate("/checkout");
     } else {
@@ -345,11 +366,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + (item.variant?.price ?? item.product.price) * item.quantity,
     0
   );
   const memberTotalPrice = items.reduce(
-    (sum, item) => sum + (item.product.member_price || item.product.price) * item.quantity,
+    (sum, item) => sum + ((item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price ?? item.product.price)) * item.quantity),
     0
   );
 
