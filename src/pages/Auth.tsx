@@ -204,24 +204,26 @@ const Auth = () => {
       .eq("id", verifiedUser.id)
       .single();
 
-    const { data: roleData } = await supabase
+    // Only true admins skip the onboarding gates. Founders and members
+    // must still complete profile + registration payment on first login.
+    const { data: adminRoleData } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", verifiedUser.id)
-      .in("role", ["founding_member", "super_admin", "admin", "member", "mlm_admin"])
+      .in("role", ["super_admin", "admin", "mlm_admin"])
       .limit(1)
       .maybeSingle();
 
-    const isFounderOrAdmin = !!roleData || profileData?.user_level === "founder";
+    const isAdmin = !!adminRoleData;
     const hasBankDetails = !!profileData?.bank_account_number;
     const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
 
-    if (!isFounderOrAdmin && !hasBankDetails) {
+    if (!isAdmin && !hasBankDetails) {
       navigate("/complete-registration", { replace: true });
       return;
     }
 
-    if (!isFounderOrAdmin && hasBankDetails && !isPaymentComplete) {
+    if (!isAdmin && !isPaymentComplete) {
       navigate("/registration-payment", { replace: true });
       return;
     }
