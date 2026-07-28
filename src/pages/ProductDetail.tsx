@@ -178,12 +178,15 @@ export default function ProductDetail() {
   };
 
   // Auto-calculate member price if not set (10% discount)
-  const effectiveMemberPrice = product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0);
-  // Calculate discount for compare_at_price
+  const basePrice = activeVariant?.price ?? product?.price ?? 0;
+  const effectiveMemberPrice = activeVariant
+    ? (activeVariant.member_price ?? Math.round(activeVariant.price * 0.9))
+    : (product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0));
+  // Calculate discount for compare_at_price (base product only)
   const discount = product?.compare_at_price && product?.price
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : 0;
-  const memberDiscount = product?.price ? Math.round(((product.price - effectiveMemberPrice) / product.price) * 100) : 0;
+  const memberDiscount = basePrice ? Math.round(((basePrice - effectiveMemberPrice) / basePrice) * 100) : 0;
 
   if (productLoading) {
     return (
