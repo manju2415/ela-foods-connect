@@ -43,6 +43,8 @@ interface Order {
     status: string;
     delivery_partner_id: string;
     partner_name?: string;
+    pickup_photo_url?: string | null;
+    delivery_photo_url?: string | null;
   } | null;
 }
 
@@ -73,11 +75,11 @@ export default function OrderAssignments() {
       const orderIds = ordersData.map(o => o.id);
       const { data: assignments } = await supabase
         .from("order_assignments")
-        .select("id, order_id, status, delivery_partner_id")
+        .select("id, order_id, status, delivery_partner_id, pickup_photo_url, delivery_photo_url" as any)
         .in("order_id", orderIds);
 
       // Get partner details
-      const partnerIds = [...new Set(assignments?.map(a => a.delivery_partner_id) || [])];
+      const partnerIds = [...new Set(assignments?.map((a: any) => a.delivery_partner_id) || [])];
       const { data: partners } = partnerIds.length > 0 ? await supabase
         .from("delivery_partners")
         .select("id, user_id")
@@ -95,8 +97,8 @@ export default function OrderAssignments() {
       const partnersMap = new Map<string, string | null>();
       partners?.forEach(p => partnersMap.set(p.id, profilesMap.get(p.user_id) || null));
       
-      const assignmentsMap = new Map<string, { id: string; order_id: string; status: string; delivery_partner_id: string; partner_name: string }>();
-      assignments?.forEach(a => {
+      const assignmentsMap = new Map<string, any>();
+      (assignments as any[])?.forEach((a: any) => {
         assignmentsMap.set(a.order_id, {
           ...a,
           partner_name: partnersMap.get(a.delivery_partner_id) || "Unknown",
@@ -278,7 +280,23 @@ export default function OrderAssignments() {
                       </TableCell>
                       <TableCell>
                         {order.assignment ? (
-                          <span className="text-sm">{order.assignment.partner_name}</span>
+                          <div className="space-y-1">
+                            <span className="text-sm">{order.assignment.partner_name}</span>
+                            {(order.assignment.pickup_photo_url || order.assignment.delivery_photo_url) && (
+                              <div className="flex gap-1">
+                                {order.assignment.pickup_photo_url && (
+                                  <a href={order.assignment.pickup_photo_url} target="_blank" rel="noopener noreferrer" title="Pickup photo">
+                                    <img src={order.assignment.pickup_photo_url} alt="Pickup" className="h-10 w-10 rounded object-cover border" />
+                                  </a>
+                                )}
+                                {order.assignment.delivery_photo_url && (
+                                  <a href={order.assignment.delivery_photo_url} target="_blank" rel="noopener noreferrer" title="Delivery photo">
+                                    <img src={order.assignment.delivery_photo_url} alt="Delivery" className="h-10 w-10 rounded object-cover border" />
+                                  </a>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-sm text-muted-foreground">Unassigned</span>
                         )}
