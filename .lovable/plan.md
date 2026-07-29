@@ -1,81 +1,53 @@
+# Fixes: Variants, Deferred Wallet Credit, Founder Payment, Invite Notification
 
-## 1. Force founders through profile completion + registration payment
+## 1) Multiple weight variants per product (already built — verify/expose)
 
-**Root cause (verified in `src/pages/Auth.tsx` lines 201–227):** `handlePostVerifyRedirect` sets `isFounderOrAdmin = true` whenever the user has any of `founding_member / super_admin / admin / member / mlm_admin`, then **skips** both the `/complete-registration` and `/registration-payment` gates. That's why 9448493290 went straight into the member/admin dashboard without being asked for bank details or payment.
+Variants (`product_variants` table + `VariantsEditor`) are already integrated into `src/pages/admin/Products.tsx`, cart, and checkout. I'll:
+- Confirm the "Variants" section in the Add/Edit Product dialog is visible and saves (label like "1 KG", unit value, price, member price, stock, SKU, default flag).
+- Ensure `ProductDetail` shows the variant selector and price/stock switch per variant.
+- No new schema needed.
 
-Changes:
-- Narrow the "skip onboarding" bucket to admin-only: `super_admin`, `admin`, `mlm_admin` (not `founding_member` / `member`).
-- Founders (`founding_member` role or `user_level = 'founder'`) will now go through the same two gates as regular members:
-  1. `/complete-registration` if bank details missing.
-  2. `/registration-payment` if `registration_fee_paid = 0`.
-- Apply the same narrowed check inside `src/hooks/useOnboardingStatus.ts` so the member-app guard also enforces it.
-- Backfill: reset `profiles.registration_fee_paid = 0` and clear bank fields for the four founders (Shyju, Sudevan, Manoj, Vinod) so their next login triggers the flow. Their `founding_member` role and `user_level='founder'` stay intact.
-- Super admin `8050000300` remains exempt (admin role skips onboarding).
+If the user reports it's missing in the current UI, we'll surface/tidy the section; no rebuild required.
 
-## 2. Package photos — before pickup & after delivery
+## 2) Do NOT credit referrer wallet on "Add User" — only after registration payment
 
-New feature on the delivery partner app:
-- Add two nullable columns to `order_assignments`: `pickup_photo_url TEXT`, `delivery_photo_url TEXT`.
-- Reuse the existing `product-images` bucket path prefix `order-proofs/<order_id>/{pickup|delivery}-<timestamp>.jpg` (public bucket, RLS on `storage.objects` scoped to assigned delivery partner + admins).
-- Driver app flow:
-  - "Mark Picked Up" button → require a photo capture (Capacitor Camera on native, file input fallback on web) → upload → save `pickup_photo_url` → then flip status to `picked_up`.
-  - "Mark Delivered" button → require a photo capture → upload → save `delivery_photo_url` → then flip status to `delivered`.
-- Admin `Order Assignments` and customer `OrderDetailPage` show thumbnails of both photos as proof.
+Current behavior: `add-network-user` edge function calls `process_mlm_referral` immediately, which credits the referrer's wallet (₹500 first-10 / ₹200 beyond, per settings — the ₹600 seen was cumulative from multiple triggers). This is wrong.
 
-## 3. Weight/package variants (500g / 1kg / 2kg …)
+Change:
+- `supabase/functions/add-network-user/index.ts`: stop calling `process_mlm_referral`. Only:
+  - create the auth user,
+  - set `profiles.referred_by = actualReferrerId`,
+  - generate the new user's own referral code (so link is trackable),
+  - insert a lightweight `referrals` row (pending, not paid) for tracking.
+- `supabase/functions/process-registration-payment/index.ts`: this already calls `process_mlm_referral` after payment. Keep it — it becomes the single place where referrer bonuses, welcome bonus, and multi-level founder commissions are credited.
+- Guard `process_mlm_referral` DB function to be idempotent: if a `wallet_transactions` row of type `referral_bonus` with `source_user_id = new user` already exists, skip. Prevents double-credit if invoked twice.
 
-- New table `public.product_variants` with columns: `product_id`, `label` (e.g. "500 g"), `unit_value NUMERIC`, `unit_type TEXT`, `price NUMERIC`, `member_price NUMERIC`, `stock_quantity INT`, `sku TEXT`, `is_default BOOLEAN`, `display_order INT`. Standard GRANTs + RLS (public read for active variants, admin write).
-- Admin Products page: add a "Variants" editor inside the product form so each product optionally holds a list of weights with independent price/stock.
-- `cart_items` gains a nullable `variant_id UUID` FK. When a variant is chosen, cart/checkout/order-items use variant price + label.
-- `order_items` gains `variant_id`, `variant_label` (snapshot).
-- Product detail page (`ProductDetail.tsx` + mobile view): show a variant selector when the product has variants; price, stock, and "Add to cart" reflect the selected variant.
-- Featured/product cards show the price of the default (or lowest-priced) variant with an "options available" hint.
-- Products without variants keep working exactly as today (fallback to product-level price/stock).
+## 3) Founders must also pay the registration fee
 
-## 4. End-to-end go-live audit (code review + live automated run)
+Onboarding gate: `useOnboardingStatus` already forces founders/members to complete profile + `registration_fee_paid > 0`. Good.
 
-Deliverable: a written report at `.lovable/go-live-audit.md` covering each step, plus fixes for any regressions found while doing the run.
+However, `RoleBasedRedirect` / `Auth` need to route founders to `/registration-payment` before `/member-app` on first login when `isPaymentComplete === false`. Verify and fix if needed. The 4 founders' profiles were already reset (from earlier turn), so first login will land them on registration.
 
-Steps I will execute against the preview using test accounts + Playwright:
+No exemption for `founding_member` role anywhere — grep-remove any remaining bypass in `Auth.tsx` / redirect logic.
 
-```text
-add user (with fee)
-      ↓
-process_mlm_referral → credit_founder_commission (multi-level upline)
-      ↓
-shopping (browse + add to cart, with new variants)
-      ↓
-checkout (address, delivery slot, wallet split, coupon)
-      ↓
-payment (Razorpay live order + verify)
-      ↓
-order created → dispatch (assign delivery partner, pickup photo, delivery photo)
-      ↓
-credit_purchase_commission → upline wallets (withdrawable vs purchase-only)
-```
+## 4) Push/SMS notification when a user is added to the network
 
-For each step I will confirm:
-- HTTP/edge-function success (no 4xx/5xx).
-- DB side-effects (rows in `wallet_transactions`, `notifications`, `order_status_history`).
-- Wallet balance splits match the current MLM settings values you finalised.
-- Screenshots at each stage.
+When `add-network-user` succeeds:
+- Send an SMS to the new user via MSG91 (reuse `msg91-send-otp` infrastructure with a transactional template) with text:
+  > "You have been invited by {referrer_name} to join Ela Bazar. Login with your mobile {phone} and OTP 000000 (or real OTP) to complete registration and payment. https://elabazar.com/auth"
+- Create an in-app notification row (`notifications` table) for the new user so the bell shows it once they log in.
+- Push notification (FCM) is only useful once the user has installed the app and registered a token — not applicable at invite time. SMS is the correct channel for pre-registration invites.
 
-## 5. Verify MLM wallet distribution matches your final settings
+Needs a new MSG91 transactional template ID (a separate secret, e.g. `MSG91_INVITE_TEMPLATE_ID`). I'll add the secret request; user pastes the DLT-approved template ID.
 
-As part of the audit I'll:
-- Dump the current `mlm_settings` rows (`registration_fee`, `first_10_referral_bonus`, `beyond_10_referral_bonus`, `welcome_bonus`, `founder_level_commissions`, `founder_registration_commission`, `purchase_commission_rate`).
-- Trigger one seeded referral chain (Founder → Master → Associate → new signup) and one purchase, then verify each upline's `wallet_transactions` row (amount, `is_withdrawable`, description) matches the settings JSON exactly.
-- Report any level whose credited amount ≠ configured amount, with the exact SQL/edge-function line to fix.
+## Technical summary
 
-## Technical details
+- Edit `supabase/functions/add-network-user/index.ts`: remove `process_mlm_referral` call, add `referrals` insert (pending), add MSG91 invite SMS send, insert `notifications` row.
+- Edit `supabase/functions/process-registration-payment/index.ts`: no logic change; verify it's the sole path that credits referrer.
+- Migration: add idempotency guard inside `process_mlm_referral` (check for existing `referral_bonus` transaction for the same referred user before crediting).
+- Migration: refund/reset any wallet balances that were incorrectly credited for users who haven't paid yet (manual reversal of pending bonuses).
+- Verify `Auth.tsx` and `RoleBasedRedirect.tsx` don't skip payment gate for `founding_member`.
+- Add secret `MSG91_INVITE_TEMPLATE_ID` for the invite SMS.
 
-- Files touched for §1: `src/pages/Auth.tsx` (redirect logic), `src/hooks/useOnboardingStatus.ts` (mirror change), plus a data migration for founder profiles.
-- Files touched for §2: migration on `order_assignments`, `src/pages/DriverApp.tsx` / `src/pages/mobile/driver/OrdersPage.tsx`, new `PackagePhotoCapture` component, admin `OrderAssignments.tsx`, customer `OrderDetailPage.tsx`.
-- Files touched for §3: migration for `product_variants` + `cart_items.variant_id` + `order_items.variant_id/label`, `src/pages/admin/Products.tsx`, `src/pages/ProductDetail.tsx`, `src/components/ProductCard.tsx`, `src/contexts/CartContext.tsx`, `src/pages/Checkout.tsx`, `supabase/functions/place-guest-order/index.ts`.
-- All new tables follow the four-step CREATE → GRANT → ENABLE RLS → POLICY pattern; storage bucket for proof photos will be private with RLS.
-
-## Out of scope
-
-- No visual redesign of existing screens beyond adding variant selectors and photo buttons.
-- No change to super-admin or delivery-partner login flow.
-- No new payment provider — Razorpay only.
+## Open question
+Do you have a DLT-approved MSG91 template ready for the invite SMS? If not, we'll draft the copy and you'll register it with MSG91, then paste the template ID.

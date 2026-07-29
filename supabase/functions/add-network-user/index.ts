@@ -6,6 +6,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const sanitizeSecret = (raw: string | undefined): string => {
+  if (!raw) return "";
+  const trimmed = raw.trim().replace(/^["']|["']$/g, "");
+  const eqIdx = trimmed.indexOf("=");
+  if (eqIdx > -1 && /^[A-Z_][A-Z0-9_]*$/i.test(trimmed.slice(0, eqIdx))) {
+    return trimmed.slice(eqIdx + 1).trim();
+  }
+  return trimmed;
+};
+
+async function sendInviteSMS(phone: string, referrerName: string) {
+  const authKey = sanitizeSecret(Deno.env.get("MSG91_AUTH_TOKEN"));
+  const flowId = sanitizeSecret(Deno.env.get("MSG91_INVITE_TEMPLATE_ID"));
+  if (!authKey || !flowId) {
+    console.log("[add-network-user] Invite SMS skipped — MSG91_INVITE_TEMPLATE_ID not configured");
+    return { sent: false, reason: "template_not_configured" };
+  }
+
+  let mobile = phone.replace(/^\+/, "").replace(/\s+/g, "");
+  if (mobile.length === 10) mobile = "91" + mobile;
+
+  try {
+    const resp = await fetch("https://control.msg91.com/api/v5/flow/", {
+      method: "POST",
+      headers: { authkey: authKey, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        template_id: flowId,
+        recipients: [{ mobiles: mobile, name: referrerName, VAR1: referrerName }],
+      }),
+    });
+    const text = await resp.text();
+    console.log("[add-network-user] MSG91 flow response:", resp.status, text);
+    return { sent: resp.ok, providerStatus: resp.status, providerResponse: text };
+  } catch (err) {
+    console.error("[add-network-user] Invite SMS error:", err);
+    return { sent: false, error: String(err) };
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -16,7 +55,6 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Verify the caller is authenticated
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -42,7 +80,6 @@ serve(async (req) => {
     const body = await req.json();
     const { phone, full_name, referral_code, added_by_user_id } = body;
 
-    // Validate inputs
     if (!phone || !/^\d{10}$/.test(phone)) {
       return new Response(JSON.stringify({ error: "Invalid phone number" }), {
         status: 400,
@@ -79,16 +116,12 @@ serve(async (req) => {
       });
     }
 
-    // Determine the actual referrer: the member who added the user (caller),
-    // not necessarily the referral code owner
     const actualReferrerId = added_by_user_id || caller.id;
 
-    // Check if user already exists with this phone (using mock email pattern)
     const cleanPhone = `91${phone}`;
     const mockEmail = `${cleanPhone}@elabazar.local`;
     const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
 
-    // Try to create the user via admin API
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: mockEmail,
       password: tempPassword,
@@ -122,40 +155,62 @@ serve(async (req) => {
 
     const newUserId = newUser.user.id;
 
-    // Wait for the handle_new_user trigger to fire
+    // Wait for handle_new_user trigger to create profile
     await new Promise((r) => setTimeout(r, 1000));
 
-    // Update profile with name and phone
+    // Update profile with name, phone, and set referred_by directly to the adder.
+    // DO NOT call process_mlm_referral here — bonuses are credited ONLY after
+    // the new user completes registration payment.
     await supabase
       .from("profiles")
-      .update({ full_name: full_name.trim(), phone: `+91${phone}` })
+      .update({
+        full_name: full_name.trim(),
+        phone: `+91${phone}`,
+        referred_by: actualReferrerId,
+      })
       .eq("id", newUserId);
 
-    // Process MLM referral (links user to referrer, credits bonuses, generates referral code)
+    // Track the pending referral (not yet paid)
+    await supabase.from("referrals").insert({
+      referrer_id: actualReferrerId,
+      referred_id: newUserId,
+      referral_code_id: codeData.id,
+      incentive_amount: 0,
+      incentive_paid: false,
+    });
+
+    // Generate the new user's own referral code so their downlink is trackable
     try {
-      await supabase.rpc("process_mlm_referral", {
-        p_referral_code: referral_code.toUpperCase(),
-        p_referred_user_id: newUserId,
-        p_registration_fee: 0,
-      });
+      await supabase.rpc("generate_user_referral_code", { p_user_id: newUserId });
     } catch (err) {
-      console.error("MLM referral processing error:", err);
+      console.error("Referral code generation error:", err);
     }
 
-    // Override referred_by to point to the actual adder (caller), not the code owner
-    // This ensures commissions flow to the member who added the user
-    if (actualReferrerId && actualReferrerId !== codeData.user_id) {
-      await supabase
-        .from("profiles")
-        .update({ referred_by: actualReferrerId })
-        .eq("id", newUserId);
-    }
+    // Fetch referrer's name for the invite SMS + notification
+    const { data: referrerProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", actualReferrerId)
+      .single();
+    const referrerName = referrerProfile?.full_name || "an Ela Bazar member";
+
+    // In-app notification (visible once the invitee logs in)
+    await supabase.from("notifications").insert({
+      user_id: newUserId,
+      title: "Welcome to Ela Bazar!",
+      message: `You've been invited by ${referrerName}. Complete your registration and payment to join the community.`,
+      type: "info",
+    });
+
+    // Send invite SMS (best-effort; silently skipped if template not configured)
+    const smsResult = await sendInviteSMS(phone, referrerName);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `User ${full_name} has been added successfully. They can login with phone number ${phone}.`,
+        message: `User ${full_name} has been added. They can login with ${phone} to complete registration and payment.`,
         user_id: newUserId,
+        invite_sms: smsResult,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
