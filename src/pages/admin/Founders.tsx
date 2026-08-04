@@ -485,6 +485,64 @@ export default function Founders() {
           </Card>
         </div>
 
+        {/* Edit Founder Dialog */}
+        <Dialog open={!!editFounder} onOpenChange={(open) => !open && setEditFounder(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Founder</DialogTitle>
+              <DialogDescription>Update the founder's profile details.</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Full Name</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.full_name}
+                  maxLength={100}
+                  onChange={(e) => setEditForm((f) => ({ ...f, full_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={editForm.email}
+                  maxLength={255}
+                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  type="tel"
+                  maxLength={10}
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEditFounder(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() =>
+                  editFounder &&
+                  updateFounderMutation.mutate({ id: editFounder.id, ...editForm })
+                }
+                disabled={updateFounderMutation.isPending}
+              >
+                {updateFounderMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Add Founder Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogContent>
