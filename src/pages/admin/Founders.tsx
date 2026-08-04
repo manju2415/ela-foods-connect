@@ -35,11 +35,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp } from "lucide-react";
+import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp, Pencil } from "lucide-react";
 
 interface Founder {
   id: string;
   email: string;
+  phone: string | null;
   full_name: string | null;
   referral_count: number;
   is_designated_founder: boolean;
@@ -68,6 +69,8 @@ export default function Founders() {
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [removeFounder, setRemoveFounder] = useState<Founder | null>(null);
+  const [editFounder, setEditFounder] = useState<Founder | null>(null);
+  const [editForm, setEditForm] = useState({ full_name: "", email: "", phone: "" });
   const queryClient = useQueryClient();
 
   // Fetch founders with founding_member role
@@ -87,7 +90,7 @@ export default function Founders() {
       
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, email, full_name, referral_count")
+        .select("id, email, full_name, phone, referral_count")
         .in("id", userIds);
       
       const foundersWithCodes = await Promise.all(
@@ -237,6 +240,34 @@ export default function Founders() {
     },
   });
 
+  // Update founder profile mutation
+  const updateFounderMutation = useMutation({
+    mutationFn: async ({ id, full_name, email, phone }: { id: string; full_name: string; email: string; phone: string }) => {
+      const trimmedName = full_name.trim();
+      const trimmedEmail = email.trim();
+      const digits = phone.replace(/\D/g, "");
+
+      if (trimmedName.length < 2) throw new Error("Name must be at least 2 characters");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail)) throw new Error("Enter a valid email address");
+      if (digits && digits.length < 10) throw new Error("Enter a valid 10-digit phone number");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ full_name: trimmedName, email: trimmedEmail, phone: digits ? digits.slice(-10) : null })
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["designated-founders"] });
+      toast.success("Founder updated successfully");
+      setEditFounder(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   // Update commission mutation - saves to mlm_settings
   const updateCommissionMutation = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
@@ -376,6 +407,20 @@ export default function Founders() {
                           <Badge variant="secondary">{founder.referral_count} members</Badge>
                         </TableCell>
                         <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditFounder(founder);
+                              setEditForm({
+                                full_name: founder.full_name || "",
+                                email: founder.email || "",
+                                phone: founder.phone || "",
+                              });
+                            }}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
