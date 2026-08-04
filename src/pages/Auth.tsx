@@ -118,6 +118,16 @@ const Auth = () => {
     defaultValues: { fullName: "", phone: "", referralCode: "" },
   });
 
+  // Prefill referral code from ?ref= in the URL
+  useEffect(() => {
+    const ref = new URLSearchParams(location.search).get("ref")?.trim();
+    if (ref) {
+      signupForm.setValue("referralCode", ref.toUpperCase());
+      validateReferralCode(ref);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
+
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const hasAttemptedLoginRef = useRef(false);
 
