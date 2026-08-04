@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { ShoppingCart, Heart, Zap } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ProductCardProps {
   id: string;
@@ -42,6 +43,17 @@ const ProductCard = ({
   gstInclusive,
 }: ProductCardProps) => {
   const { addToCart, buyNow } = useCart();
+  const navigate = useNavigate();
+
+  // Products with unit variants must be configured on the detail page
+  const hasVariants = async () => {
+    const { count } = await supabase
+      .from("product_variants")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", id)
+      .eq("is_active", true);
+    return (count || 0) > 0;
+  };
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
   
@@ -92,15 +104,23 @@ const ProductCard = ({
 
   const unitDisplay = getUnitDisplay();
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (await hasVariants()) {
+      navigate(`/product/${slug}`);
+      return;
+    }
     addToCart(id);
   };
 
-  const handleBuyNow = (e: React.MouseEvent) => {
+  const handleBuyNow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (await hasVariants()) {
+      navigate(`/product/${slug}`);
+      return;
+    }
     buyNow(id);
   };
 

@@ -141,13 +141,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         
         // Add guest items to user's cart
         for (const gItem of guestItems) {
-          const { data: existing } = await supabase
+          let existingQuery = supabase
             .from("cart_items")
             .select("id, quantity")
             .eq("user_id", user.id)
-            .eq("product_id", gItem.product_id)
-            .eq("variant_id", gItem.variant_id ?? null)
-            .maybeSingle();
+            .eq("product_id", gItem.product_id);
+          existingQuery = gItem.variant_id
+            ? existingQuery.eq("variant_id", gItem.variant_id)
+            : (existingQuery as any).is("variant_id", null);
+          const { data: existing } = await existingQuery.maybeSingle();
 
           if (existing) {
             await supabase
