@@ -81,8 +81,11 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                     <h4 className="font-medium text-foreground line-clamp-2">
                       {item.product.name}
                     </h4>
+                    {item.variant?.label && (
+                      <p className="text-xs text-muted-foreground">{item.variant.label}</p>
+                    )}
                     <p className="text-primary font-semibold">
-                      ₹{item.product.price}
+                      ₹{item.variant?.price ?? item.product.price}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Button

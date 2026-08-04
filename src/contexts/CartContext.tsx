@@ -89,18 +89,33 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       // Fetch product details for guest cart items
       const productIds = guestItems.map(item => item.product_id);
-      const { data: products } = await supabase
-        .from("products")
-        .select("id, name, price, member_price, images")
-        .in("id", productIds);
+      const variantIds = guestItems.map(item => item.variant_id).filter(Boolean) as string[];
+
+      const [{ data: products }, variantsRes] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, price, member_price, images")
+          .in("id", productIds),
+        variantIds.length
+          ? supabase
+              .from("product_variants")
+              .select("id, label, price, member_price, stock_quantity")
+              .in("id", variantIds)
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const variants = (variantsRes as any)?.data || [];
 
       if (products) {
         const cartItems: CartItem[] = guestItems.map(gItem => {
           const product = products.find(p => p.id === gItem.product_id);
+          const variant = gItem.variant_id ? variants.find((v: any) => v.id === gItem.variant_id) || null : null;
           return {
             id: gItem.id,
             product_id: gItem.product_id,
             quantity: gItem.quantity,
+            variant_id: gItem.variant_id ?? null,
+            variant,
             product: product || { id: gItem.product_id, name: "Product", price: 0, member_price: null, images: [] },
           };
         }).filter(item => item.product);
@@ -131,6 +146,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             .select("id, quantity")
             .eq("user_id", user.id)
             .eq("product_id", gItem.product_id)
+            .eq("variant_id", gItem.variant_id ?? null)
             .maybeSingle();
 
           if (existing) {
@@ -143,7 +159,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               user_id: user.id,
               product_id: gItem.product_id,
               quantity: gItem.quantity,
-            });
+              variant_id: gItem.variant_id ?? null,
+            } as any);
           }
         }
 
