@@ -147,17 +147,33 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
+    // A referral code entered on the payment page is used only when the user
+    // has no referrer yet. Otherwise the existing referrer's code wins.
+    let referralCodeToUse: string | null = null;
+
     if (userProfile?.referred_by) {
-      // Find the referral code used (from referrals table or referral_codes)
       const { data: referralData } = await supabase
         .from("referral_codes")
         .select("code")
         .eq("user_id", userProfile.referred_by)
         .eq("is_active", true)
         .limit(1)
-        .single();
+        .maybeSingle();
+      referralCodeToUse = referralData?.code ?? null;
+    } else if (typeof referral_code === "string" && referral_code.trim().length >= 3) {
+      const { data: enteredCode } = await supabase
+        .from("referral_codes")
+        .select("code, user_id")
+        .eq("code", referral_code.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      if (enteredCode && enteredCode.user_id !== user.id) {
+        referralCodeToUse = enteredCode.code;
+      }
+    }
 
-      if (referralData?.code) {
+    if (referralCodeToUse) {
+      {
         // Call process_mlm_referral which handles:
         // - Referral bonus to direct referrer
         // - Multi-level upward commissions (credit_founder_commission)
