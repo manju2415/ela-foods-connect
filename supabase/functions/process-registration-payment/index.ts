@@ -46,25 +46,29 @@ serve(async (req) => {
       });
     }
 
-    // Get registration fee settings
-    const { data: settingsData } = await supabase
-      .from("mlm_settings")
-      .select("value")
-      .eq("key", "registration_fee")
-      .single();
-
-    const settingsValue = settingsData?.value as { total?: number; amount?: number; wallet_credit?: number } | null;
-    const registrationAmount = settingsValue?.total || settingsValue?.amount || 2499;
-    const walletCredit = settingsValue?.wallet_credit || 1000;
-
-    // Check if already paid
+    // Load profile first (needed to decide founder vs regular fee)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid")
+      .select("registration_fee_paid, user_level, is_designated_founder")
       .eq("id", user.id)
       .single();
 
+    const isFounder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
+
+    // Get registration fee settings (founders pay their own, higher fee)
+    const { data: settingsData } = await supabase
+      .from("mlm_settings")
+      .select("value")
+      .eq("key", isFounder ? "founder_registration_fee" : "registration_fee")
+      .maybeSingle();
+
+    const settingsValue = settingsData?.value as { total?: number; amount?: number; wallet_credit?: number } | null;
+    const registrationAmount = settingsValue?.total || settingsValue?.amount || (isFounder ? 4999 : 2499);
+    const walletCredit = settingsValue?.wallet_credit || (isFounder ? 3001 : 1000);
+
+    // Check if already paid
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
+
       return new Response(JSON.stringify({ success: true, already_paid: true, wallet_credit: walletCredit, registration_amount: registrationAmount }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
