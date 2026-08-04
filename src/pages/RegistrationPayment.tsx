@@ -329,14 +329,17 @@ const RegistrationPayment = () => {
                     <>Pay ₹{settings.amount}</>
                   )}
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full" 
-                  onClick={handleSkip}
-                  disabled={processing}
-                >
-                  Skip for now
-                </Button>
+                {!isFounder && (
+                  <Button
+                    variant="ghost"
+                    className="w-full"
+                    onClick={handleSkip}
+                    disabled={processing}
+                  >
+                    Skip for now
+                  </Button>
+                )}
+
               </div>
 
               <p className="text-xs text-center text-muted-foreground">
