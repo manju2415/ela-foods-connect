@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImagePreload } from "@/hooks/useImagePreload";
-import heroImageFallback from "@/assets/hero-snacks.jpg";
+
 
 const HERO_BANNER_CACHE_KEY = "ela_hero_banner";
 
@@ -61,10 +61,10 @@ const HeroSection = () => {
   const ctaText = banner?.cta_text || "Shop Now";
   const ctaLink = banner?.cta_link || "/products";
   const badgeText = banner?.badge_text || "Your Trusted Marketplace";
-  const heroImage = banner?.image_url || heroImageFallback;
+  const heroImage = banner?.image_url || "";
 
   // Preload hero image for better LCP
-  useImagePreload([heroImage]);
+  useImagePreload(heroImage ? [heroImage] : []);
 
   // Split title by newline or use as is
   const titleParts = title.split('\n');
@@ -75,17 +75,21 @@ const HeroSection = () => {
     <section className="relative min-h-[85vh] flex items-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
-        <OptimizedImage
-          src={heroImage}
-          alt="Hero banner"
-          className="w-full h-full object-cover"
-          containerClassName="w-full h-full"
-          priority
-          blur={false}
-          displayWidth={1920}
-          displayHeight={1080}
-          quality="high"
-        />
+        {heroImage ? (
+          <OptimizedImage
+            src={heroImage}
+            alt="Hero banner"
+            className="w-full h-full object-cover"
+            containerClassName="w-full h-full"
+            priority
+            blur={false}
+            displayWidth={1920}
+            displayHeight={1080}
+            quality="high"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-primary/80 to-secondary/60" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-r from-foreground/90 via-foreground/70 to-foreground/30" />
       </div>
 
