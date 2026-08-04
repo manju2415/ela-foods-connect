@@ -37,7 +37,7 @@ serve(async (req) => {
       });
     }
 
-    const { razorpay_payment_id } = await req.json();
+    const { razorpay_payment_id, referral_code } = await req.json();
 
     if (!razorpay_payment_id) {
       return new Response(JSON.stringify({ error: "Missing payment ID" }), {
