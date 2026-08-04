@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { phone, fullName } = await req.json();
+    const { phone, fullName, referralCode, founder } = await req.json();
 
     if (!phone || typeof phone !== "string" || !/^\+?\d{10,15}$/.test(phone)) {
       return new Response(JSON.stringify({ error: "Invalid phone" }), {
