@@ -25,6 +25,8 @@ const RegistrationPayment = () => {
   const [processing, setProcessing] = useState(false);
   const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000, non_refundable: 0 });
   const [feePaid, setFeePaid] = useState(false);
+  const [isFounder, setIsFounder] = useState(false);
+
 
   useEffect(() => {
     if (!user) {
