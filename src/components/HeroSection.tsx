@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImagePreload } from "@/hooks/useImagePreload";
-import heroImageFallback from "@/assets/hero-snacks.jpg";
+
 
 const HERO_BANNER_CACHE_KEY = "ela_hero_banner";
 
