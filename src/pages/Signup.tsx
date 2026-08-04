@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,7 @@ const isDemoPhone = (p: string) => DEMO_PHONES.some((x) => p.endsWith(x));
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
+  referralCode: z.string().trim().max(20, "Referral code is too long").optional(),
 });
 type SignupData = z.infer<typeof signupSchema>;
 
@@ -53,20 +54,49 @@ export default function Signup() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [fullName, setFullName] = useState("");
   const [otp, setOtp] = useState("");
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const locationRoute = useLocation();
+  const [searchParams] = useSearchParams();
+  const isFounderSignup = locationRoute.pathname === "/founder-signup";
 
   const form = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { fullName: "", phone: "" },
+    defaultValues: { fullName: "", phone: "", referralCode: "" },
   });
 
+  const validateReferralCode = async (code: string) => {
+    const clean = code.trim().toUpperCase();
+    if (clean.length < 3) {
+      setReferralCodeValid(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("referral_codes")
+      .select("id")
+      .eq("code", clean)
+      .eq("is_active", true)
+      .maybeSingle();
+    setReferralCodeValid(!!data);
+  };
+
   useEffect(() => {
-    if (user && step === "form") navigate("/customer-app", { replace: true });
+    const ref = searchParams.get("ref")?.trim();
+    if (ref) {
+      form.setValue("referralCode", ref.toUpperCase());
+      validateReferralCode(ref);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (user && step === "form") navigate("/complete-registration", { replace: true });
   }, [user, step, navigate]);
 
   useEffect(() => {
@@ -86,6 +116,7 @@ export default function Signup() {
       return;
     }
     setFullName(data.fullName);
+    setReferralCode((data.referralCode || "").trim().toUpperCase());
     setPhoneNumber(full);
     setStep("otp");
     setCooldown(RESEND_COOLDOWN);
@@ -122,7 +153,7 @@ export default function Signup() {
 
     // Create the account server-side (idempotent)
     const { data: created, error: createErr } = await supabase.functions.invoke("signup-create-user", {
-      body: { phone: phoneNumber, fullName },
+      body: { phone: phoneNumber, fullName, referralCode, founder: isFounderSignup },
     });
 
     if (createErr || !created?.success) {
@@ -144,9 +175,9 @@ export default function Signup() {
       return;
     }
 
-    toast({ title: "Welcome to Elabazar!", description: "Your account is ready." });
-    // Small delay so auth context settles, then go to customer app
-    setTimeout(() => navigate("/customer-app", { replace: true }), 600);
+    toast({ title: "Welcome to Elabazar!", description: "Complete your registration and payment." });
+    // Small delay so auth context settles, then continue onboarding + payment
+    setTimeout(() => navigate("/complete-registration", { replace: true }), 600);
   };
 
   if (step === "otp") {
@@ -209,8 +240,14 @@ export default function Signup() {
           <div className="flex justify-center">
             <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
           </div>
-          <CardTitle className="text-2xl">Create your account</CardTitle>
-          <CardDescription>Sign up with your mobile number — no referral required.</CardDescription>
+          <CardTitle className="text-2xl">
+            {isFounderSignup ? "Founding Member Signup" : "Create your account"}
+          </CardTitle>
+          <CardDescription>
+            {isFounderSignup
+              ? "Sign up as a founding member. A one-time registration fee of ₹4,999 is payable after verification."
+              : "Sign up with your mobile number — referral code optional."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -238,6 +275,28 @@ export default function Signup() {
               </div>
               {form.formState.errors.phone && (
                 <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="referralCode">Referral Code (optional)</Label>
+              <Input
+                id="referralCode"
+                placeholder="Enter referral code if you have one"
+                className={
+                  referralCodeValid === true
+                    ? "border-green-500"
+                    : referralCodeValid === false
+                    ? "border-destructive"
+                    : ""
+                }
+                {...form.register("referralCode", {
+                  onChange: (e) => validateReferralCode(e.target.value),
+                })}
+              />
+              {referralCodeValid === true && <p className="text-sm text-green-600">Valid referral code!</p>}
+              {referralCodeValid === false && (
+                <p className="text-sm text-destructive">Invalid or inactive referral code</p>
               )}
             </div>
 

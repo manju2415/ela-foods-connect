@@ -80,7 +80,7 @@ const phoneSchema = z.object({
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
-  referralCode: z.string().trim().min(1, "Referral code is required"),
+  referralCode: z.string().trim().max(20, "Referral code is too long").optional(),
 });
 
 type PhoneFormData = z.infer<typeof phoneSchema>;
@@ -117,6 +117,16 @@ const Auth = () => {
     resolver: zodResolver(signupSchema),
     defaultValues: { fullName: "", phone: "", referralCode: "" },
   });
+
+  // Prefill referral code from ?ref= in the URL
+  useEffect(() => {
+    const ref = new URLSearchParams(location.search).get("ref")?.trim();
+    if (ref) {
+      signupForm.setValue("referralCode", ref.toUpperCase());
+      validateReferralCode(ref);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const [hasAttemptedLogin, setHasAttemptedLogin] = useState(false);
   const hasAttemptedLoginRef = useRef(false);
@@ -160,7 +170,7 @@ const Auth = () => {
   };
 
   const validateReferralCode = async (code: string) => {
-    if (!code || code.length < 3) {
+    if (!code || code.trim().length < 3) {
       setReferralCodeValid(null);
       return;
     }
@@ -281,8 +291,8 @@ const Auth = () => {
 
   // ── Send OTP (Signup) ──
   const handleSendSignupOtp = async (data: SignupFormData) => {
-    if (!referralCodeValid) {
-      toast({ title: "Invalid referral code", description: "Please enter a valid referral code.", variant: "destructive" });
+    if (data.referralCode?.trim() && referralCodeValid === false) {
+      toast({ title: "Invalid referral code", description: "Remove it or enter a valid code to continue.", variant: "destructive" });
       return;
     }
 
@@ -299,7 +309,7 @@ const Auth = () => {
       return;
     }
 
-    pendingSignupRef.current = { fullName: data.fullName, referralCode: data.referralCode };
+    pendingSignupRef.current = { fullName: data.fullName, referralCode: (data.referralCode || "").trim().toUpperCase() };
     setPhoneNumber(fullPhone);
     setStep("otp");
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
@@ -451,7 +461,7 @@ const Auth = () => {
           <CardDescription>
             {isLogin
               ? "Enter your mobile number to continue"
-              : "Create an account using your referral code"}
+              : "Create an account — referral code is optional"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -490,10 +500,10 @@ const Auth = () => {
           ) : (
             <form onSubmit={signupForm.handleSubmit(handleSendSignupOtp)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="referralCode">Referral Code *</Label>
+                <Label htmlFor="referralCode">Referral Code (optional)</Label>
                 <Input
                   id="referralCode"
-                  placeholder="Enter your referral code"
+                  placeholder="Enter referral code if you have one"
                   className={referralCodeValid === true ? "border-green-500" : referralCodeValid === false ? "border-destructive" : ""}
                   {...signupForm.register("referralCode", {
                     onChange: (e) => validateReferralCode(e.target.value)
@@ -539,7 +549,7 @@ const Auth = () => {
                 )}
               </div>
 
-              <Button type="submit" className="w-full" disabled={isSubmitting || referralCodeValid !== true}>
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
                 Send OTP

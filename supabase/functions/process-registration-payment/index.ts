@@ -37,7 +37,7 @@ serve(async (req) => {
       });
     }
 
-    const { razorpay_payment_id } = await req.json();
+    const { razorpay_payment_id, referral_code } = await req.json();
 
     if (!razorpay_payment_id) {
       return new Response(JSON.stringify({ error: "Missing payment ID" }), {
@@ -147,33 +147,47 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
+    // A referral code entered on the payment page is used only when the user
+    // has no referrer yet. Otherwise the existing referrer's code wins.
+    let referralCodeToUse: string | null = null;
+
     if (userProfile?.referred_by) {
-      // Find the referral code used (from referrals table or referral_codes)
       const { data: referralData } = await supabase
         .from("referral_codes")
         .select("code")
         .eq("user_id", userProfile.referred_by)
         .eq("is_active", true)
         .limit(1)
-        .single();
+        .maybeSingle();
+      referralCodeToUse = referralData?.code ?? null;
+    } else if (typeof referral_code === "string" && referral_code.trim().length >= 3) {
+      const { data: enteredCode } = await supabase
+        .from("referral_codes")
+        .select("code, user_id")
+        .eq("code", referral_code.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      if (enteredCode && enteredCode.user_id !== user.id) {
+        referralCodeToUse = enteredCode.code;
+      }
+    }
 
-      if (referralData?.code) {
-        // Call process_mlm_referral which handles:
-        // - Referral bonus to direct referrer
-        // - Multi-level upward commissions (credit_founder_commission)
-        // - Welcome bonus for new user
-        // - Auto-generate referral code for new user
-        const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
-          p_referral_code: referralData.code,
-          p_referred_user_id: user.id,
-          p_registration_fee: registrationAmount,
-        });
+    if (referralCodeToUse) {
+      // Call process_mlm_referral which handles:
+      // - Referral bonus to direct referrer
+      // - Multi-level upward commissions (credit_founder_commission)
+      // - Welcome bonus for new user
+      // - Auto-generate referral code for new user
+      const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
+        p_referral_code: referralCodeToUse,
+        p_referred_user_id: user.id,
+        p_registration_fee: registrationAmount,
+      });
 
-        if (mlmError) {
-          console.error("MLM referral processing error:", mlmError);
-        } else {
-          console.log("MLM referral processed successfully for user:", user.id);
-        }
+      if (mlmError) {
+        console.error("MLM referral processing error:", mlmError);
+      } else {
+        console.log("MLM referral processed successfully for user:", user.id);
       }
     } else {
       // Even without referrer, generate a referral code for the new member

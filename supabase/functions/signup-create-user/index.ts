@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { phone, fullName } = await req.json();
+    const { phone, fullName, referralCode, founder } = await req.json();
 
     if (!phone || typeof phone !== "string" || !/^\+?\d{10,15}$/.test(phone)) {
       return new Response(JSON.stringify({ error: "Invalid phone" }), {
@@ -72,6 +72,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Resolve optional referral code to a referrer
+    let referredBy: string | null = null;
+    if (typeof referralCode === "string" && referralCode.trim().length >= 3) {
+      const { data: codeRow } = await supabase
+        .from("referral_codes")
+        .select("user_id")
+        .eq("code", referralCode.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      referredBy = codeRow?.user_id ?? null;
+    }
+
     // Ensure profile row exists and phone is normalized
     if (created?.user) {
       await supabase.from("profiles").upsert({
@@ -79,6 +91,8 @@ Deno.serve(async (req) => {
         email,
         full_name: fullName.trim(),
         phone: phone.startsWith("+") ? phone : `+${cleanPhone}`,
+        ...(referredBy ? { referred_by: referredBy } : {}),
+        ...(founder === true ? { user_level: "founder" } : {}),
       }, { onConflict: "id" });
     }
 
