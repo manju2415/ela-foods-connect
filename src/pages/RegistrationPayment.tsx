@@ -6,6 +6,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
@@ -26,6 +28,9 @@ const RegistrationPayment = () => {
   const [settings, setSettings] = useState<RegistrationSettings>({ amount: 2499, wallet_credit: 1000, non_refundable: 0 });
   const [feePaid, setFeePaid] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
+  const [hasReferrer, setHasReferrer] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
 
 
   useEffect(() => {
@@ -43,13 +48,15 @@ const RegistrationPayment = () => {
     // Check if user already paid registration fee
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder")
+      .select("registration_fee_paid, user_level, is_designated_founder, referred_by")
       .eq("id", user.id)
       .single();
 
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
       setFeePaid(true);
     }
+
+    setHasReferrer(!!profile?.referred_by);
 
     const founder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
     setIsFounder(founder);
@@ -77,6 +84,22 @@ const RegistrationPayment = () => {
 
 
     setLoading(false);
+  };
+
+  const validateReferralCode = async (code: string) => {
+    const clean = code.trim().toUpperCase();
+    setReferralCode(clean);
+    if (clean.length < 3) {
+      setReferralCodeValid(null);
+      return;
+    }
+    const { data } = await supabase
+      .from("referral_codes")
+      .select("id")
+      .eq("code", clean)
+      .eq("is_active", true)
+      .maybeSingle();
+    setReferralCodeValid(!!data);
   };
 
   const getPaymentErrorMessage = (error: unknown) => {
@@ -131,6 +154,7 @@ const RegistrationPayment = () => {
             {
               body: {
                 razorpay_payment_id: response.razorpay_payment_id,
+                referral_code: !hasReferrer && referralCodeValid ? referralCode : undefined,
               },
             }
           );
@@ -312,6 +336,32 @@ const RegistrationPayment = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Referral Code */}
+              {!hasReferrer && (
+                <div className="space-y-2">
+                  <Label htmlFor="paymentReferralCode">Referral Code (optional)</Label>
+                  <Input
+                    id="paymentReferralCode"
+                    placeholder="Enter referral code if you have one"
+                    value={referralCode}
+                    onChange={(e) => validateReferralCode(e.target.value)}
+                    className={
+                      referralCodeValid === true
+                        ? "border-green-500"
+                        : referralCodeValid === false
+                        ? "border-destructive"
+                        : ""
+                    }
+                  />
+                  {referralCodeValid === true && (
+                    <p className="text-sm text-green-600">Valid referral code — your referrer will be linked.</p>
+                  )}
+                  {referralCodeValid === false && (
+                    <p className="text-sm text-destructive">Invalid or inactive referral code</p>
+                  )}
+                </div>
+              )}
 
               {/* Payment Button */}
               <div className="space-y-3 pt-4">
