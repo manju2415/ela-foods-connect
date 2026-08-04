@@ -41,8 +41,8 @@ serve(async (req) => {
 
     if (expectedSignature !== razorpay_signature) {
       console.error("Signature mismatch");
-      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
-        status: 400,
+      return new Response(JSON.stringify({ verified: false, error: "Payment verification failed" }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

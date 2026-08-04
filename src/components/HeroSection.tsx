@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useImagePreload } from "@/hooks/useImagePreload";
 import heroImageFallback from "@/assets/hero-snacks.jpg";
 
+const HERO_BANNER_CACHE_KEY = "ela_hero_banner";
+
 interface Banner {
   id: string;
   title: string;
@@ -18,8 +20,21 @@ interface Banner {
 }
 
 const HeroSection = () => {
+  // Serve the last-known banner instantly so the hero paints on first frame
+  const cachedBanner = (() => {
+    try {
+      const raw = localStorage.getItem(HERO_BANNER_CACHE_KEY);
+      return raw ? (JSON.parse(raw) as Banner) : null;
+    } catch {
+      return null;
+    }
+  })();
+
   const { data: banner } = useQuery({
     queryKey: ["hero-banner"],
+    initialData: cachedBanner ?? undefined,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("banners")
@@ -30,6 +45,12 @@ const HeroSection = () => {
         .limit(1)
         .single();
       if (error && error.code !== "PGRST116") throw error;
+      try {
+        if (data) localStorage.setItem(HERO_BANNER_CACHE_KEY, JSON.stringify(data));
+        else localStorage.removeItem(HERO_BANNER_CACHE_KEY);
+      } catch {
+        // ignore storage failures (private mode / quota)
+      }
       return data as Banner | null;
     },
   });

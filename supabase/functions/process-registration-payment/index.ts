@@ -65,8 +65,8 @@ serve(async (req) => {
       .single();
 
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
-      return new Response(JSON.stringify({ error: "Already registered", already_paid: true }), {
-        status: 409,
+      return new Response(JSON.stringify({ success: true, already_paid: true, wallet_credit: walletCredit, registration_amount: registrationAmount }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -80,7 +80,7 @@ serve(async (req) => {
     if (profileError) {
       console.error("Profile update error:", profileError);
       return new Response(JSON.stringify({ error: "Failed to update profile" }), {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -91,12 +91,18 @@ serve(async (req) => {
       { onConflict: "user_id" }
     );
 
-    // Credit wallet with welcome bonus
+    // Credit wallet with welcome bonus (increment, never overwrite existing balances)
+    const { data: existingWallet } = await supabase
+      .from("wallets")
+      .select("id, balance, purchase_only_balance")
+      .eq("user_id", user.id)
+      .single();
+
     const { error: walletError } = await supabase
       .from("wallets")
       .update({
-        balance: walletCredit,
-        purchase_only_balance: walletCredit,
+        balance: Number(existingWallet?.balance || 0) + walletCredit,
+        purchase_only_balance: Number(existingWallet?.purchase_only_balance || 0) + walletCredit,
       })
       .eq("user_id", user.id);
 

@@ -127,13 +127,16 @@ const RegistrationPayment = () => {
             }
           );
 
-          if (regError) {
-            console.error("Registration processing error:", regError);
+          if (regError || regData?.error) {
+            console.error("Registration processing error:", regError || regData?.error);
             toast({
               title: "Payment received, but registration processing failed",
-              description: "Please contact support. Your payment is safe.",
+              description:
+                (typeof regData?.error === "string" && regData.error) ||
+                "Please contact support. Your payment is safe.",
               variant: "destructive",
             });
+            setProcessing(false);
             return;
           }
 
