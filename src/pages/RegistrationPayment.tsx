@@ -43,7 +43,7 @@ const RegistrationPayment = () => {
     // Check if user already paid registration fee
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid")
+      .select("registration_fee_paid, user_level, is_designated_founder")
       .eq("id", user.id)
       .single();
 
@@ -51,16 +51,19 @@ const RegistrationPayment = () => {
       setFeePaid(true);
     }
 
-    // Get registration fee settings
+    const founder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
+    setIsFounder(founder);
+
+    // Get registration fee settings (founders have their own fee)
     const { data: settingsData } = await supabase
       .from("mlm_settings")
       .select("key, value")
-      .eq("key", "registration_fee")
-      .single();
+      .eq("key", founder ? "founder_registration_fee" : "registration_fee")
+      .maybeSingle();
 
     if (settingsData?.value) {
       const value = settingsData.value as { amount?: number; total?: number; wallet_credit?: number; non_refundable?: number };
-      const total = value.total || value.amount || 2499;
+      const total = value.total || value.amount || (founder ? 4999 : 2499);
       const walletCredit = value.wallet_credit || 1000;
       const nonRefundable = value.non_refundable || (total - walletCredit);
       setSettings({
@@ -68,7 +71,10 @@ const RegistrationPayment = () => {
         wallet_credit: walletCredit,
         non_refundable: nonRefundable > 0 ? nonRefundable : 0,
       });
+    } else if (founder) {
+      setSettings({ amount: 4999, wallet_credit: 3001, non_refundable: 1998 });
     }
+
 
     setLoading(false);
   };
