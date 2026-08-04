@@ -173,23 +173,21 @@ serve(async (req) => {
     }
 
     if (referralCodeToUse) {
-      {
-        // Call process_mlm_referral which handles:
-        // - Referral bonus to direct referrer
-        // - Multi-level upward commissions (credit_founder_commission)
-        // - Welcome bonus for new user
-        // - Auto-generate referral code for new user
-        const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
-          p_referral_code: referralData.code,
-          p_referred_user_id: user.id,
-          p_registration_fee: registrationAmount,
-        });
+      // Call process_mlm_referral which handles:
+      // - Referral bonus to direct referrer
+      // - Multi-level upward commissions (credit_founder_commission)
+      // - Welcome bonus for new user
+      // - Auto-generate referral code for new user
+      const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
+        p_referral_code: referralCodeToUse,
+        p_referred_user_id: user.id,
+        p_registration_fee: registrationAmount,
+      });
 
-        if (mlmError) {
-          console.error("MLM referral processing error:", mlmError);
-        } else {
-          console.log("MLM referral processed successfully for user:", user.id);
-        }
+      if (mlmError) {
+        console.error("MLM referral processing error:", mlmError);
+      } else {
+        console.log("MLM referral processed successfully for user:", user.id);
       }
     } else {
       // Even without referrer, generate a referral code for the new member
