@@ -103,6 +103,14 @@ const PageLoader = () => (
 
 function App() {
   useEffect(() => {
+    // In contexts where the app-shell SW must not run (dev / Lovable preview /
+    // iframe), evict any stale registration left over from a previous build.
+    if (!canRegisterSW()) {
+      unregisterStaleAppSW();
+    }
+  }, []);
+
+  useEffect(() => {
     let lastToastAt = 0;
 
     const notify = (message: string) => {
