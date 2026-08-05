@@ -7,7 +7,7 @@ import { useAppManifest } from "@/hooks/useAppManifest";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { PWABadge } from "@/components/pwa/PWABadge";
+
 import Dashboard from "./Dashboard";
 
 /**

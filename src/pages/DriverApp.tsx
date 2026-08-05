@@ -7,7 +7,7 @@ import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { OfflineIndicator } from "@/components/mobile/OfflineIndicator";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { PWABadge } from "@/components/pwa/PWABadge";
+
 import DeliveryDashboard from "./DeliveryDashboard";
 
 /**

@@ -15,6 +15,12 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
+      // Registration is handled by our own guarded wrapper (src/pwa/sw-guard.ts)
+      // so the plugin never auto-injects a registration script (keeps Lovable preview SW-free).
+      injectRegister: null,
+      devOptions: {
+        enabled: false,
+      },
       includeAssets: ["favicon.ico", "favicon.png", "robots.txt"],
       manifest: {
         name: "ELA Foods - Mother's Touch",
