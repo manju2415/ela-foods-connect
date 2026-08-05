@@ -64,7 +64,6 @@ export default function DriverApp() {
       <OfflineIndicator />
       <DeliveryDashboard hideChrome />
       <InstallPrompt appName="Ela Bazar Delivery" appType="driver" themeColor="#16a34a" />
-      <PWABadge />
     </MobileAppLayout>
   );
 }

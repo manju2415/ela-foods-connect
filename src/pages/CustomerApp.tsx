@@ -117,7 +117,6 @@ export default function CustomerApp() {
     <MobileAppLayout appType="customer">
       <Index hideChrome />
       <InstallPrompt appName="Ela Bazar" appType="customer" themeColor="#f97316" />
-      <PWABadge />
     </MobileAppLayout>
   );
 }
