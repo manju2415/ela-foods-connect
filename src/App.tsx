@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
+import { PWABadge } from "@/components/pwa/PWABadge";
+import { canRegisterSW, unregisterStaleAppSW } from "@/pwa/sw-guard";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { AuthProvider } from "@/contexts/AuthContext";
