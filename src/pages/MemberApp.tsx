@@ -7,7 +7,7 @@ import { useAppManifest } from "@/hooks/useAppManifest";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { PWABadge } from "@/components/pwa/PWABadge";
+
 import Dashboard from "./Dashboard";
 
 /**
@@ -96,7 +96,6 @@ export default function MemberApp() {
     <MobileAppLayout appType="member">
       <Dashboard hideChrome />
       <InstallPrompt appName="Ela Bazar Network" appType="member" themeColor="#7c3aed" />
-      <PWABadge />
     </MobileAppLayout>
   );
 }

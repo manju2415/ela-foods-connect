@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense, useEffect } from "react";
+import { PWABadge } from "@/components/pwa/PWABadge";
+import { canRegisterSW, unregisterStaleAppSW } from "@/pwa/sw-guard";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -101,6 +103,14 @@ const PageLoader = () => (
 
 function App() {
   useEffect(() => {
+    // In contexts where the app-shell SW must not run (dev / Lovable preview /
+    // iframe), evict any stale registration left over from a previous build.
+    if (!canRegisterSW()) {
+      unregisterStaleAppSW();
+    }
+  }, []);
+
+  useEffect(() => {
     let lastToastAt = 0;
 
     const notify = (message: string) => {
@@ -136,8 +146,10 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
             <TooltipProvider>
-              <Toaster />
-              <Sonner />
+            <Toaster />
+            <Sonner />
+            {/* Single guarded PWA registration + update prompt (no-op in dev/preview) */}
+            {canRegisterSW() && <PWABadge />}
               <BrowserRouter>
                 <CartProvider>
                   <WishlistProvider>

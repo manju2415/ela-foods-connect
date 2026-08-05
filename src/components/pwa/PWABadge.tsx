@@ -1,53 +1,71 @@
-/// <reference types="vite-plugin-pwa/client" />
+/// <reference types="vite-plugin-pwa/react" />
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 
+/**
+ * Single PWA service-worker registration + update prompt.
+ *
+ * Registered once at the app root (see src/App.tsx) and only mounted when
+ * `canRegisterSW()` is true, so dev / Lovable preview / iframe contexts never
+ * install a worker.
+ *
+ * Uses vite-plugin-pwa's official hook (reliable `onNeedRefresh`) instead of a
+ * hand-rolled `updatefound` listener, which was racy and frequently missed the
+ * "new version" signal — leaving returning visitors stuck on a stale build.
+ *
+ * When a new version is waiting it shows a toast and auto-applies after a short
+ * delay so users always land on the latest version without manual action.
+ */
 export function PWABadge() {
-  const [needRefresh, setNeedRefresh] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    offlineReady: [offlineReady, setOfflineReady],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisterError(error) {
+      console.error("[pwa] service worker registration error:", error);
+    },
+  });
+
+  const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        setRegistration(reg);
-        
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          if (newWorker) {
-            newWorker.addEventListener("statechange", () => {
-              if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                setNeedRefresh(true);
-              }
-            });
-          }
-        });
-      });
-    }
-  }, []);
+    if (!needRefresh) return;
+    // Auto-apply the update shortly after it's detected so returning users
+    // always end up on the newest version, even if they miss the toast.
+    autoTimer.current = setTimeout(() => {
+      updateServiceWorker(true);
+    }, 4000);
+    return () => {
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+    };
+  }, [needRefresh, updateServiceWorker]);
 
-  const updateServiceWorker = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
-      window.location.reload();
-    }
-  };
-
-  if (!needRefresh) return null;
+  if (!needRefresh && !offlineReady) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 flex items-center justify-between gap-4 rounded-lg bg-primary p-4 text-primary-foreground shadow-lg md:left-auto md:right-4 md:w-auto">
-      <span className="text-sm font-medium">New version available!</span>
-      <Button
-        size="sm"
-        variant="secondary"
-        onClick={updateServiceWorker}
-        className="shrink-0"
-      >
-        <RefreshCw className="mr-2 h-4 w-4" />
-        Update
-      </Button>
+      <span className="text-sm font-medium">
+        {needRefresh ? "New version available!" : "App is ready to work offline."}
+      </span>
+      {needRefresh ? (
+        <Button size="sm" variant="secondary" onClick={() => updateServiceWorker(true)} className="shrink-0">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Update now
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setOfflineReady(false)}
+          className="shrink-0 text-primary-foreground hover:text-primary-foreground"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 }

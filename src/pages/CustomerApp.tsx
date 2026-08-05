@@ -7,7 +7,7 @@ import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { PWABadge } from "@/components/pwa/PWABadge";
+
 import Index from "./Index";
 
 /**
@@ -117,7 +117,6 @@ export default function CustomerApp() {
     <MobileAppLayout appType="customer">
       <Index hideChrome />
       <InstallPrompt appName="Ela Bazar" appType="customer" themeColor="#f97316" />
-      <PWABadge />
     </MobileAppLayout>
   );
 }
