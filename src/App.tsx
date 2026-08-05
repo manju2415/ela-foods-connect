@@ -146,8 +146,10 @@ function App() {
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AuthProvider>
             <TooltipProvider>
-              <Toaster />
-              <Sonner />
+            <Toaster />
+            <Sonner />
+            {/* Single guarded PWA registration + update prompt (no-op in dev/preview) */}
+            {canRegisterSW() && <PWABadge />}
               <BrowserRouter>
                 <CartProvider>
                   <WishlistProvider>
