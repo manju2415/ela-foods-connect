@@ -493,6 +493,7 @@ export default function Products() {
                       <TableHead>Image</TableHead>
                       <TableHead>Name</TableHead>
                       <TableHead>Category</TableHead>
+                      <TableHead>HSN</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Status</TableHead>
@@ -520,6 +521,8 @@ export default function Products() {
                           <div className="text-sm text-muted-foreground">{product.sku}</div>
                         </TableCell>
                         <TableCell>{getCategoryName(product.category_id)}</TableCell>
+                        <TableCell className="text-sm">{product.hsn_code || "—"}</TableCell>
+
                         <TableCell>
                           <div>₹{Number(product.price).toFixed(2)}</div>
                           {product.compare_at_price && (
@@ -689,6 +692,21 @@ export default function Products() {
                     onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hsn_code">HSN Code *</Label>
+                  <Input
+                    id="hsn_code"
+                    inputMode="numeric"
+                    maxLength={8}
+                    placeholder="e.g. 210690"
+                    value={formData.hsn_code}
+                    onChange={(e) =>
+                      setFormData({ ...formData, hsn_code: e.target.value.replace(/\D/g, "").slice(0, 8) })
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">4-8 digits, required for GST filing</p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="stock_quantity">Stock</Label>
                   <Input
