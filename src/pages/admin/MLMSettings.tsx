@@ -67,6 +67,20 @@ const MLMSettings = () => {
     }
   }, [mlmSettings]);
 
+  // History of setting versions (each save creates a new immutable snapshot)
+  const { data: versions = [] } = useQuery({
+    queryKey: ["mlm-settings-versions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mlm_settings_versions")
+        .select("id, effective_from, note")
+        .order("effective_from", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as { id: string; effective_from: string; note: string | null }[];
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       for (const [key, value] of Object.entries(settings)) {
@@ -79,15 +93,29 @@ const MLMSettings = () => {
           }, { onConflict: "key" });
         if (error) throw error;
       }
+
+      // Create a new immutable version snapshot. Existing users stay pinned to
+      // the version active at their registration, so their wallets never change.
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: versionError } = await supabase
+        .from("mlm_settings_versions")
+        .insert({
+          settings: settings as unknown as Record<string, never>,
+          created_by: userData?.user?.id ?? null,
+          note: "Saved from MLM Settings",
+        });
+      if (versionError) throw versionError;
     },
     onSuccess: () => {
-      toast({ title: "Settings saved", description: "MLM settings have been updated successfully." });
+      toast({ title: "Settings saved", description: "A new settings version was created. Existing members keep their original version." });
       queryClient.invalidateQueries({ queryKey: ["mlm-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["mlm-settings-versions"] });
     },
     onError: (error) => {
       toast({ title: "Error", description: "Failed to save settings. " + error.message, variant: "destructive" });
     },
   });
+
 
   const updateSetting = (key: string, field: string, value: unknown) => {
     setSettings((prev) => ({
@@ -521,7 +549,41 @@ const MLMSettings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Settings Version History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Settings Version History
+              </CardTitle>
+              <CardDescription>
+                Each save creates a new version. Members are tagged with the version active at registration,
+                and all their wallet/commission calculations keep using that version.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {versions.map((v, i) => (
+                    <div key={v.id} className="flex items-center justify-between border rounded-md p-3">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {new Date(v.effective_from).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{v.note || "Settings snapshot"}</p>
+                      </div>
+                      {i === 0 && <Badge>Current</Badge>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
+
       </AdminLayout>
     </SuperAdminGuard>
   );

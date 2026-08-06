@@ -64,8 +64,10 @@ const menuItems: MenuItem[] = [
   { title: "Founding Members", url: "/admin/founding-members", icon: Crown, superAdminOnly: true },
   { title: "Users", url: "/admin/users", icon: Users, storeAdminVisible: true },
   { title: "Stores", url: "/admin/stores", icon: Store, storeAdminVisible: true },
+  { title: "GSTN Report", url: "/admin/gst-report", icon: FileText, superAdminOnly: true },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
+
 ];
 
 const networkMenuItems: MenuItem[] = [
@@ -75,6 +77,8 @@ const networkMenuItems: MenuItem[] = [
   { title: "Founding Members", url: "/admin/founding-members", icon: Crown, superAdminOnly: true },
   { title: "Referral Codes", url: "/admin/referral-codes", icon: Ticket, superAdminOnly: true },
   { title: "Founders", url: "/admin/founders", icon: UserCog, superAdminOnly: true },
+  { title: "Founder Payments", url: "/admin/founder-payments", icon: Banknote, superAdminOnly: true },
+
   { title: "MLM Settings", url: "/admin/mlm-settings", icon: Settings, superAdminOnly: true },
   { title: "Withdrawals", url: "/admin/withdrawals", icon: Banknote, superAdminOnly: true },
 ];

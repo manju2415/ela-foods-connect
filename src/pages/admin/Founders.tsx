@@ -35,7 +35,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp, Pencil } from "lucide-react";
+import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp, Pencil, CheckCircle2 } from "lucide-react";
+
+const FOUNDER_STATUS_LABEL: Record<string, string> = {
+  none: "Pending Approval",
+  pending_approval: "Pending Approval",
+  approved_pending_payment: "Approved - Payment Pending",
+  active: "Active Founding Member",
+};
 
 interface Founder {
   id: string;
@@ -44,6 +51,8 @@ interface Founder {
   full_name: string | null;
   referral_count: number;
   is_designated_founder: boolean;
+  founder_status: string | null;
+  registration_fee_paid: number | null;
   referral_codes: { code: string; usage_count: number }[];
 }
 
@@ -90,7 +99,7 @@ export default function Founders() {
       
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, email, full_name, phone, referral_count")
+        .select("id, email, full_name, phone, referral_count, founder_status, registration_fee_paid")
         .in("id", userIds);
       
       const foundersWithCodes = await Promise.all(
@@ -240,6 +249,22 @@ export default function Founders() {
     },
   });
 
+  // Approve founder mutation (Super Admin only action - no payment here)
+  const approveFounderMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ founder_status: "approved_pending_payment", user_level: "founder", is_designated_founder: true })
+        .eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["designated-founders"] });
+      toast.success("Founder approved. Payment is now pending.");
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   // Update founder profile mutation
   const updateFounderMutation = useMutation({
     mutationFn: async ({ id, full_name, email, phone }: { id: string; full_name: string; email: string; phone: string }) => {
@@ -369,6 +394,7 @@ export default function Founders() {
                       <TableHead>Founder</TableHead>
                       <TableHead>Referral Codes</TableHead>
                       <TableHead>Network Size</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -406,7 +432,32 @@ export default function Founders() {
                         <TableCell>
                           <Badge variant="secondary">{founder.referral_count} members</Badge>
                         </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              founder.founder_status === "active"
+                                ? "default"
+                                : founder.founder_status === "approved_pending_payment"
+                                ? "secondary"
+                                : "outline"
+                            }
+                          >
+                            {FOUNDER_STATUS_LABEL[founder.founder_status || "none"] || founder.founder_status}
+                          </Badge>
+                        </TableCell>
                         <TableCell className="text-right">
+                          {(!founder.founder_status || founder.founder_status === "none" || founder.founder_status === "pending_approval") && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mr-2"
+                              onClick={() => approveFounderMutation.mutate(founder.id)}
+                              disabled={approveFounderMutation.isPending}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"

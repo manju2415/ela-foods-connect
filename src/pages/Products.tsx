@@ -17,6 +17,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  buildVariantOptions,
+  groupProductsByName,
+  type GroupableVariant,
+} from "@/lib/variantOptions";
+
 
 interface Product {
   id: string;
@@ -25,6 +31,7 @@ interface Product {
   price: number;
   compare_at_price: number | null;
   member_price: number | null;
+  stock_quantity: number | null;
   images: string[];
   is_featured: boolean;
   category_id: string | null;
@@ -45,10 +52,12 @@ interface Category {
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [variants, setVariants] = useState<GroupableVariant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
+
 
   useEffect(() => {
     fetchCategories();
@@ -93,6 +102,7 @@ const Products = () => {
         price,
         compare_at_price,
         member_price,
+        stock_quantity,
         images,
         is_featured,
         category_id,
@@ -126,10 +136,28 @@ const Products = () => {
               p.categories?.name.toLowerCase().includes(searchTerm)
           )
         : data;
-      setProducts(filtered || []);
+      const list = (filtered || []) as Product[];
+      setProducts(list);
+
+      // Load pack/quantity variants for the listed products
+      if (list.length > 0) {
+        const { data: variantData } = await supabase
+          .from("product_variants")
+          .select("id, product_id, label, price, member_price, stock_quantity, is_default, display_order")
+          .in("product_id", list.map((p) => p.id))
+          .eq("is_active", true)
+          .order("display_order");
+        setVariants((variantData || []) as GroupableVariant[]);
+      } else {
+        setVariants([]);
+      }
     }
     setLoading(false);
   };
+
+  // Group same-named products so pack variants share one card
+  const productGroups = groupProductsByName(products);
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -336,27 +364,33 @@ const Products = () => {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Showing {products.length} product{products.length !== 1 ? "s" : ""}
+                  Showing {productGroups.length} product{productGroups.length !== 1 ? "s" : ""}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {products.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      slug={product.slug}
-                      price={product.price}
-                      memberPrice={product.member_price}
-                      originalPrice={product.compare_at_price || undefined}
-                      image={product.images?.[0] || "/placeholder.svg"}
-                      category={product.categories?.name || "General"}
-                      isBestSeller={product.is_featured}
-                      unitType={product.unit_type}
-                      unitValue={product.unit_value}
-                    />
-                  ))}
+                  {productGroups.map((group) => {
+                    const product = group[0];
+                    const options = buildVariantOptions(group, variants);
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        id={product.id}
+                        name={product.name}
+                        slug={product.slug}
+                        price={product.price}
+                        memberPrice={product.member_price}
+                        originalPrice={product.compare_at_price || undefined}
+                        image={product.images?.[0] || "/placeholder.svg"}
+                        category={product.categories?.name || "General"}
+                        isBestSeller={product.is_featured}
+                        unitType={product.unit_type}
+                        unitValue={product.unit_value}
+                        variantOptions={options.length > 1 ? options : undefined}
+                      />
+                    );
+                  })}
                 </div>
               </>
+
             )}
           </div>
         </div>

@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { ShoppingCart, Heart, Zap } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import type { VariantOption } from "@/lib/variantOptions";
 
 interface ProductCardProps {
   id: string;
@@ -24,7 +27,10 @@ interface ProductCardProps {
   unitValue?: number | null;
   gstPercentage?: number | null;
   gstInclusive?: boolean | null;
+  /** Optional grouped pack/quantity options (same product name, different packs) */
+  variantOptions?: VariantOption[];
 }
+
 
 const ProductCard = ({
   id,
@@ -41,9 +47,17 @@ const ProductCard = ({
   unitValue,
   gstPercentage,
   gstInclusive,
+  variantOptions,
 }: ProductCardProps) => {
   const { addToCart, buyNow } = useCart();
   const navigate = useNavigate();
+
+  const options = variantOptions ?? [];
+  const hasOptions = options.length > 0;
+  const [selectedKey, setSelectedKey] = useState<string>(options[0]?.key ?? "");
+  const activeOption = hasOptions
+    ? options.find((o) => o.key === selectedKey) ?? options[0]
+    : null;
 
   // Products with unit variants must be configured on the detail page
   const hasVariants = async () => {
@@ -56,13 +70,18 @@ const ProductCard = ({
   };
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
-  
+
+  const displayPrice = activeOption ? activeOption.price : price;
+  const outOfStock = activeOption ? activeOption.stock <= 0 : false;
   // Auto-calculate member price if not set (10% discount)
-  const effectiveMemberPrice = memberPrice ?? Math.round(price * 0.9);
+  const effectiveMemberPrice = activeOption
+    ? activeOption.memberPrice ?? Math.round(activeOption.price * 0.9)
+    : memberPrice ?? Math.round(price * 0.9);
   // Calculate discount for compare_at_price
-  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  const memberDiscount = Math.round(((price - effectiveMemberPrice) / price) * 100);
+  const discount = originalPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
+  const memberDiscount = Math.round(((displayPrice - effectiveMemberPrice) / displayPrice) * 100);
   const inWishlist = isInWishlist(id);
+
 
   // GST calculation
   const gstRate = gstPercentage || 0;
@@ -80,7 +99,7 @@ const ProductCard = ({
     }
   };
 
-  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : price);
+  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : displayPrice);
 
   // Format unit display
   const getUnitDisplay = () => {
@@ -102,11 +121,16 @@ const ProductCard = ({
     return null;
   };
 
-  const unitDisplay = getUnitDisplay();
+  const unitDisplay = activeOption ? activeOption.label : getUnitDisplay();
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (activeOption) {
+      if (outOfStock) return;
+      addToCart(activeOption.productId, 1, activeOption.variantId);
+      return;
+    }
     if (await hasVariants()) {
       navigate(`/product/${slug}`);
       return;
@@ -117,12 +141,18 @@ const ProductCard = ({
   const handleBuyNow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (activeOption) {
+      if (outOfStock) return;
+      buyNow(activeOption.productId, 1, activeOption.variantId);
+      return;
+    }
     if (await hasVariants()) {
       navigate(`/product/${slug}`);
       return;
     }
     buyNow(id);
   };
+
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -172,11 +202,11 @@ const ProductCard = ({
 
         {/* Quick Add Button */}
         <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-2">
-          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart}>
+          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
             <ShoppingCart className="h-4 w-4" />
             Cart
           </Button>
-          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow}>
+          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
             <Zap className="h-4 w-4" />
             Buy Now
           </Button>
@@ -190,22 +220,44 @@ const ProductCard = ({
         <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
           {name}
         </h3>
-        {unitDisplay && (
-          <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+        {options.length > 1 ? (
+          <div
+            className="mb-2"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <Select value={activeOption?.key} onValueChange={setSelectedKey}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select pack" />
+              </SelectTrigger>
+              <SelectContent className="z-50 bg-popover">
+                {options.map((o) => (
+                  <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
+                    {o.label} · ₹{o.price}{o.stock <= 0 ? " (Out of stock)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          unitDisplay && <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+        )}
+        {outOfStock && (
+          <p className="text-xs text-destructive mb-1">Out of stock</p>
         )}
         {/* Pricing - Show both MRP and Member Price */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">MRP:</span>
             <span className={`font-bold ${isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
-              ₹{price}
+              ₹{displayPrice}
             </span>
-            {originalPrice && originalPrice > price && (
+            {originalPrice && originalPrice > displayPrice && (
               <span className="text-sm text-muted-foreground line-through">
                 ₹{originalPrice}
               </span>
             )}
           </div>
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-green-600 font-medium">Member:</span>
             <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>

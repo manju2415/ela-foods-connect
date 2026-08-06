@@ -421,6 +421,42 @@ export type Database = {
         }
         Relationships: []
       }
+      founder_payment_logs: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          order_id: string | null
+          payment_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mlm_settings: {
         Row: {
           description: string | null
@@ -445,6 +481,33 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      mlm_settings_versions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          note: string | null
+          settings: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          note?: string | null
+          settings: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          note?: string | null
+          settings?: Json
         }
         Relationships: []
       }
@@ -911,6 +974,7 @@ export type Database = {
           description: string | null
           gst_inclusive: boolean | null
           gst_percentage: number | null
+          hsn_code: string | null
           id: string
           images: string[] | null
           is_active: boolean | null
@@ -934,6 +998,7 @@ export type Database = {
           description?: string | null
           gst_inclusive?: boolean | null
           gst_percentage?: number | null
+          hsn_code?: string | null
           id?: string
           images?: string[] | null
           is_active?: boolean | null
@@ -957,6 +1022,7 @@ export type Database = {
           description?: string | null
           gst_inclusive?: boolean | null
           gst_percentage?: number | null
+          hsn_code?: string | null
           id?: string
           images?: string[] | null
           is_active?: boolean | null
@@ -992,10 +1058,12 @@ export type Database = {
           bank_name: string | null
           created_at: string
           email: string
+          founder_status: string
           full_name: string | null
           id: string
           is_active: boolean | null
           is_designated_founder: boolean | null
+          mlm_settings_version_id: string | null
           phone: string | null
           referral_count: number | null
           referred_by: string | null
@@ -1011,10 +1079,12 @@ export type Database = {
           bank_name?: string | null
           created_at?: string
           email: string
+          founder_status?: string
           full_name?: string | null
           id: string
           is_active?: boolean | null
           is_designated_founder?: boolean | null
+          mlm_settings_version_id?: string | null
           phone?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -1030,10 +1100,12 @@ export type Database = {
           bank_name?: string | null
           created_at?: string
           email?: string
+          founder_status?: string
           full_name?: string | null
           id?: string
           is_active?: boolean | null
           is_designated_founder?: boolean | null
+          mlm_settings_version_id?: string | null
           phone?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -1776,6 +1848,10 @@ export type Database = {
           user_id: string
           user_level: Database["public"]["Enums"]["user_level"]
         }[]
+      }
+      get_user_mlm_setting: {
+        Args: { _key: string; _user_id: string }
+        Returns: Json
       }
       has_role: {
         Args: {

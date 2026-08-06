@@ -22,8 +22,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { buildVariantOptions, type GroupableVariant } from "@/lib/variantOptions";
+
 
 interface Product {
   id: string;
@@ -58,7 +61,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],
@@ -123,25 +126,70 @@ export default function ProductDetail() {
     enabled: !!product?.id,
   });
 
-  // Auto-select default variant on load
-  const activeVariant = variants.find((v: any) => v.id === selectedVariantId)
-    || variants.find((v: any) => v.is_default)
-    || variants[0]
-    || null;
+  // Same-named products (admin adds different pack sizes as separate products)
+  const { data: siblings = [] } = useQuery({
+    queryKey: ["product-siblings", product?.id, product?.name],
+    queryFn: async () => {
+      if (!product?.id) return [] as any[];
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, slug, price, member_price, stock_quantity, unit_type, unit_value, category_id")
+        .eq("name", product.name)
+        .eq("is_active", true)
+        .neq("id", product.id);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!product?.id,
+  });
 
-  const effectivePrice = activeVariant?.price ?? product?.price ?? 0;
-  const effectiveStock = activeVariant?.stock_quantity ?? product?.stock_quantity ?? 0;
+  const { data: siblingVariants = [] } = useQuery({
+    queryKey: ["sibling-variants", siblings.map((s: any) => s.id).join(",")],
+    queryFn: async () => {
+      if (siblings.length === 0) return [] as GroupableVariant[];
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id, product_id, label, price, member_price, stock_quantity, is_default, display_order")
+        .in("product_id", siblings.map((s: any) => s.id))
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) throw error;
+      return (data || []) as GroupableVariant[];
+    },
+    enabled: siblings.length > 0,
+  });
+
+  // Unified pack/quantity options: this product's variants + same-named products
+  const options = product
+    ? buildVariantOptions(
+        [product as any, ...(siblings as any[])],
+        [...(variants as GroupableVariant[]), ...siblingVariants]
+      )
+    : [];
+
+  const defaultOption =
+    options.find((o) => o.variantId && variants.find((v: any) => v.id === o.variantId && v.is_default)) ||
+    options[0] ||
+    null;
+  const activeOption = options.find((o) => o.key === selectedOptionKey) || defaultOption;
+  const activeVariant = activeOption?.variantId
+    ? [...(variants as any[]), ...(siblingVariants as any[])].find((v: any) => v.id === activeOption.variantId)
+    : null;
+
+  const effectivePrice = activeOption?.price ?? product?.price ?? 0;
+  const effectiveStock = activeOption?.stock ?? product?.stock_quantity ?? 0;
+
 
   const handleAddToCart = async () => {
     if (!product) return;
-    if (variants.length > 0 && !activeVariant) {
-      toast.error("Please select a variant");
+    if (options.length > 1 && !activeOption) {
+      toast.error("Please select a pack size");
       return;
     }
     setIsAddingToCart(true);
     try {
-      await addToCart(product.id, quantity, activeVariant?.id || null);
-      toast.success(`${product.name}${activeVariant ? ` (${activeVariant.label})` : ""} added to cart`);
+      await addToCart(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);
+      toast.success(`${product.name}${activeOption ? ` (${activeOption.label})` : ""} added to cart`);
     } catch {
       toast.error("Failed to add to cart");
     } finally {
@@ -151,19 +199,20 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!product) return;
-    if (variants.length > 0 && !activeVariant) {
-      toast.error("Please select a variant");
+    if (options.length > 1 && !activeOption) {
+      toast.error("Please select a pack size");
       return;
     }
     setIsBuyingNow(true);
     try {
-      await buyNow(product.id, quantity, activeVariant?.id || null);
+      await buyNow(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);
     } catch {
       toast.error("Failed to process. Please try again.");
     } finally {
       setIsBuyingNow(false);
     }
   };
+
 
   const nextImage = () => {
     if (product?.images?.length) {
@@ -178,10 +227,11 @@ export default function ProductDetail() {
   };
 
   // Auto-calculate member price if not set (10% discount)
-  const basePrice = activeVariant?.price ?? product?.price ?? 0;
-  const effectiveMemberPrice = activeVariant
-    ? (activeVariant.member_price ?? Math.round(activeVariant.price * 0.9))
+  const basePrice = activeOption?.price ?? product?.price ?? 0;
+  const effectiveMemberPrice = activeOption
+    ? (activeOption.memberPrice ?? Math.round(activeOption.price * 0.9))
     : (product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0));
+
   // Calculate discount for compare_at_price (base product only)
   const discount = product?.compare_at_price && product?.price
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
@@ -338,32 +388,27 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {variants.length > 0 && (
+              {options.length > 1 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Select Pack Size:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {variants.map((v: any) => {
-                      const isSelected = (activeVariant?.id === v.id);
-                      const outOfStock = (v.stock_quantity || 0) <= 0;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => { setSelectedVariantId(v.id); setQuantity(1); }}
-                          disabled={outOfStock}
-                          className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                            isSelected
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-input hover:border-primary"
-                          } ${outOfStock ? "opacity-50 line-through cursor-not-allowed" : ""}`}
-                        >
-                          {v.label} · ₹{Number(v.price).toFixed(0)}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <p className="text-sm font-medium">Select Quantity / Pack:</p>
+                  <Select
+                    value={activeOption?.key}
+                    onValueChange={(key) => { setSelectedOptionKey(key); setQuantity(1); }}
+                  >
+                    <SelectTrigger className="w-full sm:w-72">
+                      <SelectValue placeholder="Select pack size" />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-popover">
+                      {options.map((o) => (
+                        <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
+                          {o.label} · ₹{o.price.toFixed(0)}{o.stock <= 0 ? " (Out of stock)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
+
 
               <div className="space-y-3">
                 {/* MRP Price */}

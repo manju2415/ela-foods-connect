@@ -29,6 +29,7 @@ const RegistrationPayment = () => {
   const [feePaid, setFeePaid] = useState(false);
   const [isFounder, setIsFounder] = useState(false);
   const [hasReferrer, setHasReferrer] = useState(false);
+  const [founderStatus, setFounderStatus] = useState<string>("none");
   const [referralCode, setReferralCode] = useState("");
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
 
@@ -48,7 +49,7 @@ const RegistrationPayment = () => {
     // Check if user already paid registration fee
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder, referred_by")
+      .select("registration_fee_paid, user_level, is_designated_founder, referred_by, founder_status")
       .eq("id", user.id)
       .single();
 
@@ -60,6 +61,7 @@ const RegistrationPayment = () => {
 
     const founder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
     setIsFounder(founder);
+    setFounderStatus((profile as { founder_status?: string } | null)?.founder_status || "none");
 
     // Get registration fee settings (founders have their own fee)
     const { data: settingsData } = await supabase
@@ -363,12 +365,31 @@ const RegistrationPayment = () => {
                 </div>
               )}
 
+              {/* Founder approval status */}
+              {isFounder && (
+                <div className="p-3 rounded-lg border bg-muted/40">
+                  <p className="text-sm font-medium">
+                    Founding Member Status:{" "}
+                    {founderStatus === "active"
+                      ? "Active Founding Member"
+                      : founderStatus === "approved_pending_payment"
+                      ? "Approved — Pay Now"
+                      : "Pending Approval"}
+                  </p>
+                  {founderStatus !== "active" && founderStatus !== "approved_pending_payment" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Your founding member application is awaiting Super Admin approval. You can pay once approved.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Payment Button */}
               <div className="space-y-3 pt-4">
                 <Button 
                   className="w-full h-12 text-lg" 
                   onClick={handlePayment}
-                  disabled={processing}
+                  disabled={processing || (isFounder && founderStatus !== "approved_pending_payment" && founderStatus !== "active")}
                 >
                   {processing ? (
                     <>
