@@ -22,8 +22,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { buildVariantOptions, type GroupableVariant } from "@/lib/variantOptions";
+
 
 interface Product {
   id: string;
@@ -58,7 +61,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
+  const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(null);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],
