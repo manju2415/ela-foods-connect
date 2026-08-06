@@ -202,11 +202,11 @@ const ProductCard = ({
 
         {/* Quick Add Button */}
         <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-2">
-          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart}>
+          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
             <ShoppingCart className="h-4 w-4" />
             Cart
           </Button>
-          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow}>
+          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
             <Zap className="h-4 w-4" />
             Buy Now
           </Button>
@@ -220,22 +220,44 @@ const ProductCard = ({
         <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
           {name}
         </h3>
-        {unitDisplay && (
-          <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+        {options.length > 1 ? (
+          <div
+            className="mb-2"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            <Select value={activeOption?.key} onValueChange={setSelectedKey}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Select pack" />
+              </SelectTrigger>
+              <SelectContent className="z-50 bg-popover">
+                {options.map((o) => (
+                  <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
+                    {o.label} · ₹{o.price}{o.stock <= 0 ? " (Out of stock)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          unitDisplay && <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+        )}
+        {outOfStock && (
+          <p className="text-xs text-destructive mb-1">Out of stock</p>
         )}
         {/* Pricing - Show both MRP and Member Price */}
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">MRP:</span>
             <span className={`font-bold ${isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
-              ₹{price}
+              ₹{displayPrice}
             </span>
-            {originalPrice && originalPrice > price && (
+            {originalPrice && originalPrice > displayPrice && (
               <span className="text-sm text-muted-foreground line-through">
                 ₹{originalPrice}
               </span>
             )}
           </div>
+
           <div className="flex items-center gap-2">
             <span className="text-sm text-green-600 font-medium">Member:</span>
             <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>
