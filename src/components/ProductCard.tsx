@@ -99,7 +99,7 @@ const ProductCard = ({
     }
   };
 
-  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : price);
+  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : displayPrice);
 
   // Format unit display
   const getUnitDisplay = () => {
@@ -121,11 +121,16 @@ const ProductCard = ({
     return null;
   };
 
-  const unitDisplay = getUnitDisplay();
+  const unitDisplay = activeOption ? activeOption.label : getUnitDisplay();
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (activeOption) {
+      if (outOfStock) return;
+      addToCart(activeOption.productId, 1, activeOption.variantId);
+      return;
+    }
     if (await hasVariants()) {
       navigate(`/product/${slug}`);
       return;
@@ -136,12 +141,18 @@ const ProductCard = ({
   const handleBuyNow = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (activeOption) {
+      if (outOfStock) return;
+      buyNow(activeOption.productId, 1, activeOption.variantId);
+      return;
+    }
     if (await hasVariants()) {
       navigate(`/product/${slug}`);
       return;
     }
     buyNow(id);
   };
+
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
