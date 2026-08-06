@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { ShoppingCart, Heart, Zap } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import type { VariantOption } from "@/lib/variantOptions";
 
 interface ProductCardProps {
   id: string;
@@ -24,7 +27,10 @@ interface ProductCardProps {
   unitValue?: number | null;
   gstPercentage?: number | null;
   gstInclusive?: boolean | null;
+  /** Optional grouped pack/quantity options (same product name, different packs) */
+  variantOptions?: VariantOption[];
 }
+
 
 const ProductCard = ({
   id,
