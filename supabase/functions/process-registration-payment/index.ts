@@ -49,7 +49,7 @@ serve(async (req) => {
     // Load profile first (needed to decide founder vs regular fee)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder")
+      .select("registration_fee_paid, user_level, is_designated_founder, founder_status, mlm_settings_version_id")
       .eq("id", user.id)
       .single();
 
@@ -75,10 +75,34 @@ serve(async (req) => {
       });
     }
 
+    // Founders must be approved by a Super Admin before paying
+    if (isFounder && profile?.founder_status !== "approved_pending_payment" && profile?.founder_status !== "active") {
+      return new Response(
+        JSON.stringify({ error: "Your founding member application is pending Super Admin approval." }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Pin the MLM settings version active at registration time (never re-tag)
+    let versionId: string | null = profile?.mlm_settings_version_id ?? null;
+    if (!versionId) {
+      const { data: latestVersion } = await supabase
+        .from("mlm_settings_versions")
+        .select("id")
+        .order("effective_from", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      versionId = latestVersion?.id ?? null;
+    }
+
     // Update profile with registration fee paid
+    const profileUpdate: Record<string, unknown> = { registration_fee_paid: registrationAmount };
+    if (versionId) profileUpdate.mlm_settings_version_id = versionId;
+    if (isFounder) profileUpdate.founder_status = "active";
+
     const { error: profileError } = await supabase
       .from("profiles")
-      .update({ registration_fee_paid: registrationAmount })
+      .update(profileUpdate)
       .eq("id", user.id);
 
     if (profileError) {
@@ -87,6 +111,18 @@ serve(async (req) => {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Log the founder registration payment for Super Admin
+    if (isFounder) {
+      const { error: logError } = await supabase.from("founder_payment_logs").insert({
+        user_id: user.id,
+        amount: registrationAmount,
+        payment_id: razorpay_payment_id,
+        status: "success",
+        notes: "Founding member registration fee",
+      });
+      if (logError) console.error("Founder payment log error:", logError);
     }
 
     // Ensure wallet exists
