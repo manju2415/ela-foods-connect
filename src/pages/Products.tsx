@@ -155,6 +155,9 @@ const Products = () => {
     setLoading(false);
   };
 
+  // Group same-named products so pack variants share one card
+  const productGroups = groupProductsByName(products);
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
