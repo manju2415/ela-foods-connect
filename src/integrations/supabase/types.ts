@@ -1863,7 +1863,15 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
       is_mlm_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_order_assigned_to_partner: {
+        Args: { _order_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      owns_order: {
+        Args: { _order_id: string; _user_id: string }
+        Returns: boolean
+      }
       process_mlm_referral: {
         Args: {
           p_referral_code: string
