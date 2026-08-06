@@ -22,7 +22,6 @@ export interface GroupableProduct {
   unit_type?: string | null;
   unit_value?: number | null;
   category_id?: string | null;
-  [key: string]: unknown;
 }
 
 export interface GroupableVariant {
