@@ -388,32 +388,27 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {variants.length > 0 && (
+              {options.length > 1 && (
                 <div className="space-y-2">
-                  <p className="text-sm font-medium">Select Pack Size:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {variants.map((v: any) => {
-                      const isSelected = (activeVariant?.id === v.id);
-                      const outOfStock = (v.stock_quantity || 0) <= 0;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => { setSelectedVariantId(v.id); setQuantity(1); }}
-                          disabled={outOfStock}
-                          className={`px-4 py-2 rounded-md border text-sm font-medium transition-colors ${
-                            isSelected
-                              ? "border-primary bg-primary/10 text-primary"
-                              : "border-input hover:border-primary"
-                          } ${outOfStock ? "opacity-50 line-through cursor-not-allowed" : ""}`}
-                        >
-                          {v.label} · ₹{Number(v.price).toFixed(0)}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <p className="text-sm font-medium">Select Quantity / Pack:</p>
+                  <Select
+                    value={activeOption?.key}
+                    onValueChange={(key) => { setSelectedOptionKey(key); setQuantity(1); }}
+                  >
+                    <SelectTrigger className="w-full sm:w-72">
+                      <SelectValue placeholder="Select pack size" />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-popover">
+                      {options.map((o) => (
+                        <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
+                          {o.label} · ₹{o.price.toFixed(0)}{o.stock <= 0 ? " (Out of stock)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
+
 
               <div className="space-y-3">
                 {/* MRP Price */}
