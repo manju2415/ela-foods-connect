@@ -102,6 +102,7 @@ const Products = () => {
         price,
         compare_at_price,
         member_price,
+        stock_quantity,
         images,
         is_featured,
         category_id,
@@ -135,10 +136,25 @@ const Products = () => {
               p.categories?.name.toLowerCase().includes(searchTerm)
           )
         : data;
-      setProducts(filtered || []);
+      const list = (filtered || []) as Product[];
+      setProducts(list);
+
+      // Load pack/quantity variants for the listed products
+      if (list.length > 0) {
+        const { data: variantData } = await supabase
+          .from("product_variants")
+          .select("id, product_id, label, price, member_price, stock_quantity, is_default, display_order")
+          .in("product_id", list.map((p) => p.id))
+          .eq("is_active", true)
+          .order("display_order");
+        setVariants((variantData || []) as GroupableVariant[]);
+      } else {
+        setVariants([]);
+      }
     }
     setLoading(false);
   };
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
