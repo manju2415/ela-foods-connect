@@ -126,14 +126,59 @@ export default function ProductDetail() {
     enabled: !!product?.id,
   });
 
-  // Auto-select default variant on load
-  const activeVariant = variants.find((v: any) => v.id === selectedVariantId)
-    || variants.find((v: any) => v.is_default)
-    || variants[0]
-    || null;
+  // Same-named products (admin adds different pack sizes as separate products)
+  const { data: siblings = [] } = useQuery({
+    queryKey: ["product-siblings", product?.id, product?.name],
+    queryFn: async () => {
+      if (!product?.id) return [] as any[];
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, slug, price, member_price, stock_quantity, unit_type, unit_value, category_id")
+        .eq("name", product.name)
+        .eq("is_active", true)
+        .neq("id", product.id);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+    enabled: !!product?.id,
+  });
 
-  const effectivePrice = activeVariant?.price ?? product?.price ?? 0;
-  const effectiveStock = activeVariant?.stock_quantity ?? product?.stock_quantity ?? 0;
+  const { data: siblingVariants = [] } = useQuery({
+    queryKey: ["sibling-variants", siblings.map((s: any) => s.id).join(",")],
+    queryFn: async () => {
+      if (siblings.length === 0) return [] as GroupableVariant[];
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("id, product_id, label, price, member_price, stock_quantity, is_default, display_order")
+        .in("product_id", siblings.map((s: any) => s.id))
+        .eq("is_active", true)
+        .order("display_order");
+      if (error) throw error;
+      return (data || []) as GroupableVariant[];
+    },
+    enabled: siblings.length > 0,
+  });
+
+  // Unified pack/quantity options: this product's variants + same-named products
+  const options = product
+    ? buildVariantOptions(
+        [product as any, ...(siblings as any[])],
+        [...(variants as GroupableVariant[]), ...siblingVariants]
+      )
+    : [];
+
+  const defaultOption =
+    options.find((o) => o.variantId && variants.find((v: any) => v.id === o.variantId && v.is_default)) ||
+    options[0] ||
+    null;
+  const activeOption = options.find((o) => o.key === selectedOptionKey) || defaultOption;
+  const activeVariant = activeOption?.variantId
+    ? [...(variants as any[]), ...(siblingVariants as any[])].find((v: any) => v.id === activeOption.variantId)
+    : null;
+
+  const effectivePrice = activeOption?.price ?? product?.price ?? 0;
+  const effectiveStock = activeOption?.stock ?? product?.stock_quantity ?? 0;
+
 
   const handleAddToCart = async () => {
     if (!product) return;
