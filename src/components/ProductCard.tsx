@@ -47,9 +47,17 @@ const ProductCard = ({
   unitValue,
   gstPercentage,
   gstInclusive,
+  variantOptions,
 }: ProductCardProps) => {
   const { addToCart, buyNow } = useCart();
   const navigate = useNavigate();
+
+  const options = variantOptions ?? [];
+  const hasOptions = options.length > 0;
+  const [selectedKey, setSelectedKey] = useState<string>(options[0]?.key ?? "");
+  const activeOption = hasOptions
+    ? options.find((o) => o.key === selectedKey) ?? options[0]
+    : null;
 
   // Products with unit variants must be configured on the detail page
   const hasVariants = async () => {
@@ -62,13 +70,18 @@ const ProductCard = ({
   };
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { isMember } = useUserRole();
-  
+
+  const displayPrice = activeOption ? activeOption.price : price;
+  const outOfStock = activeOption ? activeOption.stock <= 0 : false;
   // Auto-calculate member price if not set (10% discount)
-  const effectiveMemberPrice = memberPrice ?? Math.round(price * 0.9);
+  const effectiveMemberPrice = activeOption
+    ? activeOption.memberPrice ?? Math.round(activeOption.price * 0.9)
+    : memberPrice ?? Math.round(price * 0.9);
   // Calculate discount for compare_at_price
-  const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
-  const memberDiscount = Math.round(((price - effectiveMemberPrice) / price) * 100);
+  const discount = originalPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
+  const memberDiscount = Math.round(((displayPrice - effectiveMemberPrice) / displayPrice) * 100);
   const inWishlist = isInWishlist(id);
+
 
   // GST calculation
   const gstRate = gstPercentage || 0;
