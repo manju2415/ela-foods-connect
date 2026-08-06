@@ -67,6 +67,20 @@ const MLMSettings = () => {
     }
   }, [mlmSettings]);
 
+  // History of setting versions (each save creates a new immutable snapshot)
+  const { data: versions = [] } = useQuery({
+    queryKey: ["mlm-settings-versions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mlm_settings_versions")
+        .select("id, effective_from, note")
+        .order("effective_from", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return data as { id: string; effective_from: string; note: string | null }[];
+    },
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       for (const [key, value] of Object.entries(settings)) {
@@ -79,15 +93,29 @@ const MLMSettings = () => {
           }, { onConflict: "key" });
         if (error) throw error;
       }
+
+      // Create a new immutable version snapshot. Existing users stay pinned to
+      // the version active at their registration, so their wallets never change.
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: versionError } = await supabase
+        .from("mlm_settings_versions")
+        .insert({
+          settings: settings as unknown as Record<string, never>,
+          created_by: userData?.user?.id ?? null,
+          note: "Saved from MLM Settings",
+        });
+      if (versionError) throw versionError;
     },
     onSuccess: () => {
-      toast({ title: "Settings saved", description: "MLM settings have been updated successfully." });
+      toast({ title: "Settings saved", description: "A new settings version was created. Existing members keep their original version." });
       queryClient.invalidateQueries({ queryKey: ["mlm-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["mlm-settings-versions"] });
     },
     onError: (error) => {
       toast({ title: "Error", description: "Failed to save settings. " + error.message, variant: "destructive" });
     },
   });
+
 
   const updateSetting = (key: string, field: string, value: unknown) => {
     setSettings((prev) => ({
