@@ -68,6 +68,7 @@ interface Product {
   created_at: string;
   gst_percentage: number | null;
   gst_inclusive: boolean | null;
+  hsn_code: string | null;
 }
 
 interface Category {
@@ -94,6 +95,7 @@ interface ProductFormData {
   is_featured: boolean;
   gst_percentage: string;
   gst_inclusive: boolean;
+  hsn_code: string;
 }
 
 const initialFormData: ProductFormData = {
@@ -114,6 +116,7 @@ const initialFormData: ProductFormData = {
   is_featured: false,
   gst_percentage: "0",
   gst_inclusive: true,
+  hsn_code: "",
 };
 
 export default function Products() {
@@ -242,6 +245,7 @@ export default function Products() {
         images: imageUrls,
         gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
         gst_inclusive: data.gst_inclusive,
+        hsn_code: data.hsn_code.trim(),
       }).select("id").single();
       if (error) throw error;
       if (created) await saveVariants(created.id);
@@ -286,6 +290,7 @@ export default function Products() {
           images: imageUrls,
           gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
           gst_inclusive: data.gst_inclusive,
+          hsn_code: data.hsn_code.trim(),
         })
         .eq("id", id);
       if (error) throw error;
@@ -346,6 +351,7 @@ export default function Products() {
       is_active: product.is_active,
       is_featured: product.is_featured,
       gst_percentage: (product.gst_percentage || 0).toString(),
+      hsn_code: product.hsn_code || "",
       gst_inclusive: product.gst_inclusive !== false,
     });
     setExistingImages(product.images || []);
@@ -385,6 +391,10 @@ export default function Products() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!/^\d{4,8}$/.test(formData.hsn_code.trim())) {
+      toast.error("HSN Code is required and must be 4-8 digits");
+      return;
+    }
     if (!formData.name || !formData.price) {
       toast.error("Name and price are required");
       return;
