@@ -17,6 +17,12 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import {
+  buildVariantOptions,
+  groupProductsByName,
+  type GroupableVariant,
+} from "@/lib/variantOptions";
+
 
 interface Product {
   id: string;
@@ -25,6 +31,7 @@ interface Product {
   price: number;
   compare_at_price: number | null;
   member_price: number | null;
+  stock_quantity: number | null;
   images: string[];
   is_featured: boolean;
   category_id: string | null;
@@ -45,10 +52,12 @@ interface Category {
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
+  const [variants, setVariants] = useState<GroupableVariant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
+
 
   useEffect(() => {
     fetchCategories();
