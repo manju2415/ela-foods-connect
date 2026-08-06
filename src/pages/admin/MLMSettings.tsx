@@ -549,7 +549,41 @@ const MLMSettings = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Settings Version History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Settings Version History
+              </CardTitle>
+              <CardDescription>
+                Each save creates a new version. Members are tagged with the version active at registration,
+                and all their wallet/commission calculations keep using that version.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {versions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No versions recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {versions.map((v, i) => (
+                    <div key={v.id} className="flex items-center justify-between border rounded-md p-3">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {new Date(v.effective_from).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{v.note || "Settings snapshot"}</p>
+                      </div>
+                      {i === 0 && <Badge>Current</Badge>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
+
       </AdminLayout>
     </SuperAdminGuard>
   );
