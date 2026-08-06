@@ -182,14 +182,14 @@ export default function ProductDetail() {
 
   const handleAddToCart = async () => {
     if (!product) return;
-    if (variants.length > 0 && !activeVariant) {
-      toast.error("Please select a variant");
+    if (options.length > 1 && !activeOption) {
+      toast.error("Please select a pack size");
       return;
     }
     setIsAddingToCart(true);
     try {
-      await addToCart(product.id, quantity, activeVariant?.id || null);
-      toast.success(`${product.name}${activeVariant ? ` (${activeVariant.label})` : ""} added to cart`);
+      await addToCart(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);
+      toast.success(`${product.name}${activeOption ? ` (${activeOption.label})` : ""} added to cart`);
     } catch {
       toast.error("Failed to add to cart");
     } finally {
@@ -199,19 +199,20 @@ export default function ProductDetail() {
 
   const handleBuyNow = async () => {
     if (!product) return;
-    if (variants.length > 0 && !activeVariant) {
-      toast.error("Please select a variant");
+    if (options.length > 1 && !activeOption) {
+      toast.error("Please select a pack size");
       return;
     }
     setIsBuyingNow(true);
     try {
-      await buyNow(product.id, quantity, activeVariant?.id || null);
+      await buyNow(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);
     } catch {
       toast.error("Failed to process. Please try again.");
     } finally {
       setIsBuyingNow(false);
     }
   };
+
 
   const nextImage = () => {
     if (product?.images?.length) {
@@ -226,10 +227,11 @@ export default function ProductDetail() {
   };
 
   // Auto-calculate member price if not set (10% discount)
-  const basePrice = activeVariant?.price ?? product?.price ?? 0;
-  const effectiveMemberPrice = activeVariant
-    ? (activeVariant.member_price ?? Math.round(activeVariant.price * 0.9))
+  const basePrice = activeOption?.price ?? product?.price ?? 0;
+  const effectiveMemberPrice = activeOption
+    ? (activeOption.memberPrice ?? Math.round(activeOption.price * 0.9))
     : (product?.member_price ?? (product?.price ? Math.round(product.price * 0.9) : 0));
+
   // Calculate discount for compare_at_price (base product only)
   const discount = product?.compare_at_price && product?.price
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
