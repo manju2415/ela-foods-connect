@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, UserPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { UserAgreementDialog } from "@/components/UserAgreementDialog";
+
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,6 +61,8 @@ export default function Signup() {
   const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [agreed, setAgreed] = useState(false);
+
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
@@ -300,11 +305,24 @@ export default function Signup() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="agreement"
+                checked={agreed}
+                onCheckedChange={(v) => setAgreed(v === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="agreement" className="text-sm font-normal leading-relaxed">
+                I am 18 years or older and I agree to the <UserAgreementDialog />.
+              </Label>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={submitting || !agreed}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <UserPlus className="mr-2 h-4 w-4" />
               Send OTP
             </Button>
+
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}

@@ -8,7 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { IfscInput } from "@/components/IfscInput";
 import { Loader2, Banknote, Clock, CheckCircle, XCircle, ArrowDownToLine } from "lucide-react";
+
 import { format } from "date-fns";
 
 interface WithdrawalRequest {
@@ -40,7 +42,9 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const [showBankForm, setShowBankForm] = useState(false);
+  const [ifscVerified, setIfscVerified] = useState(false);
   const [withdrawableBalance, setWithdrawableBalance] = useState(0);
+
   const [bankDetails, setBankDetails] = useState({
     bank_name: "",
     bank_account_number: "",
@@ -103,6 +107,16 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
       });
       return;
     }
+    if (!ifscVerified) {
+      toast({
+        title: "Verify IFSC code",
+        description: "Please enter a valid IFSC code — we could not verify the one entered.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+
 
     setLoading(true);
     const { error } = await supabase
@@ -227,12 +241,16 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
                 </div>
                 <div className="space-y-2">
                   <Label>IFSC Code</Label>
-                  <Input
+                  <IfscInput
                     value={bankDetails.bank_ifsc}
-                    onChange={(e) => setBankDetails({ ...bankDetails, bank_ifsc: e.target.value.toUpperCase() })}
-                    placeholder="e.g., SBIN0001234"
+                    onChange={(v) => setBankDetails((d) => ({ ...d, bank_ifsc: v }))}
+                    onVerified={(details) => {
+                      setIfscVerified(!!details);
+                      if (details?.bank) setBankDetails((d) => ({ ...d, bank_name: details.bank }));
+                    }}
                   />
                 </div>
+
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSaveBankDetails} disabled={loading}>

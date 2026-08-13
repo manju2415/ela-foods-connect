@@ -53,7 +53,20 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
-    const isFounder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
+    // A user with the founding_member role is always treated as a founder,
+    // even if their profile level was never promoted.
+    const { data: founderRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "founding_member")
+      .maybeSingle();
+
+    const isFounder =
+      profile?.user_level === "founder" ||
+      profile?.is_designated_founder === true ||
+      !!founderRole;
+
 
     // Get registration fee settings (founders pay their own, higher fee)
     const { data: settingsData } = await supabase
@@ -66,14 +79,21 @@ serve(async (req) => {
     const registrationAmount = settingsValue?.total || settingsValue?.amount || (isFounder ? 4999 : 2499);
     const walletCredit = settingsValue?.wallet_credit || (isFounder ? 3001 : 1000);
 
-    // Check if already paid
+    // Check if already paid — self-heal the account status so paid users are auto-enabled
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
+      if (isFounder && (profile.founder_status !== "active" || profile.user_level !== "founder")) {
+        await supabase
+          .from("profiles")
+          .update({ founder_status: "active", user_level: "founder", is_designated_founder: true })
+          .eq("id", user.id);
+      }
 
       return new Response(JSON.stringify({ success: true, already_paid: true, wallet_credit: walletCredit, registration_amount: registrationAmount }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Founders must be approved by a Super Admin before paying
     if (isFounder && profile?.founder_status !== "approved_pending_payment" && profile?.founder_status !== "active") {
@@ -98,7 +118,12 @@ serve(async (req) => {
     // Update profile with registration fee paid
     const profileUpdate: Record<string, unknown> = { registration_fee_paid: registrationAmount };
     if (versionId) profileUpdate.mlm_settings_version_id = versionId;
-    if (isFounder) profileUpdate.founder_status = "active";
+    if (isFounder) {
+      profileUpdate.founder_status = "active";
+      profileUpdate.user_level = "founder";
+      profileUpdate.is_designated_founder = true;
+    }
+
 
     const { error: profileError } = await supabase
       .from("profiles")

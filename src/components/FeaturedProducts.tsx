@@ -2,6 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "./ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 interface Product {
   id: string;
@@ -42,7 +49,7 @@ const FeaturedProducts = () => {
         `)
         .eq("is_active", true)
         .eq("is_featured", true)
-        .limit(4);
+        .limit(10);
 
       if (error) {
         console.error("Error fetching products:", error);
@@ -71,35 +78,45 @@ const FeaturedProducts = () => {
           </p>
         </div>
 
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
+        {/* Products Carousel */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="space-y-3">
                 <Skeleton className="aspect-square w-full" />
                 <Skeleton className="h-4 w-3/4" />
                 <Skeleton className="h-4 w-1/2" />
               </div>
-            ))
-          ) : (
-            products.map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                slug={product.slug}
-                price={product.price}
-                memberPrice={product.member_price}
-                originalPrice={product.compare_at_price || undefined}
-                image={product.images?.[0] || "/placeholder.svg"}
-                category={product.categories?.name || "General"}
-                isBestSeller={product.is_featured}
-                unitType={product.unit_type}
-                unitValue={product.unit_value}
-              />
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+            <CarouselContent className="-ml-4">
+              {products.map((product) => (
+                <CarouselItem
+                  key={product.id}
+                  className="pl-4 basis-1/2 sm:basis-1/2 lg:basis-1/4"
+                >
+                  <ProductCard
+                    id={product.id}
+                    name={product.name}
+                    slug={product.slug}
+                    price={product.price}
+                    memberPrice={product.member_price}
+                    originalPrice={product.compare_at_price || undefined}
+                    image={product.images?.[0] || "/placeholder.svg"}
+                    category={product.categories?.name || "General"}
+                    isBestSeller={product.is_featured}
+                    unitType={product.unit_type}
+                    unitValue={product.unit_value}
+                  />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="hidden sm:flex -left-4" />
+            <CarouselNext className="hidden sm:flex -right-4" />
+          </Carousel>
+        )}
 
         {/* View All Button */}
         <div className="text-center mt-12">
