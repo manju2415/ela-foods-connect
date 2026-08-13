@@ -17,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import {
   Dialog,
@@ -87,6 +89,9 @@ const Checkout = () => {
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
   const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
   const [pickupStores, setPickupStores] = useState<any[]>([]);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
 
   const [newAddress, setNewAddress] = useState({
     full_name: "",
@@ -115,13 +120,17 @@ const Checkout = () => {
     if (!user) return;
 
     setLoading(true);
-    const [addressRes, walletRes, storesRes] = await Promise.all([
+    const [addressRes, walletRes, storesRes, profileRes] = await Promise.all([
       supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
       supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", user.id).maybeSingle(),
       supabase.from("stores").select("*").eq("is_active", true).order("display_order"),
+      supabase.from("profiles").select("email").eq("id", user.id).maybeSingle(),
     ]);
 
+    setContactEmail(realEmailOrEmpty(profileRes.data?.email) || realEmailOrEmpty(user.email));
+
     if (storesRes.data) setPickupStores(storesRes.data);
+
 
     if (addressRes.data) {
       setAddresses(addressRes.data);
@@ -284,7 +293,28 @@ const Checkout = () => {
       return;
     }
 
+    let validEmail = "";
+    if (paymentMethod === "online") {
+      const { value, error } = validateEmail(contactEmail);
+      if (!value) {
+        setEmailError(error || "Please enter a valid email address");
+        toast({
+          title: "Email Required",
+          description: error || "Please enter a valid email address for your payment receipt.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setEmailError(null);
+      validEmail = value;
+    }
+
     if (!user) return;
+
+    if (validEmail) {
+      await supabase.from("profiles").update({ email: validEmail }).eq("id", user.id);
+    }
+
 
     const selectedAddress = fulfillmentType === "delivery" 
       ? addresses.find((a) => a.id === selectedAddressId)
@@ -409,7 +439,7 @@ const Checkout = () => {
           prefill: {
             name: selectedAddr?.full_name || user.user_metadata?.full_name || "",
             contact: selectedAddr?.phone || user.phone || "",
-            email: user.email || "",
+            email: validEmail,
           },
           onSuccess: async () => {
             // Update order payment status
@@ -739,6 +769,34 @@ const Checkout = () => {
                     {paymentMethod === "online" && <Check className="h-5 w-5 text-primary ml-auto" />}
                   </div>
                 </div>
+
+                {paymentMethod === "online" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentEmail">Email Address</Label>
+                    <Input
+                      id="paymentEmail"
+                      type="email"
+                      inputMode="email"
+                      placeholder="you@example.com"
+                      value={contactEmail}
+                      onChange={(e) => {
+                        setContactEmail(e.target.value);
+                        if (emailError) setEmailError(null);
+                      }}
+                      maxLength={255}
+                      className={emailError ? "border-destructive" : ""}
+                    />
+                    {emailError ? (
+                      <p className="text-sm text-destructive">{emailError}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Your payment receipt will be sent to this email.
+                      </p>
+                    )}
+                  </div>
+                )}
+
+
 
                 {/* Cash on Delivery */}
                 <div

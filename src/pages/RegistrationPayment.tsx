@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+
 
 interface RegistrationSettings {
   amount: number;
@@ -32,6 +34,9 @@ const RegistrationPayment = () => {
   const [founderStatus, setFounderStatus] = useState<string>("none");
   const [referralCode, setReferralCode] = useState("");
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
 
 
   useEffect(() => {
@@ -49,9 +54,13 @@ const RegistrationPayment = () => {
     // Check if user already paid registration fee
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder, referred_by, founder_status")
+      .select("registration_fee_paid, user_level, is_designated_founder, referred_by, founder_status, email")
       .eq("id", user.id)
       .single();
+
+    setContactEmail(realEmailOrEmpty(profile?.email) || realEmailOrEmpty(user.email));
+
+
 
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
       setFeePaid(true);
@@ -131,7 +140,22 @@ const RegistrationPayment = () => {
 
   const handlePayment = async () => {
     if (!user) return;
+
+    const { value: validEmail, error: emailValidationError } = validateEmail(contactEmail);
+    if (!validEmail) {
+      setEmailError(emailValidationError || "Please enter a valid email address");
+      toast({
+        title: "Email Required",
+        description: emailValidationError || "Please enter a valid email address for your receipt.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEmailError(null);
     setProcessing(true);
+
+    // Save the real email on the profile so receipts and future payments use it
+    await supabase.from("profiles").update({ email: validEmail }).eq("id", user.id);
 
     const paymentPhone =
       user.phone ||
@@ -146,9 +170,10 @@ const RegistrationPayment = () => {
         orderId: user.id,
         prefill: {
           name: user.user_metadata?.full_name || "",
-          email: user.email || "",
+          email: validEmail,
           contact: paymentPhone,
         },
+
         onSuccess: async (response) => {
           // Process registration via server-side edge function (bypasses RLS)
           const { data: regData, error: regError } = await supabase.functions.invoke(
@@ -339,7 +364,33 @@ const RegistrationPayment = () => {
                 </div>
               </div>
 
+              {/* Email for payment receipt */}
+              <div className="space-y-2">
+                <Label htmlFor="paymentEmail">Email Address</Label>
+                <Input
+                  id="paymentEmail"
+                  type="email"
+                  inputMode="email"
+                  placeholder="you@example.com"
+                  value={contactEmail}
+                  onChange={(e) => {
+                    setContactEmail(e.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                  maxLength={255}
+                  className={emailError ? "border-destructive" : ""}
+                />
+                {emailError ? (
+                  <p className="text-sm text-destructive">{emailError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Your payment receipt will be sent to this email.
+                  </p>
+                )}
+              </div>
+
               {/* Referral Code */}
+
               {!hasReferrer && (
                 <div className="space-y-2">
                   <Label htmlFor="paymentReferralCode">Referral Code (optional)</Label>
