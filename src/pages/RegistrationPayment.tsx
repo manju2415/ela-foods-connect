@@ -364,7 +364,33 @@ const RegistrationPayment = () => {
                 </div>
               </div>
 
+              {/* Email for payment receipt */}
+              <div className="space-y-2">
+                <Label htmlFor="paymentEmail">Email Address</Label>
+                <Input
+                  id="paymentEmail"
+                  type="email"
+                  inputMode="email"
+                  placeholder="you@example.com"
+                  value={contactEmail}
+                  onChange={(e) => {
+                    setContactEmail(e.target.value);
+                    if (emailError) setEmailError(null);
+                  }}
+                  maxLength={255}
+                  className={emailError ? "border-destructive" : ""}
+                />
+                {emailError ? (
+                  <p className="text-sm text-destructive">{emailError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Your payment receipt will be sent to this email.
+                  </p>
+                )}
+              </div>
+
               {/* Referral Code */}
+
               {!hasReferrer && (
                 <div className="space-y-2">
                   <Label htmlFor="paymentReferralCode">Referral Code (optional)</Label>
