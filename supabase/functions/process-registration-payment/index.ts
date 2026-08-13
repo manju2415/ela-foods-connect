@@ -79,14 +79,21 @@ serve(async (req) => {
     const registrationAmount = settingsValue?.total || settingsValue?.amount || (isFounder ? 4999 : 2499);
     const walletCredit = settingsValue?.wallet_credit || (isFounder ? 3001 : 1000);
 
-    // Check if already paid
+    // Check if already paid — self-heal the account status so paid users are auto-enabled
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
+      if (isFounder && (profile.founder_status !== "active" || profile.user_level !== "founder")) {
+        await supabase
+          .from("profiles")
+          .update({ founder_status: "active", user_level: "founder", is_designated_founder: true })
+          .eq("id", user.id);
+      }
 
       return new Response(JSON.stringify({ success: true, already_paid: true, wallet_credit: walletCredit, registration_amount: registrationAmount }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     // Founders must be approved by a Super Admin before paying
     if (isFounder && profile?.founder_status !== "approved_pending_payment" && profile?.founder_status !== "active") {
