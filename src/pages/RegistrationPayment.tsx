@@ -52,9 +52,13 @@ const RegistrationPayment = () => {
     // Check if user already paid registration fee
     const { data: profile } = await supabase
       .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder, referred_by, founder_status")
+      .select("registration_fee_paid, user_level, is_designated_founder, referred_by, founder_status, email")
       .eq("id", user.id)
       .single();
+
+    setContactEmail(realEmailOrEmpty(profile?.email) || realEmailOrEmpty(user.email));
+
+
 
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
       setFeePaid(true);
