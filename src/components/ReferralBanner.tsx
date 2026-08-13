@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Gift, Wallet, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const ReferralBanner = () => {
   return (
