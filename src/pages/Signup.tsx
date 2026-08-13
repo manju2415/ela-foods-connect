@@ -11,6 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, UserPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { UserAgreementDialog } from "@/components/UserAgreementDialog";
+
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -58,6 +61,8 @@ export default function Signup() {
   const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [agreed, setAgreed] = useState(false);
+
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
