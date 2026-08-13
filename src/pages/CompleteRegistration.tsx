@@ -202,6 +202,8 @@ const CompleteRegistration = () => {
           bank_account_number: data.bank_account_number,
           bank_ifsc: data.bank_ifsc,
           bank_account_holder: data.bank_account_holder,
+          accepted_agreement_at: new Date().toISOString(),
+
         })
         .eq("id", user.id);
 
