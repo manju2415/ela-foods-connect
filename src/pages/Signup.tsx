@@ -305,11 +305,24 @@ export default function Signup() {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting}>
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="agreement"
+                checked={agreed}
+                onCheckedChange={(v) => setAgreed(v === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="agreement" className="text-sm font-normal leading-relaxed">
+                I am 18 years or older and I agree to the <UserAgreementDialog />.
+              </Label>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={submitting || !agreed}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <UserPlus className="mr-2 h-4 w-4" />
               Send OTP
             </Button>
+
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
