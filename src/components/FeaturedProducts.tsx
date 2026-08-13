@@ -133,8 +133,12 @@ const FeaturedProducts = () => {
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex -left-4" />
-            <CarouselNext className="hidden sm:flex -right-4" />
+            {products.length > 4 && (
+              <>
+                <CarouselPrevious className="hidden sm:flex -left-5 z-10 bg-background shadow-warm" />
+                <CarouselNext className="hidden sm:flex -right-5 z-10 bg-background shadow-warm" />
+              </>
+            )}
           </Carousel>
         )}
 
