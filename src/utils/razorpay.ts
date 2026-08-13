@@ -59,12 +59,16 @@ export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) =
   if (!window.Razorpay) {
     throw new Error("Razorpay SDK failed to initialize. Please refresh and try again.");
   }
+
+  // Only send real customer emails to Razorpay (never internal placeholders)
+  const customerEmail = realEmailOrEmpty(options.prefill?.email);
+
   // Step 1: Create Razorpay order via edge function
   const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
     body: {
       amount: options.amount,
       receipt: options.receipt || `rcpt_${Date.now()}`,
-      notes: options.notes || {},
+      notes: { ...(options.notes || {}), ...(customerEmail ? { email: customerEmail } : {}) },
     },
   });
 
@@ -82,9 +86,10 @@ export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) =
     order_id: data.order_id,
     prefill: {
       name: options.prefill?.name || "",
-      email: options.prefill?.email || "",
+      email: customerEmail,
       contact: formatRazorpayContact(options.prefill?.contact),
     },
+
     theme: {
       color: "#f97316",
     },
