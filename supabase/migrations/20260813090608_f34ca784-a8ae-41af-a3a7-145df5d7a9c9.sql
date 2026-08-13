@@ -1,0 +1,1 @@
+SELECT public.credit_pending_referral_for_user('4372a28c-c8d5-4312-a6c4-b33fe79ed604'::uuid);
