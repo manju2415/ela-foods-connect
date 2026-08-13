@@ -89,6 +89,9 @@ const Checkout = () => {
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
   const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
   const [pickupStores, setPickupStores] = useState<any[]>([]);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
 
   const [newAddress, setNewAddress] = useState({
     full_name: "",
@@ -117,13 +120,17 @@ const Checkout = () => {
     if (!user) return;
 
     setLoading(true);
-    const [addressRes, walletRes, storesRes] = await Promise.all([
+    const [addressRes, walletRes, storesRes, profileRes] = await Promise.all([
       supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false }),
       supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", user.id).maybeSingle(),
       supabase.from("stores").select("*").eq("is_active", true).order("display_order"),
+      supabase.from("profiles").select("email").eq("id", user.id).maybeSingle(),
     ]);
 
+    setContactEmail(realEmailOrEmpty(profileRes.data?.email) || realEmailOrEmpty(user.email));
+
     if (storesRes.data) setPickupStores(storesRes.data);
+
 
     if (addressRes.data) {
       setAddresses(addressRes.data);
