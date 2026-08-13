@@ -1824,6 +1824,7 @@ export type Database = {
         Args: { p_order_total: number; p_user_id: string }
         Returns: boolean
       }
+      ensure_user_wallet: { Args: { p_user_id: string }; Returns: string }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       generate_user_referral_code: {
