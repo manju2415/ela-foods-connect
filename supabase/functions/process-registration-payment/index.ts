@@ -111,7 +111,12 @@ serve(async (req) => {
     // Update profile with registration fee paid
     const profileUpdate: Record<string, unknown> = { registration_fee_paid: registrationAmount };
     if (versionId) profileUpdate.mlm_settings_version_id = versionId;
-    if (isFounder) profileUpdate.founder_status = "active";
+    if (isFounder) {
+      profileUpdate.founder_status = "active";
+      profileUpdate.user_level = "founder";
+      profileUpdate.is_designated_founder = true;
+    }
+
 
     const { error: profileError } = await supabase
       .from("profiles")
