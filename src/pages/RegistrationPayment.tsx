@@ -140,7 +140,22 @@ const RegistrationPayment = () => {
 
   const handlePayment = async () => {
     if (!user) return;
+
+    const { value: validEmail, error: emailValidationError } = validateEmail(contactEmail);
+    if (!validEmail) {
+      setEmailError(emailValidationError || "Please enter a valid email address");
+      toast({
+        title: "Email Required",
+        description: emailValidationError || "Please enter a valid email address for your receipt.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEmailError(null);
     setProcessing(true);
+
+    // Save the real email on the profile so receipts and future payments use it
+    await supabase.from("profiles").update({ email: validEmail }).eq("id", user.id);
 
     const paymentPhone =
       user.phone ||
@@ -155,9 +170,10 @@ const RegistrationPayment = () => {
         orderId: user.id,
         prefill: {
           name: user.user_metadata?.full_name || "",
-          email: user.email || "",
+          email: validEmail,
           contact: paymentPhone,
         },
+
         onSuccess: async (response) => {
           // Process registration via server-side edge function (bypasses RLS)
           const { data: regData, error: regError } = await supabase.functions.invoke(
