@@ -439,7 +439,7 @@ const Checkout = () => {
           prefill: {
             name: selectedAddr?.full_name || user.user_metadata?.full_name || "",
             contact: selectedAddr?.phone || user.phone || "",
-            email: user.email || "",
+            email: validEmail,
           },
           onSuccess: async () => {
             // Update order payment status
