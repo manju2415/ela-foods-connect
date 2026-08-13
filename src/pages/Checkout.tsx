@@ -17,6 +17,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import {
   Dialog,
