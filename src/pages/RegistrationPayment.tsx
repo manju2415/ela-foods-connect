@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+
 
 interface RegistrationSettings {
   amount: number;
