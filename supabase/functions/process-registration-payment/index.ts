@@ -53,7 +53,20 @@ serve(async (req) => {
       .eq("id", user.id)
       .single();
 
-    const isFounder = profile?.user_level === "founder" || profile?.is_designated_founder === true;
+    // A user with the founding_member role is always treated as a founder,
+    // even if their profile level was never promoted.
+    const { data: founderRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "founding_member")
+      .maybeSingle();
+
+    const isFounder =
+      profile?.user_level === "founder" ||
+      profile?.is_designated_founder === true ||
+      !!founderRole;
+
 
     // Get registration fee settings (founders pay their own, higher fee)
     const { data: settingsData } = await supabase
