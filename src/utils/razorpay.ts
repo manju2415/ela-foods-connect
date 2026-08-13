@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { realEmailOrEmpty } from "@/lib/email";
+
 
 declare global {
   interface Window {
