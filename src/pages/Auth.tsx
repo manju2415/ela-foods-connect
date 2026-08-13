@@ -476,7 +476,7 @@ const Auth = () => {
                   <Input
                     id="phone"
                     type="tel"
-                    placeholder="9876543210"
+                    placeholder="Enter 10-digit mobile number"
                     className="rounded-l-none"
                     maxLength={10}
                     {...loginForm.register("phone")}
@@ -538,7 +538,7 @@ const Auth = () => {
                   <Input
                     id="signupPhone"
                     type="tel"
-                    placeholder="9876543210"
+                    placeholder="Enter 10-digit mobile number"
                     className="rounded-l-none"
                     maxLength={10}
                     {...signupForm.register("phone")}
