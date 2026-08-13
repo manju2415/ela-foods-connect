@@ -21,11 +21,11 @@ const ReferralBanner = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <Button variant="hero" size="lg">
-                Become a Member
+              <Button variant="hero" size="lg" asChild>
+                <Link to="/signup">Become a Member</Link>
               </Button>
-              <Button variant="outline" size="lg">
-                Learn More
+              <Button variant="outline" size="lg" asChild>
+                <Link to="/about">Learn More</Link>
               </Button>
             </div>
 
