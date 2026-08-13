@@ -293,7 +293,28 @@ const Checkout = () => {
       return;
     }
 
+    let validEmail = "";
+    if (paymentMethod === "online") {
+      const { value, error } = validateEmail(contactEmail);
+      if (!value) {
+        setEmailError(error || "Please enter a valid email address");
+        toast({
+          title: "Email Required",
+          description: error || "Please enter a valid email address for your payment receipt.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setEmailError(null);
+      validEmail = value;
+    }
+
     if (!user) return;
+
+    if (validEmail) {
+      await supabase.from("profiles").update({ email: validEmail }).eq("id", user.id);
+    }
+
 
     const selectedAddress = fulfillmentType === "delivery" 
       ? addresses.find((a) => a.id === selectedAddressId)
