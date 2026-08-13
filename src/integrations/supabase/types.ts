@@ -1051,6 +1051,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          accepted_agreement_at: string | null
           avatar_url: string | null
           bank_account_holder: string | null
           bank_account_number: string | null
@@ -1072,6 +1073,7 @@ export type Database = {
           user_level: Database["public"]["Enums"]["user_level"] | null
         }
         Insert: {
+          accepted_agreement_at?: string | null
           avatar_url?: string | null
           bank_account_holder?: string | null
           bank_account_number?: string | null
@@ -1093,6 +1095,7 @@ export type Database = {
           user_level?: Database["public"]["Enums"]["user_level"] | null
         }
         Update: {
+          accepted_agreement_at?: string | null
           avatar_url?: string | null
           bank_account_holder?: string | null
           bank_account_number?: string | null
