@@ -89,6 +89,8 @@ const CompleteRegistration = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [profileComplete, setProfileComplete] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -149,6 +151,15 @@ const CompleteRegistration = () => {
       form.setValue("full_name", profile.full_name || "");
     }
 
+    // Always use the logged-in user's own phone number (profile / auth account),
+    // never a phone saved on an address record.
+    const ownPhone =
+      profile?.phone ||
+      (user.email?.endsWith("@elabazar.local") ? user.email.split("@")[0] : "") ||
+      "";
+    const ownPhoneDigits = ownPhone.replace(/\D/g, "").slice(-10);
+    if (ownPhoneDigits) form.setValue("phone", ownPhoneDigits);
+
     // Check for existing address
     const { data: addresses } = await supabase
       .from("addresses")
@@ -163,12 +174,13 @@ const CompleteRegistration = () => {
       form.setValue("city", addresses.city || "");
       form.setValue("state", addresses.state || "");
       form.setValue("postal_code", addresses.postal_code || "");
-      form.setValue("phone", addresses.phone || "");
       form.setValue("full_name", addresses.full_name || form.getValues("full_name"));
     }
 
     setIsLoading(false);
   };
+
+
 
   const handleSubmit = async (data: RegistrationFormData) => {
     if (!user) return;
@@ -350,15 +362,19 @@ const CompleteRegistration = () => {
                       </span>
                       <Input
                         id="phone"
+                        readOnly
                         placeholder="9876543210"
-                        className="rounded-l-none"
+                        className="rounded-l-none bg-muted"
+                        autoComplete="off"
                         {...form.register("phone")}
                       />
                     </div>
+                    <p className="text-xs text-muted-foreground">Your registered login number</p>
                     {form.formState.errors.phone && (
                       <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
                     )}
                   </div>
+
                 </div>
               </CardContent>
             </Card>
@@ -475,17 +491,19 @@ const CompleteRegistration = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="bank_ifsc">IFSC Code *</Label>
-                    <Input
+                    <IfscInput
                       id="bank_ifsc"
-                      placeholder="e.g., SBIN0001234"
-                      maxLength={11}
-                      className="uppercase"
-                      {...form.register("bank_ifsc")}
+                      value={form.watch("bank_ifsc")}
+                      onChange={(v) => form.setValue("bank_ifsc", v, { shouldValidate: true })}
+                      onVerified={(details) => {
+                        if (details?.bank) form.setValue("bank_name", details.bank, { shouldValidate: true });
+                      }}
                     />
                     {form.formState.errors.bank_ifsc && (
                       <p className="text-sm text-destructive">{form.formState.errors.bank_ifsc.message}</p>
                     )}
                   </div>
+
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -514,7 +532,20 @@ const CompleteRegistration = () => {
               </CardContent>
             </Card>
 
-            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting}>
+            <div className="flex items-start gap-3 rounded-md border p-4">
+              <Checkbox
+                id="agreement"
+                checked={agreed}
+                onCheckedChange={(v) => setAgreed(v === true)}
+                className="mt-0.5"
+              />
+              <Label htmlFor="agreement" className="text-sm font-normal leading-relaxed">
+                I confirm I am 18 years or older and I have read and agree to the{" "}
+                <UserAgreementDialog />, including that the registration fee is non-refundable.
+              </Label>
+            </div>
+
+            <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting || !agreed}>
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -524,6 +555,7 @@ const CompleteRegistration = () => {
                 "Continue to Payment"
               )}
             </Button>
+
           </form>
         </div>
       </main>
