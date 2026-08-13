@@ -284,7 +284,7 @@ const MLMLogin = () => {
                 <Input
                   id="mlm-phone"
                   type="tel"
-                  placeholder="9876543210"
+                  placeholder="Enter 10-digit mobile number"
                   className="rounded-l-none"
                   maxLength={10}
                   {...form.register("phone")}

@@ -369,7 +369,7 @@ const CompleteRegistration = () => {
                       <Input
                         id="phone"
                         readOnly
-                        placeholder="9876543210"
+                        placeholder="Enter 10-digit mobile number"
                         className="rounded-l-none bg-muted"
                         autoComplete="off"
                         {...form.register("phone")}

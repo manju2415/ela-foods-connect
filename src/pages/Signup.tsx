@@ -258,7 +258,7 @@ export default function Signup() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" placeholder="John Doe" {...form.register("fullName")} />
+              <Input id="fullName" placeholder="Enter full name" {...form.register("fullName")} />
               {form.formState.errors.fullName && (
                 <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
               )}
@@ -272,7 +272,7 @@ export default function Signup() {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="9876543210"
+                  placeholder="Enter 10-digit mobile number"
                   className="rounded-l-none"
                   maxLength={10}
                   {...form.register("phone")}

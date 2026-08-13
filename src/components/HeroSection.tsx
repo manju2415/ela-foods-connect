@@ -72,7 +72,7 @@ const HeroSection = () => {
   const highlightTitle = titleParts[1] || null;
 
   return (
-    <section className="relative min-h-[85vh] flex items-center overflow-hidden">
+    <section className="relative min-h-[85vh] md:min-h-0 md:h-[min(56.25vw,640px)] flex items-center overflow-hidden">
       {/* Background Image */}
       <div className="absolute inset-0">
         {heroImage ? (
