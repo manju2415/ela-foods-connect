@@ -32,9 +32,7 @@ const FeaturedProducts = () => {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select(`
+      const columns = `
           id,
           name,
           slug,
@@ -46,21 +44,43 @@ const FeaturedProducts = () => {
           unit_type,
           unit_value,
           categories (name)
-        `)
+        `;
+
+      const { data, error } = await supabase
+        .from("products")
+        .select(columns)
         .eq("is_active", true)
         .eq("is_featured", true)
         .limit(10);
 
       if (error) {
         console.error("Error fetching products:", error);
-      } else {
-        setProducts(data || []);
+        setLoading(false);
+        return;
       }
+
+      let list = data || [];
+
+      // Top up with other active products so the carousel always has enough items
+      if (list.length < 10) {
+        const { data: extra } = await supabase
+          .from("products")
+          .select(columns)
+          .eq("is_active", true)
+          .eq("is_featured", false)
+          .order("created_at", { ascending: false })
+          .limit(10 - list.length);
+
+        if (extra?.length) list = [...list, ...extra];
+      }
+
+      setProducts(list);
       setLoading(false);
     };
 
     fetchProducts();
   }, []);
+
 
   return (
     <section className="py-16 md:py-24 bg-background">
