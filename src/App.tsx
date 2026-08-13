@@ -27,6 +27,8 @@ import Products from "./pages/Products";
 // Lazy-loaded pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Signup = lazy(() => import("./pages/Signup"));
+const UserAgreementPage = lazy(() => import("./pages/UserAgreement"));
+
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const About = lazy(() => import("./pages/About"));
@@ -156,8 +158,10 @@ function App() {
               <BrowserRouter>
                 <CartProvider>
                   <WishlistProvider>
+                    <OnboardingGate />
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
+
                         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
                         <Route path="/auth" element={<Auth />} />
                         <Route path="/signup" element={<Signup />} />
@@ -217,7 +221,9 @@ function App() {
                         <Route path="/stores" element={<StoreLocator />} />
                         <Route path="/policies/:slug" element={<Policies />} />
                         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
+                        <Route path="/user-agreement" element={<UserAgreementPage />} />
                         <Route path="/complete-registration" element={<CompleteRegistration />} />
+
                         <Route path="/registration-payment" element={<RegistrationPayment />} />
                         <Route path="/account-deletion" element={<AccountDeletion />} />
                         <Route path="/delete-account" element={<AccountDeletion />} />
