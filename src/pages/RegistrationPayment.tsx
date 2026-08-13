@@ -32,6 +32,9 @@ const RegistrationPayment = () => {
   const [founderStatus, setFounderStatus] = useState<string>("none");
   const [referralCode, setReferralCode] = useState("");
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
 
 
   useEffect(() => {
