@@ -50,6 +50,9 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
   const [loadingMyCode, setLoadingMyCode] = useState(false);
   const [selectedAdminCode, setSelectedAdminCode] = useState("");
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [duplicate, setDuplicate] = useState<{ name: string | null; isSelf: boolean } | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -69,6 +72,8 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
 
     form.reset({ fullName: "", phone: "", referralCode: "" });
     setReferralCodeValid(null);
+    setDuplicate(null);
+
     setSelectedAdminCode("");
 
     if (!isAdmin && user) {
@@ -113,6 +118,39 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     if (contact.phone.length === 10) form.setValue("phone", contact.phone, { shouldValidate: true });
     if (contact.name) form.setValue("fullName", contact.name, { shouldValidate: true });
   };
+
+  // Duplicate detection: flag numbers that already belong to a registered user
+  const watchedPhone = form.watch("phone");
+  useEffect(() => {
+    const digits = (watchedPhone || "").replace(/\D/g, "");
+    if (digits.length !== 10) {
+      setDuplicate(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingDuplicate(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("check-phones-batch", {
+          body: { phones: [digits] },
+        });
+        if (cancelled) return;
+        const hit = data?.registered?.[digits];
+        setDuplicate(hit ? { name: hit.name, isSelf: hit.is_self } : null);
+      } catch {
+        if (!cancelled) setDuplicate(null);
+      } finally {
+        if (!cancelled) setCheckingDuplicate(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      setCheckingDuplicate(false);
+    };
+  }, [watchedPhone]);
+
+
 
 
   const validateReferralCode = async (code: string) => {
@@ -307,7 +345,21 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             {form.formState.errors.phone && (
               <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
             )}
+            {checkingDuplicate && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this number is already registered...
+              </p>
+            )}
+            {duplicate && !checkingDuplicate && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {duplicate.isSelf
+                  ? "This is your own number."
+                  : `Already registered${duplicate.name ? ` as ${duplicate.name}` : ""}.`}
+              </p>
+            )}
           </div>
+
 
 
           <div className="flex gap-3 pt-2">
@@ -317,7 +369,7 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             <Button
               type="submit"
               className="flex-1"
-              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode)}
+              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode) || !!duplicate || checkingDuplicate}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add User
