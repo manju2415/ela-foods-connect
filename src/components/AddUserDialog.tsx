@@ -114,6 +114,39 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     if (contact.name) form.setValue("fullName", contact.name, { shouldValidate: true });
   };
 
+  // Duplicate detection: flag numbers that already belong to a registered user
+  const watchedPhone = form.watch("phone");
+  useEffect(() => {
+    const digits = (watchedPhone || "").replace(/\D/g, "");
+    if (digits.length !== 10) {
+      setDuplicate(null);
+      return;
+    }
+    let cancelled = false;
+    setCheckingDuplicate(true);
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.functions.invoke("check-phones-batch", {
+          body: { phones: [digits] },
+        });
+        if (cancelled) return;
+        const hit = data?.registered?.[digits];
+        setDuplicate(hit ? { name: hit.name, isSelf: hit.is_self } : null);
+      } catch {
+        if (!cancelled) setDuplicate(null);
+      } finally {
+        if (!cancelled) setCheckingDuplicate(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      setCheckingDuplicate(false);
+    };
+  }, [watchedPhone]);
+
+
+
 
   const validateReferralCode = async (code: string) => {
 
