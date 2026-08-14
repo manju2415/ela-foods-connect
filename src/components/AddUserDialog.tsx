@@ -83,23 +83,27 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     }
   }, [open, isAdmin, user]);
 
-  const contactPickerSupported =
-    typeof navigator !== "undefined" && "contacts" in navigator && "ContactsManager" in window;
+  const contactPickerSupported = isContactPickerAvailable();
 
   const pickFromContacts = async () => {
+    if (isNativeContacts()) {
+      setContactPickerOpen(true);
+      return;
+    }
     try {
-      const contactsApi = (navigator as unknown as {
-        contacts: { select: (props: string[], opts: { multiple: boolean }) => Promise<Array<{ name?: string[]; tel?: string[] }>> };
-      }).contacts;
-      const [contact] = await contactsApi.select(["name", "tel"], { multiple: false });
+      const contact = await pickContactWeb();
       if (!contact) return;
-      const digits = (contact.tel?.[0] || "").replace(/\D/g, "").slice(-10);
-      if (digits.length === 10) form.setValue("phone", digits, { shouldValidate: true });
-      if (contact.name?.[0]) form.setValue("fullName", contact.name[0], { shouldValidate: true });
+      applyContact(contact);
     } catch {
       toast({ title: "Could not read contacts", description: "Please enter the number manually.", variant: "destructive" });
     }
   };
+
+  const applyContact = (contact: PickedContact) => {
+    if (contact.phone.length === 10) form.setValue("phone", contact.phone, { shouldValidate: true });
+    if (contact.name) form.setValue("fullName", contact.name, { shouldValidate: true });
+  };
+
 
   const validateReferralCode = async (code: string) => {
 
