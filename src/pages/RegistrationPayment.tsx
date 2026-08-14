@@ -245,11 +245,18 @@ const RegistrationPayment = () => {
   };
 
   const handleSkip = () => {
+    // Remember the skip for this session so onboarding guards don't bounce
+    // the user straight back to this page (which made it look "stuck").
+    try {
+      sessionStorage.setItem("skip_registration_payment", "1");
+    } catch {
+      /* ignore storage errors */
+    }
     toast({
       title: "Registration Skipped",
       description: "You can complete registration payment later from your dashboard.",
     });
-    navigate("/customer-app");
+    navigate("/", { replace: true });
   };
 
   if (loading) {

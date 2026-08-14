@@ -56,12 +56,19 @@ export default function CustomerApp() {
       const hasBankDetails = !!profile?.bank_account_number;
       const isPaymentComplete = (profile?.registration_fee_paid || 0) > 0;
 
+      let skippedPayment = false;
+      try {
+        skippedPayment = sessionStorage.getItem("skip_registration_payment") === "1";
+      } catch {
+        /* ignore storage errors */
+      }
+
       if (!hasBankDetails) {
         navigate("/complete-registration", { replace: true });
         return;
       }
 
-      if (hasBankDetails && !isPaymentComplete) {
+      if (hasBankDetails && !isPaymentComplete && !skippedPayment) {
         navigate("/registration-payment", { replace: true });
         return;
       }
