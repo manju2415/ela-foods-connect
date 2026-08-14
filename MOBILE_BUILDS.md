@@ -188,3 +188,19 @@ server: {
 - Verify FCM config files are in correct locations
 - Check that FCM_SERVER_KEY secret is set
 - Ensure app has notification permissions
+
+### Contacts picker ("From contacts" in Add User)
+Uses `@capacitor-community/contacts`. After `npm install && npx cap sync`, add the platform permissions:
+
+**Android** — `android/app/src/main/AndroidManifest.xml`, inside `<manifest>`:
+```xml
+<uses-permission android:name="android.permission.READ_CONTACTS" />
+```
+
+**iOS** — `ios/App/App/Info.plist`:
+```xml
+<key>NSContactsUsageDescription</key>
+<string>We use your contacts so you can quickly add a member by picking their number.</string>
+```
+
+Then rebuild the app. On the web, the button falls back to the browser Contact Picker (Chrome on Android) and is hidden where unsupported.
