@@ -34,38 +34,26 @@ export default function CustomerWalletPage() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    
-    const [walletRes, transactionsRes] = await Promise.all([
-      supabase
-        .from("wallets")
-        .select("balance, purchase_only_balance, withdrawable_balance")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("wallet_transactions")
-        .select("id, amount, type, description, created_at, wallet_id")
-        .order("created_at", { ascending: false })
-        .limit(20)
-    ]);
+
+    const walletRes = await supabase
+      .from("wallets")
+      .select("id, balance, purchase_only_balance, withdrawable_balance")
+      .eq("user_id", user.id)
+      .maybeSingle();
     
     if (walletRes.data) {
       setWallet(walletRes.data);
-    }
+      const transactionsRes = await supabase
+        .from("wallet_transactions")
+        .select("id, amount, type, description, created_at")
+        .eq("wallet_id", walletRes.data.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
 
-    // Filter transactions for user's wallet
-    if (transactionsRes.data && walletRes.data) {
-      const userWalletId = await supabase
-        .from("wallets")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (userWalletId.data) {
-        const filtered = transactionsRes.data.filter(
-          (t: any) => t.wallet_id === userWalletId.data.id
-        );
-        setTransactions(filtered);
-      }
+      setTransactions(transactionsRes.data || []);
+    } else {
+      setWallet(null);
+      setTransactions([]);
     }
     
     setLoading(false);
