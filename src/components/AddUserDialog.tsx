@@ -72,6 +72,8 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
 
     form.reset({ fullName: "", phone: "", referralCode: "" });
     setReferralCodeValid(null);
+    setDuplicate(null);
+
     setSelectedAdminCode("");
 
     if (!isAdmin && user) {
