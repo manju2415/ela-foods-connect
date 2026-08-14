@@ -17,7 +17,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ReferralCodeSelector } from "@/components/ReferralCodeSelector";
+import { ContactPickerDialog } from "@/components/ContactPickerDialog";
+import {
+  isContactPickerAvailable,
+  isNativeContacts,
+  pickContactWeb,
+  type PickedContact,
+} from "@/lib/contacts";
 import { UserPlus, Loader2, Check, X, AlertCircle, BookUser } from "lucide-react";
+
 
 const signupSchema = z.object({
   fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
@@ -41,6 +49,8 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
   const [myCode, setMyCode] = useState<string | null>(null);
   const [loadingMyCode, setLoadingMyCode] = useState(false);
   const [selectedAdminCode, setSelectedAdminCode] = useState("");
+  const [contactPickerOpen, setContactPickerOpen] = useState(false);
+
   const { user } = useAuth();
   const { toast } = useToast();
 
