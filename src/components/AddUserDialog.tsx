@@ -50,6 +50,9 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
   const [loadingMyCode, setLoadingMyCode] = useState(false);
   const [selectedAdminCode, setSelectedAdminCode] = useState("");
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
+  const [duplicate, setDuplicate] = useState<{ name: string | null; isSelf: boolean } | null>(null);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+
 
   const { user } = useAuth();
   const { toast } = useToast();
