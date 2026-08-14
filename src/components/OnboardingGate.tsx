@@ -70,9 +70,16 @@ export default function OnboardingGate() {
       const profileComplete = !!profile.phone && !!profile.bank_account_number;
       const paymentComplete = (profile.registration_fee_paid || 0) > 0;
 
+      let skippedPayment = false;
+      try {
+        skippedPayment = sessionStorage.getItem("skip_registration_payment") === "1";
+      } catch {
+        /* ignore storage errors */
+      }
+
       if (!profileComplete) {
         navigate("/complete-registration", { replace: true });
-      } else if (!paymentComplete) {
+      } else if (!paymentComplete && !skippedPayment) {
         navigate("/registration-payment", { replace: true });
       }
     })();
