@@ -343,7 +343,21 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             {form.formState.errors.phone && (
               <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
             )}
+            {checkingDuplicate && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this number is already registered...
+              </p>
+            )}
+            {duplicate && !checkingDuplicate && (
+              <p className="text-sm text-destructive flex items-center gap-1">
+                <AlertCircle className="h-4 w-4" />
+                {duplicate.isSelf
+                  ? "This is your own number."
+                  : `Already registered${duplicate.name ? ` as ${duplicate.name}` : ""}.`}
+              </p>
+            )}
           </div>
+
 
 
           <div className="flex gap-3 pt-2">
