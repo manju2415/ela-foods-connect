@@ -367,7 +367,7 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             <Button
               type="submit"
               className="flex-1"
-              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode)}
+              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode) || !!duplicate || checkingDuplicate}
             >
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add User
