@@ -325,6 +325,14 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
           </div>
         </form>
       </DialogContent>
+      {contactPickerOpen && (
+        <ContactPickerDialog
+          open={contactPickerOpen}
+          onOpenChange={setContactPickerOpen}
+          onSelect={applyContact}
+        />
+      )}
     </Dialog>
   );
 }
+
