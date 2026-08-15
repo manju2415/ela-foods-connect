@@ -77,6 +77,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [walletUser, setWalletUser] = useState<User | null>(null);
+  const [paymentUser, setPaymentUser] = useState<User | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
