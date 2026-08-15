@@ -326,6 +326,29 @@ const AdminWithdrawals = () => {
                     <p>IFSC: {selectedRequest.bank_ifsc}</p>
                   </div>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment method</label>
+                    <select
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="bank_transfer">Bank transfer (NEFT/IMPS)</option>
+                      <option value="upi">UPI</option>
+                      <option value="cash">Cash</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment reference / UTR</label>
+                    <Input
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      placeholder="Required to mark as paid"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Notes (optional)</label>
                   <Textarea
@@ -336,21 +359,38 @@ const AdminWithdrawals = () => {
                 </div>
               </div>
             )}
-            <DialogFooter className="gap-2">
+            <DialogFooter className="flex-wrap gap-2">
               <Button
                 variant="destructive"
                 onClick={() => handleProcess("rejected")}
                 disabled={!!processingId}
               >
                 {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                Reject
+                Reject & refund
               </Button>
-              <Button
-                onClick={() => handleProcess("approved")}
-                disabled={!!processingId}
-              >
-                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Approve
+              {selectedRequest?.status === "pending" && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleProcess("approved")}
+                  disabled={!!processingId}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              )}
+              {selectedRequest?.status !== "processing" && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleProcess("processing")}
+                  disabled={!!processingId}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Mark processing
+                </Button>
+              )}
+              <Button onClick={() => handleProcess("paid")} disabled={!!processingId}>
+                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Banknote className="h-4 w-4 mr-2" />}
+                Mark as paid
               </Button>
             </DialogFooter>
           </DialogContent>
