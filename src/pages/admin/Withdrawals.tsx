@@ -199,9 +199,15 @@ const AdminWithdrawals = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
-          <p className="text-muted-foreground">Manage user withdrawal requests</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+            <p className="text-muted-foreground">Manage user withdrawal requests and offline payouts</p>
+          </div>
+          <Button variant="outline" onClick={exportPayoutCsv}>
+            <Download className="h-4 w-4 mr-2" />
+            Export payout CSV
+          </Button>
         </div>
 
         {/* Stats */}
