@@ -278,10 +278,17 @@ const AdminWithdrawals = () => {
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell>{format(new Date(request.created_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
-                        {request.status === "pending" && (
-                          <Button size="sm" onClick={() => setSelectedRequest(request)}>
+                        {["pending", "approved", "processing"].includes(request.status) && (
+                          <Button size="sm" onClick={() => {
+                            setSelectedRequest(request);
+                            setNotes(request.notes || "");
+                            setPaymentReference(request.payment_reference || "");
+                          }}>
                             Process
                           </Button>
+                        )}
+                        {request.payment_reference && (
+                          <p className="text-xs text-muted-foreground mt-1">Ref: {request.payment_reference}</p>
                         )}
                         {request.notes && (
                           <p className="text-xs text-muted-foreground mt-1">{request.notes}</p>
