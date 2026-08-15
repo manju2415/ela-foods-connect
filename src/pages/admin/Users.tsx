@@ -32,8 +32,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2 } from "lucide-react";
+import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2, Wallet, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
+import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
+import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
 import {
   AlertDialog,
   AlertDialogAction,
