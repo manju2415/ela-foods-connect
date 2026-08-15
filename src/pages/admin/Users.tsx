@@ -400,6 +400,24 @@ export default function UsersPage() {
           </CardContent>
         </Card>
 
+        <WalletAdjustDialog
+          userId={walletUser?.id ?? null}
+          userName={walletUser?.full_name || walletUser?.email}
+          open={!!walletUser}
+          onOpenChange={(o) => !o && setWalletUser(null)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+        />
+
+        <RecordPaymentDialog
+          userId={paymentUser?.id ?? null}
+          userName={paymentUser?.full_name || paymentUser?.email}
+          open={!!paymentUser}
+          onOpenChange={(o) => !o && setPaymentUser(null)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+        />
+
+
+
         {/* Manage Roles Dialog */}
         <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
