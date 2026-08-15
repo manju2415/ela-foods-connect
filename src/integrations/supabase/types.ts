@@ -1722,6 +1722,9 @@ export type Database = {
           created_at: string
           id: string
           notes: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_reference: string | null
           processed_at: string | null
           processed_by: string | null
           status: string
@@ -1737,6 +1740,9 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: string
@@ -1752,6 +1758,9 @@ export type Database = {
           created_at?: string
           id?: string
           notes?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: string
@@ -1804,6 +1813,26 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      admin_adjust_wallet: {
+        Args: {
+          p_amount: number
+          p_bucket: string
+          p_direction: string
+          p_reason: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      admin_record_registration_payment: {
+        Args: {
+          p_amount: number
+          p_method?: string
+          p_notes?: string
+          p_reference?: string
+          p_user_id: string
+        }
+        Returns: Json
       }
       create_notification: {
         Args: {
@@ -1869,6 +1898,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_any_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
       is_mlm_admin: { Args: { _user_id: string }; Returns: boolean }
       is_order_assigned_to_partner: {
@@ -1892,15 +1922,28 @@ export type Database = {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean
       }
-      process_withdrawal: {
-        Args: {
-          p_admin_id?: string
-          p_notes?: string
-          p_request_id: string
-          p_status: string
-        }
-        Returns: Json
-      }
+      process_withdrawal:
+        | {
+            Args: {
+              p_admin_id?: string
+              p_notes?: string
+              p_request_id: string
+              p_status: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_admin_id?: string
+              p_notes?: string
+              p_paid_at?: string
+              p_payment_method?: string
+              p_payment_reference?: string
+              p_request_id: string
+              p_status: string
+            }
+            Returns: Json
+          }
       request_withdrawal: {
         Args: { p_amount: number; p_user_id: string }
         Returns: Json
