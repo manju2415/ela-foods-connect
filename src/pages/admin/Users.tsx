@@ -32,8 +32,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2 } from "lucide-react";
+import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2, Wallet, IndianRupee } from "lucide-react";
 import { toast } from "sonner";
+import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
+import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -75,6 +77,8 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<AppRole | "">("");
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [walletUser, setWalletUser] = useState<User | null>(null);
+  const [paymentUser, setPaymentUser] = useState<User | null>(null);
   const queryClient = useQueryClient();
 
   const { data: users = [], isLoading } = useQuery({
@@ -308,6 +312,22 @@ export default function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          title="Adjust wallet"
+                          onClick={() => setWalletUser(user)}
+                        >
+                          <Wallet className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Record registration payment"
+                          onClick={() => setPaymentUser(user)}
+                        >
+                          <IndianRupee className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setSelectedUser(user)}
                         >
                           Manage Roles
@@ -359,6 +379,12 @@ export default function UsersPage() {
                       <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
                         <UserCog className="h-4 w-4" />
                       </Button>
+                      <Button variant="outline" size="sm" title="Adjust wallet" onClick={() => setWalletUser(user)}>
+                        <Wallet className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" title="Record payment" onClick={() => setPaymentUser(user)}>
+                        <IndianRupee className="h-4 w-4" />
+                      </Button>
                       <Button variant="outline" size="sm" onClick={() => setSelectedUser(user)} className="flex-1">
                         Manage Roles
                       </Button>
@@ -373,6 +399,24 @@ export default function UsersPage() {
             )}
           </CardContent>
         </Card>
+
+        <WalletAdjustDialog
+          userId={walletUser?.id ?? null}
+          userName={walletUser?.full_name || walletUser?.email}
+          open={!!walletUser}
+          onOpenChange={(o) => !o && setWalletUser(null)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+        />
+
+        <RecordPaymentDialog
+          userId={paymentUser?.id ?? null}
+          userName={paymentUser?.full_name || paymentUser?.email}
+          open={!!paymentUser}
+          onOpenChange={(o) => !o && setPaymentUser(null)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+        />
+
+
 
         {/* Manage Roles Dialog */}
         <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>

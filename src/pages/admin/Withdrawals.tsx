@@ -23,7 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, XCircle, Clock, Banknote } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Clock, Banknote, Download, Send } from "lucide-react";
 import { format } from "date-fns";
 
 interface WithdrawalRequest {
@@ -38,6 +38,9 @@ interface WithdrawalRequest {
   notes: string | null;
   created_at: string;
   processed_at: string | null;
+  paid_at?: string | null;
+  payment_reference?: string | null;
+  payment_method?: string | null;
 }
 
 interface UserProfile {
@@ -53,6 +56,8 @@ const AdminWithdrawals = () => {
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
   const [notes, setNotes] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank_transfer");
   const [stats, setStats] = useState({ pending: 0, approved: 0, total: 0 });
 
   useEffect(() => {
@@ -85,40 +90,91 @@ const AdminWithdrawals = () => {
       
       // Calculate stats
       const pending = data.filter(r => r.status === "pending").length;
-      const approved = data.filter(r => r.status === "approved" || r.status === "completed").length;
-      const total = data.reduce((sum, r) => r.status === "approved" || r.status === "completed" ? sum + Number(r.amount) : sum, 0);
+      const approved = data.filter(r => ["approved", "processing"].includes(r.status)).length;
+      const total = data.reduce(
+        (sum, r) => (["paid", "completed"].includes(r.status) ? sum + Number(r.amount) : sum),
+        0
+      );
       setStats({ pending, approved, total });
     }
     setLoading(false);
   };
 
-  const handleProcess = async (status: "approved" | "rejected") => {
+  const handleProcess = async (status: "approved" | "processing" | "paid" | "rejected") => {
     if (!selectedRequest || !user) return;
+    if (status === "paid" && !paymentReference.trim()) {
+      toast({
+        title: "Reference required",
+        description: "Enter the bank/UPI reference (UTR) before marking as paid.",
+        variant: "destructive",
+      });
+      return;
+    }
     setProcessingId(selectedRequest.id);
 
     const { data, error } = await supabase.rpc("process_withdrawal", {
       p_request_id: selectedRequest.id,
       p_status: status,
       p_notes: notes || null,
-      p_admin_id: user.id
+      p_admin_id: user.id,
+      p_payment_reference: status === "paid" ? paymentReference.trim() : undefined,
+      p_payment_method: status === "paid" ? paymentMethod : undefined,
     });
 
-    if (error) {
+    const result = data as { success?: boolean; error?: string } | null;
+
+    if (error || !result?.success) {
       toast({
         title: "Error",
-        description: error.message,
+        description: result?.error || error?.message || "Failed to update request",
         variant: "destructive"
       });
     } else {
       toast({
         title: "Success",
-        description: `Withdrawal ${status === "approved" ? "approved" : "rejected"} successfully.`
+        description: `Withdrawal marked as ${status}.`
       });
       fetchRequests();
       setSelectedRequest(null);
       setNotes("");
+      setPaymentReference("");
     }
     setProcessingId(null);
+  };
+
+  const exportPayoutCsv = () => {
+    const rows = requests.filter(r => ["pending", "approved", "processing"].includes(r.status));
+    if (rows.length === 0) {
+      toast({ title: "Nothing to export", description: "No open withdrawal requests." });
+      return;
+    }
+    const header = [
+      "Request ID", "Member", "Email", "Amount", "Account Holder",
+      "Bank", "Account Number", "IFSC", "Status", "Requested On",
+    ];
+    const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [
+      header.join(","),
+      ...rows.map(r => [
+        r.id,
+        r.profile?.full_name || "",
+        r.profile?.email || "",
+        Number(r.amount).toFixed(2),
+        r.bank_account_holder || "",
+        r.bank_name || "",
+        r.bank_account_number || "",
+        r.bank_ifsc || "",
+        r.status,
+        format(new Date(r.created_at), "yyyy-MM-dd"),
+      ].map(escape).join(",")),
+    ].join("\n");
+
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `withdrawal-payouts-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const getStatusBadge = (status: string) => {
@@ -127,8 +183,11 @@ const AdminWithdrawals = () => {
         return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case "approved":
         return <Badge variant="outline" className="bg-green-500/10 text-green-600"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case "processing":
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600"><Send className="h-3 w-3 mr-1" />Processing</Badge>;
+      case "paid":
       case "completed":
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+        return <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600"><Banknote className="h-3 w-3 mr-1" />Paid</Badge>;
       case "rejected":
         return <Badge variant="outline" className="bg-red-500/10 text-red-600"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
       default:
@@ -136,12 +195,19 @@ const AdminWithdrawals = () => {
     }
   };
 
+
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
-          <p className="text-muted-foreground">Manage user withdrawal requests</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-2xl font-bold">Withdrawal Requests</h2>
+            <p className="text-muted-foreground">Manage user withdrawal requests and offline payouts</p>
+          </div>
+          <Button variant="outline" onClick={exportPayoutCsv}>
+            <Download className="h-4 w-4 mr-2" />
+            Export payout CSV
+          </Button>
         </div>
 
         {/* Stats */}
@@ -218,10 +284,17 @@ const AdminWithdrawals = () => {
                       <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell>{format(new Date(request.created_at), "MMM dd, yyyy")}</TableCell>
                       <TableCell>
-                        {request.status === "pending" && (
-                          <Button size="sm" onClick={() => setSelectedRequest(request)}>
+                        {["pending", "approved", "processing"].includes(request.status) && (
+                          <Button size="sm" onClick={() => {
+                            setSelectedRequest(request);
+                            setNotes(request.notes || "");
+                            setPaymentReference(request.payment_reference || "");
+                          }}>
                             Process
                           </Button>
+                        )}
+                        {request.payment_reference && (
+                          <p className="text-xs text-muted-foreground mt-1">Ref: {request.payment_reference}</p>
                         )}
                         {request.notes && (
                           <p className="text-xs text-muted-foreground mt-1">{request.notes}</p>
@@ -259,6 +332,29 @@ const AdminWithdrawals = () => {
                     <p>IFSC: {selectedRequest.bank_ifsc}</p>
                   </div>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment method</label>
+                    <select
+                      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
+                      <option value="bank_transfer">Bank transfer (NEFT/IMPS)</option>
+                      <option value="upi">UPI</option>
+                      <option value="cash">Cash</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Payment reference / UTR</label>
+                    <Input
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      placeholder="Required to mark as paid"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Notes (optional)</label>
                   <Textarea
@@ -269,21 +365,38 @@ const AdminWithdrawals = () => {
                 </div>
               </div>
             )}
-            <DialogFooter className="gap-2">
+            <DialogFooter className="flex-wrap gap-2">
               <Button
                 variant="destructive"
                 onClick={() => handleProcess("rejected")}
                 disabled={!!processingId}
               >
                 {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <XCircle className="h-4 w-4 mr-2" />}
-                Reject
+                Reject & refund
               </Button>
-              <Button
-                onClick={() => handleProcess("approved")}
-                disabled={!!processingId}
-              >
-                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                Approve
+              {selectedRequest?.status === "pending" && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleProcess("approved")}
+                  disabled={!!processingId}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+              )}
+              {selectedRequest?.status !== "processing" && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleProcess("processing")}
+                  disabled={!!processingId}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  Mark processing
+                </Button>
+              )}
+              <Button onClick={() => handleProcess("paid")} disabled={!!processingId}>
+                {processingId ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Banknote className="h-4 w-4 mr-2" />}
+                Mark as paid
               </Button>
             </DialogFooter>
           </DialogContent>
