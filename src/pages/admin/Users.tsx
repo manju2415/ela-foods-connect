@@ -312,6 +312,22 @@ export default function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
+                          title="Adjust wallet"
+                          onClick={() => setWalletUser(user)}
+                        >
+                          <Wallet className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Record registration payment"
+                          onClick={() => setPaymentUser(user)}
+                        >
+                          <IndianRupee className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => setSelectedUser(user)}
                         >
                           Manage Roles
