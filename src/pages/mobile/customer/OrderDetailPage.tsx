@@ -208,6 +208,13 @@ export default function CustomerOrderDetailPage() {
                       <span>-₹{order.discount_amount.toFixed(2)}</span>
                     </div>
                   )}
+                  {(order as any).wallet_amount_used > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Paid from wallet</span>
+                      <span>-₹{Number((order as any).wallet_amount_used).toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <Separator />
                   <div className="flex justify-between font-semibold text-base">
                     <span>Total</span>

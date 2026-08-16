@@ -200,18 +200,8 @@ const ProductCard = ({
           <Heart className={`h-5 w-5 ${inWishlist ? "fill-current" : ""}`} />
         </Button>
 
-        {/* Quick Add Button */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform duration-300 flex gap-2">
-          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
-            <ShoppingCart className="h-4 w-4" />
-            Cart
-          </Button>
-          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
-            <Zap className="h-4 w-4" />
-            Buy Now
-          </Button>
-        </div>
       </div>
+
 
       <CardContent className="p-4">
         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
@@ -286,7 +276,20 @@ const ProductCard = ({
             </div>
           )}
         </div>
+
+        {/* Actions - always visible */}
+        <div className="flex gap-2 mt-3">
+          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
+            <ShoppingCart className="h-4 w-4" />
+            Add to Cart
+          </Button>
+          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
+            <Zap className="h-4 w-4" />
+            Buy Now
+          </Button>
+        </div>
       </CardContent>
+
     </Card>
     </Link>
   );

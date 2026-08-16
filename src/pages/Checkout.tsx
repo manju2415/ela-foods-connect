@@ -399,7 +399,30 @@ const Checkout = () => {
       return;
     }
 
+    // Charge the wallet for the credit applied to this order
+    if (totalWalletUsed > 0) {
+      const { data: walletRes, error: walletErr } = await supabase.rpc("pay_order_with_wallet", {
+        p_order_id: order.id,
+        p_amount: totalWalletUsed,
+      });
+      const walletOk = !walletErr && (walletRes as any)?.success;
+      if (!walletOk) {
+        await supabase
+          .from("orders")
+          .update({ status: "cancelled", payment_status: "failed" })
+          .eq("id", order.id);
+        toast({
+          title: "Wallet payment failed",
+          description: (walletRes as any)?.error || "Could not deduct wallet balance. Please try again.",
+          variant: "destructive",
+        });
+        setPlacing(false);
+        return;
+      }
+    }
+
     // Create order items
+
     const orderItems = items.map((item: any) => {
       const variant = item.variant;
       const basePrice = variant?.price ?? item.product.price;
