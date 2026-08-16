@@ -38,5 +38,5 @@ Move the Cart and Buy Now buttons out of the hover overlay into the card body so
 - `src/components/ProductCard.tsx`: relocate the action buttons; no pricing or business-logic changes.
 - Order detail / invoice view: add the wallet line to the totals block.
 
-## Open question
-For the two already-placed ₹0 orders, should the wallet balance actually be deducted now (the users effectively got goods for free credit that was never spent), or should they just be marked paid without touching the balances?
+## Backfill decision
+For the two already-placed ₹0 orders, the wallet balances will be deducted now (₹1205 from Shyju for ELA74685194, ₹590 from Sanith for ELA96571280), with matching `purchase` wallet transactions recorded and both orders marked paid.
