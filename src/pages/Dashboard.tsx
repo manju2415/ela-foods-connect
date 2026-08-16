@@ -1041,6 +1041,13 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                     <span>-₹{Number(selectedOrder.discount_amount).toFixed(2)}</span>
                   </div>
                 )}
+                {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Paid from wallet</span>
+                    <span>-₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
+                  </div>
+                )}
+
                 <Separator />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>

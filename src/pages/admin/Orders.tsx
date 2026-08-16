@@ -417,6 +417,13 @@ export default function Orders() {
                     <span>Discount</span>
                     <span>-₹{Number(selectedOrder.discount_amount || 0).toFixed(2)}</span>
                   </div>
+                  {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Paid from wallet</span>
+                      <span>-₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
                     <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
