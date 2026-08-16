@@ -44,6 +44,7 @@ interface Order {
   total_amount: number;
   subtotal: number;
   discount_amount: number;
+  wallet_amount_used?: number | null;
   shipping_amount: number;
   shipping_address: {
     full_name?: string;
