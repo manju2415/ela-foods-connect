@@ -276,7 +276,20 @@ const ProductCard = ({
             </div>
           )}
         </div>
+
+        {/* Actions - always visible */}
+        <div className="flex gap-2 mt-3">
+          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
+            <ShoppingCart className="h-4 w-4" />
+            Add to Cart
+          </Button>
+          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
+            <Zap className="h-4 w-4" />
+            Buy Now
+          </Button>
+        </div>
       </CardContent>
+
     </Card>
     </Link>
   );
