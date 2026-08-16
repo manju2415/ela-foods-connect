@@ -1910,6 +1910,10 @@ export type Database = {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
       }
+      pay_order_with_wallet: {
+        Args: { p_amount: number; p_order_id: string }
+        Returns: Json
+      }
       process_mlm_referral: {
         Args: {
           p_referral_code: string
