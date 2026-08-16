@@ -1,48 +1,42 @@
-# Wallet fixes + admin wallet & withdrawal controls
+# Wallet-paid orders, ₹0 totals, and Add to Cart on listings
 
-## What's actually wrong (verified in the database)
+## What's wrong (verified in the database and code)
 
-- **Satheesh Kumar Shabari** — his profile shows `registration fee paid = 0`, level `associate`, wallet ₹0, and there is no founder payment log for him. Because the system only pays out bonuses when the fee is recorded as paid, nothing was ever credited to him or to his referrer. His Razorpay payment succeeded but was never written back to his profile.
-- **Shyju (his referrer)** — did receive ₹600 on 13 Aug (₹500 referral bonus + ₹100 level-1 commission). So the ₹600 exists, but ₹500 of it landed in the **Purchase-only** bucket, not Withdrawable, because the current MLM settings mark the referral bonus as non-withdrawable. His Withdrawable balance also shows ₹0 because his one ₹100 withdrawal request is still pending (held).
-- **Welcome bonus** is currently configured as ₹0, so new paid members get nothing on activation.
+1. **Wallet is never actually charged.** Checkout calculates how much wallet credit to apply, stores it on the order (`wallet_amount_used`), and reduces the payable total — but it never debits the wallet or writes a wallet transaction. There are zero `purchase`-type wallet transactions in the database, so no order has ever deducted balance.
+2. **Fully wallet-paid orders show "pending payment".** When wallet credit covers the whole amount, the order is created with `total_amount = 0`, flagged as Cash on Delivery, and payment status left `pending`. Confirmed orders: ELA74685194 (subtotal ₹1205, wallet ₹1205, total ₹0, pending) and ELA96571280 (subtotal ₹590, wallet ₹590, total ₹0, pending).
+3. **Screenshot total analysis.** The invoice showing items summing to ₹1205 with "Total ₹0.00" is order ELA74685194. It is not a calculation bug in the invoice — the order's stored `total_amount` genuinely is ₹0 because ₹1205 of wallet credit was applied. The invoice just doesn't show the wallet credit line, so it reads as if items vanished.
+4. **Add to Cart on listing pages.** The product card already has Cart / Buy Now buttons, but they are hidden and only slide in on mouse hover — so on phones and tablets they are unreachable, and users must open the product page.
 
-## What will be built
+## The fix
 
-### 1. Admin: mark registration fee as paid manually
-On the Users / Founders admin screens, a "Record payment" action that lets an admin enter the amount, payment reference (Razorpay payment ID), and a note. Recording it:
-- sets the profile's registration fee and activates the member level,
-- writes a founder payment log entry marked as offline/manual with the reference,
-- fires the existing activation path so the welcome bonus and referral/upline commissions are credited exactly once (no double payment if it already happened).
+### A. Charge the wallet properly (backend)
+Add a database function `pay_order_with_wallet(order_id, amount)` that, in one atomic step:
+- verifies the order belongs to the caller and hasn't already been charged,
+- spends purchase-only balance first, then withdrawable balance,
+- rejects the payment if the balance is insufficient,
+- writes a `purchase` wallet transaction with the order reference and the new balance,
+- marks the order `payment_status = completed` and clears the COD flags when the wallet covers the full amount (partial wallet payments keep the remaining amount as COD/online).
 
-This will be used to fix Satheesh's account, which also pays Shyju correctly.
+Checkout calls this right after the order row is created, before the Razorpay step. If the wallet charge fails, the order is cancelled and the user is told, instead of a silently free order.
 
-### 2. Admin: manual wallet credit / debit
-A "Adjust wallet" action on any member (admin + MLM admin only) where the admin picks:
-- amount,
-- bucket: Withdrawable or Purchase-only,
-- credit or debit,
-- a mandatory reason.
+### B. Correct order state for wallet-covered orders
+- Fully wallet-paid orders: `payment_status = completed`, not COD, `cod_amount = 0`.
+- Partially wallet-paid orders: remaining amount goes to Razorpay or COD as it does today.
 
-It updates the wallet balances, writes a wallet transaction so the member sees it in their history, and notifies the member. All adjustments are attributed to the admin who made them.
+### C. Backfill the two existing orders
+For ELA74685194 and ELA96571280: deduct the wallet amounts that should have been taken (or, if the balance is no longer there, leave the balance alone and just mark the orders paid) and set their payment status to completed. Which of the two we do is the open question below.
 
-### 3. Withdrawals: offline processing with proper statuses
-The existing Withdrawal Requests admin screen gets a full lifecycle:
-`pending → approved → processing → paid (withdrawn)` or `rejected` (auto-refunds the held amount, already works).
+### D. Show wallet credit on the invoice/order summary
+Add a "Paid from wallet" line so a ₹0 total reads correctly instead of looking like a broken calculation.
 
-When marking as paid, the admin enters transfer reference (UTR/UPI ref), payment date and optional note. The member gets a notification and sees the reference in their wallet history. A filter by status and a CSV export of pending payouts (name, amount, bank, IFSC) is added so the admin can bulk-pay from their bank portal and then mark them paid.
-
-### 4. Bonus configuration correction
-Set the referral bonus and welcome bonus buckets to match intent (referral bonus withdrawable, welcome bonus amount confirmed) — I'll apply this once you confirm the amounts you want, since ₹500 referral currently pays into Purchase-only and welcome bonus is ₹0.
-
-## Automated bank transfers (answer to "how do we do that?")
-
-Money can only move to a bank account through a payout provider. Razorpay's standard Payments account cannot send money out; that requires **RazorpayX Payouts** (separate activation, business KYC, funds pre-loaded into an X account). If you activate it, I can add a "Pay now" button that triggers a real IMPS/NEFT/UPI transfer to the member's saved bank details and auto-updates the status from the payout webhook.
-
-Until then, this plan gives you the offline route: export/see the bank details, pay from your bank, mark as withdrawn with reference. Tell me if you want the RazorpayX integration added and I'll extend the plan.
+### E. Always-visible Add to Cart on listings
+Move the Cart and Buy Now buttons out of the hover overlay into the card body so they are always visible on every device (home, category, search, products pages all use the same card). Behaviour stays the same: products with pack variants still open the detail page to choose a pack; out-of-stock stays disabled.
 
 ## Technical notes
+- New migration: `pay_order_with_wallet` security-definer function + a one-off data fix for the two orders.
+- `src/pages/Checkout.tsx`: call the RPC after order insert, handle failure, keep the existing purchase-only-first priority.
+- `src/components/ProductCard.tsx`: relocate the action buttons; no pricing or business-logic changes.
+- Order detail / invoice view: add the wallet line to the totals block.
 
-- New DB function `admin_adjust_wallet(user_id, amount, bucket, direction, reason, admin_id)` — security definer, restricted to `is_admin`/`is_super_admin`/`is_mlm_admin`, writes to `wallets` + `wallet_transactions` + `notifications`.
-- New DB function `admin_record_registration_payment(user_id, amount, reference, method, admin_id)` — updates `profiles.registration_fee_paid`, `user_level`, `founder_status`, inserts into `founder_payment_logs`, then relies on the existing `trg_profiles_activation_referral` trigger + `credit_pending_referral_for_user` (already idempotent via the `wallet_transactions` source-user check).
-- `withdrawal_requests`: add `paid_at`, `payment_reference`, `payment_method`, and allow `processing`/`paid` in status handling; extend `process_withdrawal` with a `paid` branch that only stamps the reference (funds were already deducted at request time).
-- UI: extend `src/pages/admin/Withdrawals.tsx` (status filter, mark-as-paid dialog, CSV export), add wallet-adjust and record-payment dialogs reachable from `src/pages/admin/Users.tsx` and `src/pages/admin/Founders.tsx`, plus show payout reference in `src/components/dashboard/WithdrawalSection.tsx` and the member wallet pages.
+## Open question
+For the two already-placed ₹0 orders, should the wallet balance actually be deducted now (the users effectively got goods for free credit that was never spent), or should they just be marked paid without touching the balances?
