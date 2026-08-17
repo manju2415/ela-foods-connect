@@ -165,6 +165,10 @@ const Checkout = () => {
       });
       return;
     }
+    if (!/^[6-9]\d{9}$/.test(newAddress.phone.replace(/\D/g, "")) || !/^\d{6}$/.test(newAddress.postal_code)) {
+      toast({ title: "Invalid address", description: "Enter a valid 10-digit mobile number and 6-digit postal code.", variant: "destructive" });
+      return;
+    }
 
     const { data, error } = await supabase
       .from("addresses")

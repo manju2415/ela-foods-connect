@@ -22,6 +22,7 @@ interface CartItem {
     price: number;
     member_price: number | null;
     images: string[];
+    stock_quantity?: number;
   };
 }
 
@@ -94,7 +95,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const [{ data: products }, variantsRes] = await Promise.all([
         supabase
           .from("products")
-          .select("id, name, price, member_price, images")
+          .select("id, name, price, member_price, images, stock_quantity")
           .in("id", productIds),
         variantIds.length
           ? supabase
@@ -192,7 +193,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           name,
           price,
           member_price,
-          images
+          images,
+          stock_quantity
         ),
         variant:product_variants (
           id,
@@ -221,10 +223,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const addToCart = async (productId: string, quantity = 1, variantId: string | null = null) => {
+    const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
+    const requestedQuantity = (existingItem?.quantity || 0) + quantity;
+    const stock = variantId ? existingItem?.variant?.stock_quantity : existingItem?.product.stock_quantity;
+    if (stock !== undefined && requestedQuantity > stock) {
+      toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
+      return;
+    }
     if (user) {
       // Logged in user - use database
-      const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
-
       if (existingItem) {
         await updateQuantity(existingItem.id, existingItem.quantity + quantity);
       } else {
@@ -292,6 +299,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const updateQuantity = async (itemId: string, quantity: number) => {
     if (quantity <= 0) {
       await removeFromCart(itemId);
+      return;
+    }
+    const current = items.find((item) => item.id === itemId);
+    const stock = current?.variant?.stock_quantity ?? current?.product.stock_quantity;
+    if (stock !== undefined && quantity > stock) {
+      toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
       return;
     }
 
