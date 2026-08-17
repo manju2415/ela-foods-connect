@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { User, Mail, Phone, MapPin, LogOut, ChevronRight, Heart, Settings, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { EnableNotificationsButton } from "@/components/mobile/EnableNotificationsButton";
 
 interface Profile {
   full_name: string | null;
@@ -202,7 +203,7 @@ export default function CustomerProfilePage() {
           <Card>
             <CardContent className="p-0 divide-y">
               <button
-                onClick={() => navigate("/customer-app/orders")}
+                onClick={() => navigate("/customer-app/addresses")}
                 className="flex items-center gap-3 p-4 w-full text-left"
               >
                 <MapPin className="h-5 w-5 text-muted-foreground" />
@@ -227,6 +228,8 @@ export default function CustomerProfilePage() {
               </button>
             </CardContent>
           </Card>
+
+          <EnableNotificationsButton />
 
           {/* Sign Out */}
           <Button

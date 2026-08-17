@@ -39,13 +39,8 @@ export default function RoleBasedRedirect() {
         return;
       }
 
-      // Delivery partner → driver app
-      const { data: partnerData } = await supabase
-        .from("delivery_partners")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (partnerData) {
+      // Delivery partner → driver app. Roles are the routing source of truth.
+      if (roleSet.has("delivery_partner")) {
         navigate("/driver-app", { replace: true });
         return;
       }

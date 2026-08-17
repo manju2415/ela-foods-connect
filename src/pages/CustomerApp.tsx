@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
@@ -18,7 +17,6 @@ export default function CustomerApp() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [checkingRegistration, setCheckingRegistration] = useState(true);
-  const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('customer');
   
   useAppManifest('customer');
@@ -33,12 +31,12 @@ export default function CustomerApp() {
     }
 
     const checkRegistration = async () => {
-      // Skip registration check for delivery partners, founders, admins
+      // Only member/founder accounts require onboarding. Operational roles bypass it.
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .in("role", ["founding_member", "super_admin", "admin", "delivery_partner"])
+        .in("role", ["super_admin", "admin", "mlm_admin", "delivery_partner"])
         .limit(1)
         .maybeSingle();
 
@@ -78,24 +76,6 @@ export default function CustomerApp() {
 
     checkRegistration();
   }, [user, loading, navigate]);
-
-  // Request push notification permission
-  useEffect(() => {
-    if (!loading && user && isSupported && permissionStatus === 'prompt') {
-      const scheduleRegistration = () => {
-        if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(() => {
-            setTimeout(() => requestPermission(), 1000);
-          }, { timeout: 5000 });
-        } else {
-          setTimeout(() => requestPermission(), 3000);
-        }
-      };
-      
-      const timer = setTimeout(scheduleRegistration, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, user, isSupported, permissionStatus, requestPermission]);
 
   // Hide splash screen when app is ready
   useEffect(() => {

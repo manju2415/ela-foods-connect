@@ -186,6 +186,10 @@ export default function ProductDetail() {
       toast.error("Please select a pack size");
       return;
     }
+    if (quantity > effectiveStock) {
+      toast.error(`Only ${effectiveStock} available`);
+      return;
+    }
     setIsAddingToCart(true);
     try {
       await addToCart(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);

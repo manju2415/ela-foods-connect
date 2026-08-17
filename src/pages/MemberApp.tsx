@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useFCMPushNotifications } from "@/hooks/useFCMPushNotifications";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
@@ -18,7 +17,6 @@ import Dashboard from "./Dashboard";
 export default function MemberApp() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { isSupported, permissionStatus, requestPermission } = useFCMPushNotifications();
   const { hideSplash } = useSplashScreen('member');
   const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
   
@@ -50,24 +48,6 @@ export default function MemberApp() {
       return;
     }
   }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
-
-  // Request push notification permission after dashboard is fully loaded and functional
-  useEffect(() => {
-    if (!isLoading && user && isFullyOnboarded && isSupported && permissionStatus === 'prompt') {
-      const scheduleRegistration = () => {
-        if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(() => {
-            setTimeout(() => requestPermission(), 1000);
-          }, { timeout: 5000 });
-        } else {
-          setTimeout(() => requestPermission(), 3000);
-        }
-      };
-      
-      const timer = setTimeout(scheduleRegistration, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, user, isFullyOnboarded, isSupported, permissionStatus, requestPermission]);
 
   // Hide splash screen when app is ready
   useEffect(() => {

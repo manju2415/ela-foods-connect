@@ -457,6 +457,105 @@ export type Database = {
         }
         Relationships: []
       }
+      invoices: {
+        Row: {
+          billing_address: Json
+          cgst_amount: number
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          discount_amount: number
+          gst_amount: number
+          id: string
+          igst_amount: number
+          invoice_number: string
+          invoice_type: string
+          issued_at: string
+          items: Json
+          order_id: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          payment_status: string
+          registration_payment_id: string | null
+          sgst_amount: number
+          shipping_amount: number
+          taxable_amount: number
+          total_amount: number
+          user_id: string
+          wallet_amount: number
+        }
+        Insert: {
+          billing_address?: Json
+          cgst_amount?: number
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          discount_amount?: number
+          gst_amount?: number
+          id?: string
+          igst_amount?: number
+          invoice_number: string
+          invoice_type: string
+          issued_at?: string
+          items?: Json
+          order_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status: string
+          registration_payment_id?: string | null
+          sgst_amount?: number
+          shipping_amount?: number
+          taxable_amount: number
+          total_amount: number
+          user_id: string
+          wallet_amount?: number
+        }
+        Update: {
+          billing_address?: Json
+          cgst_amount?: number
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          discount_amount?: number
+          gst_amount?: number
+          id?: string
+          igst_amount?: number
+          invoice_number?: string
+          invoice_type?: string
+          issued_at?: string
+          items?: Json
+          order_id?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          payment_status?: string
+          registration_payment_id?: string | null
+          sgst_amount?: number
+          shipping_amount?: number
+          taxable_amount?: number
+          total_amount?: number
+          user_id?: string
+          wallet_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_registration_payment_id_fkey"
+            columns: ["registration_payment_id"]
+            isOneToOne: true
+            referencedRelation: "founder_payment_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mlm_settings: {
         Row: {
           description: string | null
@@ -749,6 +848,7 @@ export type Database = {
           discount_amount: number | null
           fulfillment_type: string
           id: string
+          idempotency_key: string | null
           is_cod: boolean | null
           notes: string | null
           order_number: string
@@ -759,6 +859,7 @@ export type Database = {
           shipping_address: Json
           shipping_amount: number | null
           status: Database["public"]["Enums"]["order_status"]
+          stock_restored_at: string | null
           subtotal: number
           total_amount: number
           updated_at: string
@@ -776,6 +877,7 @@ export type Database = {
           discount_amount?: number | null
           fulfillment_type?: string
           id?: string
+          idempotency_key?: string | null
           is_cod?: boolean | null
           notes?: string | null
           order_number: string
@@ -786,6 +888,7 @@ export type Database = {
           shipping_address: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_restored_at?: string | null
           subtotal: number
           total_amount: number
           updated_at?: string
@@ -803,6 +906,7 @@ export type Database = {
           discount_amount?: number | null
           fulfillment_type?: string
           id?: string
+          idempotency_key?: string | null
           is_cod?: boolean | null
           notes?: string | null
           order_number?: string
@@ -813,6 +917,7 @@ export type Database = {
           shipping_address?: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_restored_at?: string | null
           subtotal?: number
           total_amount?: number
           updated_at?: string
@@ -1906,12 +2011,34 @@ export type Database = {
         Returns: boolean
       }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      issue_order_invoice: { Args: { p_order_id: string }; Returns: string }
+      issue_registration_invoice: {
+        Args: { p_payment_id: string }
+        Returns: string
+      }
+      next_invoice_number: { Args: { p_type: string }; Returns: string }
       owns_order: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
       }
       pay_order_with_wallet: {
         Args: { p_amount: number; p_order_id: string }
+        Returns: Json
+      }
+      place_order_atomic: {
+        Args: {
+          p_coupon_code?: string
+          p_fulfillment_type?: string
+          p_idempotency_key?: string
+          p_items: Json
+          p_payment_method?: string
+          p_pickup_store_id?: string
+          p_preferred_delivery_date?: string
+          p_preferred_delivery_slot_id?: string
+          p_shipping_address: Json
+          p_use_wallet?: boolean
+          p_user_id: string
+        }
         Returns: Json
       }
       process_mlm_referral: {

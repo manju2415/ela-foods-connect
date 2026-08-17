@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OrderStatusTimeline } from "@/components/OrderStatusTimeline";
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import { Package, MapPin, RotateCcw } from "lucide-react";
+import { InvoiceButton } from "@/components/InvoiceButton";
 import { format } from "date-fns";
 
 interface Order {
@@ -166,11 +167,17 @@ export default function CustomerOrderDetailPage() {
                     {formatStatus(order.status)}
                   </Badge>
                 </div>
+                <div className="flex items-center justify-between rounded-md bg-muted p-3 mb-3">
+                  <span className="text-sm text-muted-foreground">Payment status</span>
+                  <Badge variant={order.payment_status === "completed" ? "default" : "secondary"}>{formatStatus(order.payment_status)}</Badge>
+                </div>
 
                 {/* Order Timeline */}
                 <OrderStatusTimeline currentStatus={order.status as any} createdAt={order.created_at} />
               </CardContent>
             </Card>
+
+            {(order.payment_status === "completed" || (order as any).is_cod) && <InvoiceButton orderId={order.id} variant="default" size="default" />}
 
             {/* Order Items */}
             <Card>

@@ -32,6 +32,7 @@ import { Search, Eye, Package } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
+import { InvoiceButton } from "@/components/InvoiceButton";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type PaymentStatus = Database["public"]["Enums"]["payment_status"];
@@ -430,6 +431,7 @@ export default function Orders() {
                     <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
                   </div>
                 </div>
+                <InvoiceButton orderId={selectedOrder.id} />
 
                 {selectedOrder.notes && (
                   <div>

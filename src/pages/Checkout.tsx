@@ -165,6 +165,10 @@ const Checkout = () => {
       });
       return;
     }
+    if (!/^[6-9]\d{9}$/.test(newAddress.phone.replace(/\D/g, "")) || !/^\d{6}$/.test(newAddress.postal_code)) {
+      toast({ title: "Invalid address", description: "Enter a valid 10-digit mobile number and 6-digit postal code.", variant: "destructive" });
+      return;
+    }
 
     const { data, error } = await supabase
       .from("addresses")
@@ -276,264 +280,89 @@ const Checkout = () => {
 
   const handlePlaceOrder = async () => {
     if (fulfillmentType === "delivery" && !selectedAddressId) {
-      toast({
-        title: "Select Address",
-        description: "Please select a delivery address.",
-        variant: "destructive",
-      });
+      toast({ title: "Select Address", description: "Please select a delivery address.", variant: "destructive" });
       return;
     }
-
     if (fulfillmentType === "store_pickup" && !pickupStoreId) {
-      toast({
-        title: "Select Store",
-        description: "Please select a store for pickup.",
-        variant: "destructive",
-      });
+      toast({ title: "Select Store", description: "Please select a store for pickup.", variant: "destructive" });
       return;
     }
+    if (!user) return;
 
     let validEmail = "";
     if (paymentMethod === "online") {
-      const { value, error } = validateEmail(contactEmail);
-      if (!value) {
-        setEmailError(error || "Please enter a valid email address");
-        toast({
-          title: "Email Required",
-          description: error || "Please enter a valid email address for your payment receipt.",
-          variant: "destructive",
-        });
+      const validated = validateEmail(contactEmail);
+      if (!validated.value) {
+        setEmailError(validated.error || "Please enter a valid email address");
+        toast({ title: "Email Required", description: validated.error || "Please enter a valid email address for your receipt.", variant: "destructive" });
         return;
       }
+      validEmail = validated.value;
       setEmailError(null);
-      validEmail = value;
-    }
-
-    if (!user) return;
-
-    if (validEmail) {
       await supabase.from("profiles").update({ email: validEmail }).eq("id", user.id);
     }
 
-
-    const selectedAddress = fulfillmentType === "delivery" 
-      ? addresses.find((a) => a.id === selectedAddressId)
-      : null;
-    const selectedStore = fulfillmentType === "store_pickup"
-      ? pickupStores.find((s: any) => s.id === pickupStoreId)
-      : null;
+    const selectedAddress = fulfillmentType === "delivery" ? addresses.find((address) => address.id === selectedAddressId) : null;
+    const selectedStore = fulfillmentType === "store_pickup" ? pickupStores.find((store: any) => store.id === pickupStoreId) : null;
+    const shippingAddress = selectedStore ? {
+      full_name: "Store Pickup", phone: selectedStore.phone || "", address_line1: selectedStore.address_line1,
+      address_line2: selectedStore.address_line2, city: selectedStore.city, state: selectedStore.state,
+      postal_code: selectedStore.postal_code, country: "India", email: validEmail,
+    } : selectedAddress ? { ...selectedAddress, email: validEmail } : {};
 
     setPlacing(true);
-
-    const discountAmount = calculateDiscount();
-    const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
-    
-    const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
-    const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
-    const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;
-    const withdrawableUsed = useWallet ? Math.min(wallet.withdrawable_balance, remainingAfterPurchaseOnly) : 0;
-    const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
-    const finalAmount = amountAfterDiscount - totalWalletUsed;
-
-    const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
-
-    const shippingAddress = fulfillmentType === "store_pickup" && selectedStore
-      ? {
-          full_name: "Store Pickup",
-          phone: selectedStore.phone || "",
-          address_line1: selectedStore.address_line1,
-          address_line2: selectedStore.address_line2,
-          city: selectedStore.city,
-          state: selectedStore.state,
-          postal_code: selectedStore.postal_code,
-          country: "India",
-        }
-      : selectedAddress
-      ? {
-          full_name: selectedAddress.full_name,
-          phone: selectedAddress.phone,
-          address_line1: selectedAddress.address_line1,
-          address_line2: selectedAddress.address_line2,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          postal_code: selectedAddress.postal_code,
-          country: selectedAddress.country,
-        }
-      : {};
-
-    const isCod = paymentMethod === "cod" || finalAmount <= 0;
-
-    // Create order
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user.id,
-        order_number: orderNumber,
-        status: "pending",
-        payment_status: isCod ? "pending" : "pending",
-        subtotal: effectiveTotalPrice,
-        shipping_amount: shippingAmount,
-        discount_amount: discountAmount,
-        wallet_amount_used: totalWalletUsed,
-        total_amount: finalAmount,
-        coupon_code: appliedCoupon?.code || null,
-        is_cod: isCod,
-        cod_amount: isCod ? finalAmount : 0,
-        preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
-        preferred_delivery_slot_id: selectedDeliverySlotId,
-        fulfillment_type: fulfillmentType,
-        pickup_store_id: fulfillmentType === "store_pickup" ? pickupStoreId : null,
-        shipping_address: shippingAddress,
-      })
-      .select()
-      .single();
-
-    if (orderError) {
-      console.error("Order error:", orderError);
-      toast({
-        title: "Error",
-        description: "Failed to place order. Please try again.",
-        variant: "destructive",
-      });
+    const idempotencyKey = crypto.randomUUID();
+    const { data, error } = await supabase.rpc("place_order_atomic" as any, {
+      p_user_id: user.id,
+      p_items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity })),
+      p_shipping_address: shippingAddress,
+      p_fulfillment_type: fulfillmentType,
+      p_pickup_store_id: fulfillmentType === "store_pickup" ? pickupStoreId : null,
+      p_coupon_code: appliedCoupon?.code || null,
+      p_use_wallet: useWallet,
+      p_payment_method: paymentMethod,
+      p_preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
+      p_preferred_delivery_slot_id: selectedDeliverySlotId,
+      p_idempotency_key: idempotencyKey,
+    } as any);
+    const result = data as any;
+    if (error || !result?.success) {
+      toast({ title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : "Order failed", description: result?.error || error?.message || "Please try again.", variant: "destructive" });
+      await fetchData();
       setPlacing(false);
       return;
     }
 
-    // Charge the wallet for the credit applied to this order
-    if (totalWalletUsed > 0) {
-      const { data: walletRes, error: walletErr } = await supabase.rpc("pay_order_with_wallet", {
-        p_order_id: order.id,
-        p_amount: totalWalletUsed,
-      });
-      const walletOk = !walletErr && (walletRes as any)?.success;
-      if (!walletOk) {
-        await supabase
-          .from("orders")
-          .update({ status: "cancelled", payment_status: "failed" })
-          .eq("id", order.id);
-        toast({
-          title: "Wallet payment failed",
-          description: (walletRes as any)?.error || "Could not deduct wallet balance. Please try again.",
-          variant: "destructive",
-        });
-        setPlacing(false);
-        return;
-      }
-    }
+    const finishOrder = async (title: string) => {
+      try { await supabase.functions.invoke("send-order-confirmation", { body: { order_id: result.order_id } }); } catch (emailError) { console.error("Confirmation email error:", emailError); }
+      await clearCart();
+      toast({ title, description: `Order ${result.order_number} placed successfully.` });
+      navigate("/dashboard?tab=orders");
+      setPlacing(false);
+    };
 
-    // Create order items
-
-    const orderItems = items.map((item: any) => {
-      const variant = item.variant;
-      const basePrice = variant?.price ?? item.product.price;
-      const memberPrice = variant ? (variant.member_price ?? variant.price) : (item.product.member_price ?? item.product.price);
-      const itemPrice = isMember ? memberPrice : basePrice;
-      const displayName = variant ? `${item.product.name} (${variant.label})` : item.product.name;
-      return {
-        order_id: order.id,
-        product_id: item.product_id,
-        product_name: displayName,
-        product_price: itemPrice,
-        quantity: item.quantity,
-        total_price: itemPrice * item.quantity,
-        variant_id: variant?.id || null,
-        variant_label: variant?.label || null,
-      };
-    });
-
-    await supabase.from("order_items").insert(orderItems as any);
-
-    if (appliedCoupon) {
-      await supabase
-        .from("coupons")
-        .update({ usage_count: appliedCoupon.usage_count + 1 })
-        .eq("id", appliedCoupon.id);
-    }
-
-    // If online payment and amount > 0, initiate Razorpay
-    if (!isCod && finalAmount > 0) {
+    if (paymentMethod === "online" && Number(result.total_amount) > 0) {
       try {
-        const selectedAddr = selectedAddress || selectedStore;
         await initiateRazorpayPayment({
-          amount: finalAmount,
-          receipt: orderNumber,
-          notes: { description: `Order ${orderNumber}`, order_id: order.id },
-          orderId: order.id,
-          prefill: {
-            name: selectedAddr?.full_name || user.user_metadata?.full_name || "",
-            contact: selectedAddr?.phone || user.phone || "",
-            email: validEmail,
-          },
-          onSuccess: async () => {
-            // Update order payment status
-            await supabase
-              .from("orders")
-              .update({ payment_status: "completed", is_cod: false })
-              .eq("id", order.id);
-
-            try {
-              await supabase.functions.invoke("send-order-confirmation", {
-                body: { order_id: order.id },
-              });
-            } catch (e) {
-              console.error("Email error:", e);
-            }
-
-            await clearCart();
-            toast({
-              title: "Payment Successful!",
-              description: `Order ${orderNumber} placed successfully.`,
-            });
-            navigate("/dashboard?tab=orders");
-          },
-          onFailure: async (error) => {
-            console.error("Payment failed:", error);
-            // Order exists but payment failed - mark as COD fallback
-            await supabase
-              .from("orders")
-              .update({ is_cod: true, cod_amount: finalAmount })
-              .eq("id", order.id);
-            
-            toast({
-              title: "Payment Failed",
-              description: "Order placed as Cash on Delivery instead.",
-              variant: "destructive",
-            });
-
-            await clearCart();
-            navigate("/dashboard?tab=orders");
+          amount: Number(result.total_amount), receipt: result.order_number,
+          notes: { description: `Order ${result.order_number}`, order_id: result.order_id }, orderId: result.order_id,
+          prefill: { name: selectedAddress?.full_name || user.user_metadata?.full_name || "", contact: selectedAddress?.phone || user.phone || "", email: validEmail },
+          onSuccess: async () => { await finishOrder("Payment Successful!"); },
+          onFailure: async (paymentError) => {
+            console.error("Payment failed:", paymentError);
+            await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id);
+            toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
+            setPlacing(false);
           },
         });
+      } catch (paymentError) {
+        await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id);
+        toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
         setPlacing(false);
-        return;
-      } catch (err) {
-        console.error("Razorpay init error:", err);
-        // Fall back to COD
-        await supabase
-          .from("orders")
-          .update({ is_cod: true, cod_amount: finalAmount })
-          .eq("id", order.id);
       }
+      return;
     }
-
-    // COD or zero-amount order flow
-    try {
-      await supabase.functions.invoke("send-order-confirmation", {
-        body: { order_id: order.id },
-      });
-    } catch (emailError) {
-      console.error("Failed to send confirmation email:", emailError);
-    }
-
-    await clearCart();
-
-    toast({
-      title: "Order Placed!",
-      description: `Your order ${orderNumber} has been placed successfully.`,
-    });
-
-    navigate("/dashboard?tab=orders");
-    setPlacing(false);
+    await finishOrder("Order Placed!");
   };
 
   if (!user || items.length === 0) {

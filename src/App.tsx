@@ -89,6 +89,7 @@ const CustomerOrdersPage = lazy(() => import("./pages/mobile/customer/OrdersPage
 const CustomerOrderDetailPage = lazy(() => import("./pages/mobile/customer/OrderDetailPage"));
 const CustomerWalletPage = lazy(() => import("./pages/mobile/customer/WalletPage"));
 const CustomerProfilePage = lazy(() => import("./pages/mobile/customer/ProfilePage"));
+const CustomerAddressesPage = lazy(() => import("./pages/mobile/customer/AddressesPage"));
 const DriverOrdersPage = lazy(() => import("./pages/mobile/driver/OrdersPage"));
 const DriverEarningsPage = lazy(() => import("./pages/mobile/driver/EarningsPage"));
 const DriverProfilePage = lazy(() => import("./pages/mobile/driver/ProfilePage"));
@@ -240,6 +241,8 @@ function App() {
                         <Route path="/customer-app/order/:orderId" element={<CustomerOrderDetailPage />} />
                         <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
                         <Route path="/customer-app/profile" element={<CustomerProfilePage />} />
+                        <Route path="/customer-app/addresses" element={<CustomerAddressesPage />} />
+                        <Route path="/member-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app" element={<MemberApp />} />
                         <Route path="/member-app/network" element={<MemberNetworkPage />} />
                         <Route path="/member-app/wallet" element={<CustomerWalletPage />} />

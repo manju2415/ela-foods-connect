@@ -188,6 +188,10 @@ server: {
 - Verify FCM config files are in correct locations
 - Check that FCM_SERVER_KEY secret is set
 - Ensure app has notification permissions
+- Android 13+: add `<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />` to `android/app/src/main/AndroidManifest.xml`
+- The app asks only after the user taps **Enable notifications** in Profile; it never prompts during startup
+- After changing native plugins/config, run `npm install && npx cap sync android`, uninstall the old APK, then rebuild/install cleanly
+- Production APKs must load bundled assets: remove the `server.url` block from `capacitor.config.ts` before the release build
 
 ### Contacts picker ("From contacts" in Add User)
 Uses `@capacitor-community/contacts`. After `npm install && npx cap sync`, add the platform permissions:

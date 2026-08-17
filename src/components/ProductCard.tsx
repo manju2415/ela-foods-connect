@@ -161,17 +161,18 @@ const ProductCard = ({
   };
 
   return (
-    <Link to={`/product/${slug}`}>
       <Card className="group overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
       <div className="relative overflow-hidden">
-        <OptimizedImage
-          src={image}
-          alt={name}
-          className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
-          containerClassName="aspect-square"
-          displayWidth={500}
-          displayHeight={500}
-        />
+        <Link to={`/product/${slug}`} aria-label={`View ${name}`}>
+          <OptimizedImage
+            src={image}
+            alt={name}
+            className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
+            containerClassName="aspect-square"
+            displayWidth={500}
+            displayHeight={500}
+          />
+        </Link>
         
         {/* Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-2">
@@ -207,9 +208,9 @@ const ProductCard = ({
         <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
           {category}
         </p>
-        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">
-          {name}
-        </h3>
+        <Link to={`/product/${slug}`} className="block">
+          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">{name}</h3>
+        </Link>
         {options.length > 1 ? (
           <div
             className="mb-2"
@@ -291,7 +292,6 @@ const ProductCard = ({
       </CardContent>
 
     </Card>
-    </Link>
   );
 };
 

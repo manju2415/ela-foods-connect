@@ -113,6 +113,14 @@ export default function AddressManager() {
       toast.error("Please fill all required fields");
       return;
     }
+    if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\D/g, ""))) {
+      toast.error("Enter a valid 10-digit mobile number");
+      return;
+    }
+    if (!/^\d{6}$/.test(formData.postal_code)) {
+      toast.error("Enter a valid 6-digit postal code");
+      return;
+    }
 
     setSaving(true);
     if (editingAddress) {
@@ -206,7 +214,7 @@ export default function AddressManager() {
               <Plus className="h-4 w-4 mr-2" /> Add Address
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingAddress ? "Edit Address" : "Add New Address"}</DialogTitle>
             </DialogHeader>
@@ -223,7 +231,7 @@ export default function AddressManager() {
                   <Label>Phone *</Label>
                   <Input
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                     onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                   />
                 </div>
               </div>
@@ -262,7 +270,7 @@ export default function AddressManager() {
                   <Label>Postal Code *</Label>
                   <Input
                     value={formData.postal_code}
-                    onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
+                     onChange={(e) => setFormData({ ...formData, postal_code: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                   />
                 </div>
                 <div className="space-y-2">
