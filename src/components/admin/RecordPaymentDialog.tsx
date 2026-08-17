@@ -65,6 +65,10 @@ export function RecordPaymentDialog({
       toast.error("Enter a valid amount");
       return;
     }
+    if (!reference.trim()) {
+      toast.error("Payment reference / Razorpay ID is required");
+      return;
+    }
 
     setSubmitting(true);
     const { data, error } = await supabase.rpc("admin_record_registration_payment", {
@@ -82,7 +86,7 @@ export function RecordPaymentDialog({
       return;
     }
 
-    toast.success("Registration payment recorded and membership activated");
+    toast.success("Registration payment recorded, membership activated, and GST invoice issued");
     onOpenChange(false);
     onSuccess?.();
   };
@@ -98,7 +102,7 @@ export function RecordPaymentDialog({
             {userName
               ? `Manually record a paid registration fee for ${userName}.`
               : "Manually record a paid registration fee."}{" "}
-            This activates the member and releases referral bonuses.
+             This activates the member, releases referral bonuses, and issues an 18% GST invoice. Wallet adjustments do not count as registration payment.
           </DialogDescription>
         </DialogHeader>
 
@@ -139,7 +143,7 @@ export function RecordPaymentDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="pay-ref">Payment reference / ID</Label>
+             <Label htmlFor="pay-ref">Payment reference / ID *</Label>
             <Input
               id="pay-ref"
               value={reference}

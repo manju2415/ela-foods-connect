@@ -18,6 +18,7 @@ export const useSplashScreen = (theme: AppTheme = 'customer') => {
 
       try {
         // Configure status bar for native feel
+        await StatusBar.setOverlaysWebView({ overlay: false });
         await StatusBar.setStyle({ style: Style.Light });
         await StatusBar.setBackgroundColor({ color: themeColors[theme] });
       } catch (error) {

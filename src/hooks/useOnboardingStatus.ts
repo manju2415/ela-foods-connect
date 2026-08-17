@@ -35,30 +35,23 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
 
   const checkOnboardingStatus = async (uid: string, retryCount = 0) => {
     try {
-      // Check profile, delivery partner, and dashboard-eligible roles in parallel
-      const [profileRes, partnerRes, memberAccessRes] = await Promise.all([
+      // user_roles is the source of truth for onboarding exemptions.
+      const [profileRes, roleRes] = await Promise.all([
         supabase
           .from("profiles")
           .select("phone, bank_account_number, registration_fee_paid, user_level")
           .eq("id", uid)
           .single(),
         supabase
-          .from("delivery_partners")
-          .select("id")
-          .eq("user_id", uid)
-          .maybeSingle(),
-        supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", uid)
-          .in("role", ["super_admin", "admin", "mlm_admin"])
-          .limit(1)
-          .maybeSingle(),
       ]);
 
       const profile = profileRes.data;
-      const isDeliveryPartner = !!partnerRes.data;
-      const isAdmin = !!memberAccessRes.data;
+      const roles = (roleRes.data || []).map((row) => row.role as string);
+      const isDeliveryPartner = roles.includes("delivery_partner");
+      const isAdmin = roles.some((role) => ["super_admin", "admin", "mlm_admin"].includes(role));
 
       // If no admin role, no partner, and no profile yet, retry once
       // (auth session may not have fully propagated to RLS)

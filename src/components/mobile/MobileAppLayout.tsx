@@ -11,7 +11,7 @@ interface MobileAppLayoutProps {
 
 export function MobileAppLayout({ children, appType, hideNav = false }: MobileAppLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-background safe-area-pt">
+    <div className="min-h-screen flex flex-col bg-background">
       <div className="flex-1 md:pb-0 pb-16">
         {children}
       </div>

@@ -24,18 +24,22 @@ export function MobileHeader({
 
   return (
     <header className={cn(
-      "sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b",
+      "sticky top-0 z-40 safe-area-pt bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b",
       className
     )}>
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2">
           {showBack && (
-            <button
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
               onClick={() => navigate(-1)}
-              className="p-1 -ml-1 rounded-full hover:bg-muted"
+              className="-ml-2"
+              aria-label="Go back"
             >
               <ChevronLeft className="h-6 w-6" />
-            </button>
+            </Button>
           )}
           <h1 className="text-lg font-semibold">{title}</h1>
         </div>
