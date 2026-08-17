@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, Receipt } from "lucide-react";
+import { InvoiceButton } from "@/components/InvoiceButton";
 
 interface PaymentLog {
   id: string;
@@ -100,6 +101,7 @@ export default function FounderPayments() {
                         <TableHead>Payment ID</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
+                        <TableHead>Invoice</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -119,6 +121,7 @@ export default function FounderPayments() {
                               </Badge>
                             </TableCell>
                             <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
+                            <TableCell>{log.status === "success" && <InvoiceButton registrationPaymentId={log.id} />}</TableCell>
                           </TableRow>
                         );
                       })}
