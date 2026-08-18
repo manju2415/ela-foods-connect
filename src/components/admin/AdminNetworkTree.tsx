@@ -182,30 +182,30 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
             </div>
           )}
           
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               {getLevelIcon(user.user_level)}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{user.full_name || "Unnamed"}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="font-medium break-words leading-tight">{user.full_name || "Unnamed"}</p>
+              <p className="text-xs text-muted-foreground truncate">{displayContact(user.email)}</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className={`text-xs ${getLevelColor(user.user_level)}`}>
+                  {user.user_level}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  L{user.level_depth}
+                </Badge>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className={`text-xs ${getLevelColor(user.user_level)}`}>
-                {user.user_level}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                L{user.level_depth}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => onViewUser(user.user_id)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => onViewUser(user.user_id)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         
