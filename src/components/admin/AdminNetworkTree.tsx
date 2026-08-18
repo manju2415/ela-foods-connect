@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Users, ChevronRight, ChevronDown, Crown, Shield, UserCircle, Search, Eye } from "lucide-react";
+import { displayContact } from "@/components/dashboard/NetworkTreeVisual";
 
 interface NetworkUser {
   user_id: string;
