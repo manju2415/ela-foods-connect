@@ -7,6 +7,7 @@ import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, User, ChevronRight } from "lucide-react";
+import { displayContact } from "@/components/dashboard/NetworkTreeVisual";
 
 interface NetworkMember {
   user_id: string;
@@ -73,17 +74,22 @@ export default function MemberNetworkPage() {
           ) : (
             network.map((member) => (
               <Card key={member.user_id}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                <CardContent className="p-4 flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center shrink-0">
                     <User className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{member.full_name || member.email}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded ${getLevelColor(member.user_level)}`}>
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="font-medium break-words leading-tight">
+                      {member.full_name || displayContact(member.email)}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {displayContact(member.email)}
+                    </p>
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded ${getLevelColor(member.user_level)}`}>
                       {member.user_level} • Level {member.level_depth}
                     </span>
                   </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                 </CardContent>
               </Card>
             ))

@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Users, ChevronRight, ChevronDown, Crown, Shield, UserCircle, Search, Eye } from "lucide-react";
+import { displayContact } from "@/components/dashboard/NetworkTreeVisual";
 
 interface NetworkUser {
   user_id: string;
@@ -164,8 +165,8 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
     return (
       <div key={user.user_id} className="relative">
         <div 
-          className={`flex items-center gap-2 p-3 border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
-          style={{ marginLeft: `${depth * 16}px` }}
+          className={`flex items-start gap-2 p-3 border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
+          style={{ marginLeft: `${Math.min(depth, 4) * 12}px` }}
         >
           {hasChildren ? (
             <Button
@@ -182,30 +183,30 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
             </div>
           )}
           
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               {getLevelIcon(user.user_level)}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{user.full_name || "Unnamed"}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="font-medium break-words leading-tight">{user.full_name || "Unnamed"}</p>
+              <p className="text-xs text-muted-foreground truncate">{displayContact(user.email)}</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className={`text-xs ${getLevelColor(user.user_level)}`}>
+                  {user.user_level}
+                </Badge>
+                <Badge variant="secondary" className="text-xs">
+                  L{user.level_depth}
+                </Badge>
+              </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className={`text-xs ${getLevelColor(user.user_level)}`}>
-                {user.user_level}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                L{user.level_depth}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => onViewUser(user.user_id)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              onClick={() => onViewUser(user.user_id)}
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         

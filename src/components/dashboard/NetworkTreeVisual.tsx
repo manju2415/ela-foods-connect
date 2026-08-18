@@ -4,6 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Users, ChevronRight, ChevronDown, User, Crown, Shield, UserCircle } from "lucide-react";
 
 interface DownlineUser {
@@ -24,11 +31,22 @@ interface NetworkTreeVisualProps {
   userId: string;
 }
 
+// Login ids are stored as {phone}@elabazar.local — show the readable phone instead.
+export const displayContact = (email: string) => {
+  const local = (email || "").split("@")[0];
+  if (/^\d{10,14}$/.test(local)) {
+    const digits = local.length > 10 ? local.slice(-10) : local;
+    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+  return email;
+};
+
 export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
   const [downline, setDownline] = useState<DownlineUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [rootUser, setRootUser] = useState<{ email: string; full_name: string | null; user_level: string } | null>(null);
+  const [previewUser, setPreviewUser] = useState<DownlineUser | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -118,12 +136,14 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
   const renderTreeNode = (node: TreeNode, depth: number = 1) => {
     const hasChildren = node.children.length > 0;
     const isExpanded = expandedNodes.has(node.user.user_id);
+    // Cap the indent so deep levels never squeeze the name column off-screen.
+    const indent = Math.min(depth, 4) * 12;
 
     return (
       <div key={node.user.user_id} className="relative">
         <div 
-          className={`flex items-center gap-2 p-3 ml-${Math.min(depth * 4, 16)} border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
-          style={{ marginLeft: `${depth * 16}px` }}
+          className={`flex items-start gap-2 p-3 border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
+          style={{ marginLeft: `${indent}px` }}
         >
           {hasChildren ? (
             <Button
@@ -144,28 +164,36 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
             </div>
           )}
           
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => setPreviewUser(node.user)}
+            className="flex items-start gap-3 flex-1 min-w-0 text-left"
+          >
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
               {getLevelIcon(node.user.user_level)}
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium truncate">{node.user.full_name || "Unnamed"}</p>
-              <p className="text-xs text-muted-foreground truncate">{node.user.email}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Badge variant="outline" className={`text-xs ${getLevelColor(node.user.user_level)}`}>
-                {node.user.user_level}
-              </Badge>
-              <Badge variant="secondary" className="text-xs">
-                L{node.user.level_depth}
-              </Badge>
-              {hasChildren && (
-                <Badge variant="outline" className="text-xs">
-                  {node.children.length} refs
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="font-medium break-words leading-tight">
+                {node.user.full_name || "Unnamed"}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {displayContact(node.user.email)}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                <Badge variant="outline" className={`text-xs ${getLevelColor(node.user.user_level)}`}>
+                  {node.user.user_level}
                 </Badge>
-              )}
+                <Badge variant="secondary" className="text-xs">
+                  L{node.user.level_depth}
+                </Badge>
+                {hasChildren && (
+                  <Badge variant="outline" className="text-xs">
+                    {node.children.length} refs
+                  </Badge>
+                )}
+              </div>
             </div>
-          </div>
+          </button>
         </div>
         
         {isExpanded && hasChildren && (
@@ -206,6 +234,10 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
     associates: downline.filter(u => u.user_level === "associate").length,
   };
 
+  const previewChildren = previewUser
+    ? downline.filter(u => u.referred_by === previewUser.user_id)
+    : [];
+
   return (
     <Card>
       <CardHeader>
@@ -214,7 +246,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
           Network Tree
         </CardTitle>
         <CardDescription>
-          Visual hierarchy of your referral network
+          Visual hierarchy of your referral network — tap a member to preview their details
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -254,22 +286,24 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
           <div className="space-y-2">
             {/* Root User Node */}
             {rootUser && (
-              <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-lg mb-4">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+              <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shrink-0">
                   <User className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold">{rootUser.full_name || "You"}</p>
-                  <p className="text-sm text-muted-foreground">{rootUser.email}</p>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="font-semibold break-words">{rootUser.full_name || "You"}</p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {displayContact(rootUser.email)}
+                  </p>
+                  <Badge className={`${getLevelColor(rootUser.user_level)} w-fit`}>
+                    {rootUser.user_level}
+                  </Badge>
                 </div>
-                <Badge className={getLevelColor(rootUser.user_level)}>
-                  {rootUser.user_level}
-                </Badge>
               </div>
             )}
 
             {/* Tree */}
-            <div className="border rounded-lg p-4 bg-muted/20 max-h-[500px] overflow-y-auto">
+            <div className="border rounded-lg p-2 sm:p-4 bg-muted/20 max-h-[500px] overflow-y-auto">
               {tree.map(node => renderTreeNode(node))}
             </div>
 
@@ -290,6 +324,68 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
             </div>
           </div>
         )}
+
+        {/* Member preview */}
+        <Sheet open={!!previewUser} onOpenChange={(open) => !open && setPreviewUser(null)}>
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+            {previewUser && (
+              <>
+                <SheetHeader className="text-left">
+                  <SheetTitle className="break-words">
+                    {previewUser.full_name || "Unnamed member"}
+                  </SheetTitle>
+                  <SheetDescription>{displayContact(previewUser.email)}</SheetDescription>
+                </SheetHeader>
+
+                <div className="grid grid-cols-3 gap-3 mt-4">
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <p className="text-sm font-semibold capitalize">{previewUser.user_level}</p>
+                    <p className="text-xs text-muted-foreground">Level</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <p className="text-sm font-semibold">L{previewUser.level_depth}</p>
+                    <p className="text-xs text-muted-foreground">Depth</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <p className="text-sm font-semibold">{previewChildren.length}</p>
+                    <p className="text-xs text-muted-foreground">Direct refs</p>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <h4 className="font-medium mb-2">Members under this person</h4>
+                  {previewChildren.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No direct referrals yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {previewChildren.map(child => (
+                        <div
+                          key={child.user_id}
+                          className="flex items-start gap-3 p-3 rounded-lg border bg-card"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            {getLevelIcon(child.user_level)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium break-words leading-tight">
+                              {child.full_name || "Unnamed"}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {displayContact(child.email)}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className={`text-xs shrink-0 ${getLevelColor(child.user_level)}`}>
+                            {child.user_level}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
       </CardContent>
     </Card>
   );
