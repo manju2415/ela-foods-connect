@@ -164,8 +164,8 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
     return (
       <div key={user.user_id} className="relative">
         <div 
-          className={`flex items-center gap-2 p-3 border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
-          style={{ marginLeft: `${depth * 16}px` }}
+          className={`flex items-start gap-2 p-3 border-l-4 ${getDepthColor(depth)} bg-card rounded-r-lg mb-2 hover:bg-muted/50 transition-colors`}
+          style={{ marginLeft: `${Math.min(depth, 4) * 12}px` }}
         >
           {hasChildren ? (
             <Button
