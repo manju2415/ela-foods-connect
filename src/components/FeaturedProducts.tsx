@@ -94,7 +94,7 @@ const FeaturedProducts = () => {
             Featured Products
           </h2>
           <p className="text-muted-foreground">
-            Top picks loved by thousands of shoppers across the country
+            Top picks loved by thousands of shoppers across the country.
           </p>
         </div>
 
