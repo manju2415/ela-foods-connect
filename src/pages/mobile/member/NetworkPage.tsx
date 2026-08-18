@@ -7,6 +7,7 @@ import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, User, ChevronRight } from "lucide-react";
+import { displayContact } from "@/components/dashboard/NetworkTreeVisual";
 
 interface NetworkMember {
   user_id: string;
