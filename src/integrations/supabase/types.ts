@@ -303,11 +303,13 @@ export type Database = {
       }
       coupons: {
         Row: {
+          audience: string
           code: string
           created_at: string
           description: string | null
           discount_type: string
           discount_value: number
+          first_order_only: boolean
           id: string
           is_active: boolean | null
           max_discount_amount: number | null
@@ -319,11 +321,13 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          audience?: string
           code: string
           created_at?: string
           description?: string | null
           discount_type: string
           discount_value: number
+          first_order_only?: boolean
           id?: string
           is_active?: boolean | null
           max_discount_amount?: number | null
@@ -335,11 +339,13 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          audience?: string
           code?: string
           created_at?: string
           description?: string | null
           discount_type?: string
           discount_value?: number
+          first_order_only?: boolean
           id?: string
           is_active?: boolean | null
           max_discount_amount?: number | null
