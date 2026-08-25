@@ -119,7 +119,6 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
         setContactPickerOpen(true);
         return;
       }
-      return;
     }
     try {
       const contact = await pickContactWeb();
