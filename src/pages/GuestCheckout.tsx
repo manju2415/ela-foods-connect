@@ -441,7 +441,7 @@ const GuestCheckout = () => {
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setStep("summary")}>Back</Button>
         <Button size="lg" onClick={handlePlaceOrder} disabled={placing}>
-          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</> : paymentMethod === "cod" ? "Place Order" : `Pay ₹${finalAmount.toFixed(2)}`}
+          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</> : `Pay ₹${finalAmount.toFixed(2)}`}
         </Button>
       </div>
     </div>
@@ -461,7 +461,7 @@ const GuestCheckout = () => {
         <CardContent className="pt-6 space-y-3">
           <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-semibold">{orderResult?.orderNumber}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-primary">₹{finalAmount.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Cash on Delivery</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Paid online</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Est. Delivery</span><span>2-4 business days</span></div>
         </CardContent>
       </Card>
