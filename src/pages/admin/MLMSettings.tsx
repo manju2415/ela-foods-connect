@@ -350,7 +350,13 @@ const MLMSettings = () => {
             <CardContent className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-4 p-4 border rounded-lg">
-                  <h4 className="font-medium">Master Commission</h4>
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Master Commission</h4>
+                    <Switch
+                      checked={settings.purchase_commission_rate?.enabled !== false}
+                      onCheckedChange={(checked) => updateSetting("purchase_commission_rate", "enabled", checked)}
+                    />
+                  </div>
                   <div className="space-y-2">
                     <Label>Commission Rate (%)</Label>
                     <Input
@@ -358,14 +364,18 @@ const MLMSettings = () => {
                       min="0"
                       max="100"
                       step="0.5"
+                      disabled={settings.purchase_commission_rate?.enabled === false}
                       value={settings.purchase_commission_rate?.percentage as number || 5}
                       onChange={(e) => updateSetting("purchase_commission_rate", "percentage", Number(e.target.value))}
                     />
                     <p className="text-xs text-muted-foreground">
-                      Percentage of purchase amount credited to master's wallet (purchase only)
+                      {settings.purchase_commission_rate?.enabled === false
+                        ? "Purchase commission is disabled — no commission is credited on associate purchases."
+                        : "Percentage of purchase amount credited to master's wallet (purchase only)"}
                     </p>
                   </div>
                 </div>
+
 
                 <div className="space-y-4 p-4 border rounded-lg bg-primary/5">
                   <div className="flex items-center justify-between">
