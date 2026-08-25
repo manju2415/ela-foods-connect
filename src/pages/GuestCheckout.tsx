@@ -67,7 +67,7 @@ const GuestCheckout = () => {
     postal_code: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<string>("cod");
+  const [paymentMethod, setPaymentMethod] = useState<string>("upi");
 
   useEffect(() => {
     if (user) {
