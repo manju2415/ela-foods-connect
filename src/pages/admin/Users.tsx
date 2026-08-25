@@ -60,6 +60,9 @@ interface User {
   is_active: boolean;
   created_at: string;
   roles: AppRole[];
+  wallet_balance: number;
+  withdrawable_balance: number;
+  purchase_only_balance: number;
 }
 
 const ROLE_COLORS: Record<AppRole, string> = {
@@ -99,6 +102,22 @@ export default function UsersPage() {
         .select("user_id, role")
         .in("user_id", userIds);
 
+      const { data: wallets } = await supabase
+        .from("wallets")
+        .select("user_id, balance, withdrawable_balance, purchase_only_balance")
+        .in("user_id", userIds);
+
+      const walletMap = new Map(
+        (wallets || []).map((w) => [
+          w.user_id,
+          {
+            wallet_balance: Number(w.balance ?? 0),
+            withdrawable_balance: Number(w.withdrawable_balance ?? 0),
+            purchase_only_balance: Number(w.purchase_only_balance ?? 0),
+          },
+        ]),
+      );
+
       const rolesMap = new Map<string, AppRole[]>();
       roles?.forEach(r => {
         const existing = rolesMap.get(r.user_id) || [];
@@ -108,6 +127,11 @@ export default function UsersPage() {
       return profiles.map(profile => ({
         ...profile,
         roles: rolesMap.get(profile.id) || [],
+        ...(walletMap.get(profile.id) || {
+          wallet_balance: 0,
+          withdrawable_balance: 0,
+          purchase_only_balance: 0,
+        }),
       })) as User[];
     },
   });
@@ -260,6 +284,7 @@ export default function UsersPage() {
                     <TableHead>User</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Roles</TableHead>
+                    <TableHead>Wallet</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -291,6 +316,12 @@ export default function UsersPage() {
                               </Badge>
                             ))
                           )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">₹{user.wallet_balance.toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground">
+                          W ₹{user.withdrawable_balance.toFixed(2)} · P ₹{user.purchase_only_balance.toFixed(2)}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -373,6 +404,7 @@ export default function UsersPage() {
                           )}
                         </div>
                       </AdminMobileField>
+                      <AdminMobileField label="Wallet">₹{user.wallet_balance.toFixed(2)}<span className="block text-xs text-muted-foreground">W ₹{user.withdrawable_balance.toFixed(2)} · P ₹{user.purchase_only_balance.toFixed(2)}</span></AdminMobileField>
                       <AdminMobileField label="Joined">{format(new Date(user.created_at), "MMM d, yyyy")}</AdminMobileField>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-1">
