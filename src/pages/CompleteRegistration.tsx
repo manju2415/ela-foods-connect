@@ -77,10 +77,6 @@ const registrationSchema = z.object({
   city: z.string().trim().min(2, "City is required"),
   state: z.string().trim().min(2, "State is required"),
   postal_code: z.string().trim().min(6, "Enter a valid 6-digit PIN code").max(6),
-  bank_name: z.string().trim().min(2, "Bank name is required"),
-  bank_account_number: z.string().trim().min(8, "Enter a valid account number"),
-  bank_ifsc: z.string().trim().min(11, "Enter a valid 11-character IFSC code").max(11),
-  bank_account_holder: z.string().trim().min(2, "Account holder name is required"),
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -106,10 +102,6 @@ const CompleteRegistration = () => {
       city: "",
       state: "",
       postal_code: "",
-      bank_name: "",
-      bank_account_number: "",
-      bank_ifsc: "",
-      bank_account_holder: "",
     },
   });
 
@@ -129,17 +121,17 @@ const CompleteRegistration = () => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, phone, bank_account_number, registration_fee_paid")
+      .select("full_name, phone, bank_account_number, accepted_agreement_at, registration_fee_paid")
       .eq("id", user.id)
       .single();
 
     if (profile) {
       // Check if profile is already complete
       const hasPhone = !!profile.phone;
-      const hasBankDetails = !!profile.bank_account_number;
+      const hasRegistered = !!profile.accepted_agreement_at || !!profile.bank_account_number;
       const hasPaid = (profile.registration_fee_paid || 0) > 0;
 
-      if (hasPhone && hasBankDetails) {
+      if (hasPhone && hasRegistered) {
         setProfileComplete(true);
         // If profile is complete but payment pending, go to payment
         if (!hasPaid) {
@@ -198,10 +190,6 @@ const CompleteRegistration = () => {
         .update({
           full_name: data.full_name,
           phone: data.phone,
-          bank_name: data.bank_name,
-          bank_account_number: data.bank_account_number,
-          bank_ifsc: data.bank_ifsc,
-          bank_account_holder: data.bank_account_holder,
           accepted_agreement_at: new Date().toISOString(),
 
         })
