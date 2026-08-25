@@ -38,6 +38,26 @@ export async function pickContactWeb(): Promise<PickedContact | null> {
   };
 }
 
+/**
+ * Native OS contact picker (Android/iOS). Opens the system picker so no
+ * READ_CONTACTS permission prompt is needed. Returns null if cancelled.
+ */
+export async function pickContactNative(): Promise<PickedContact | null> {
+  const { Contacts } = await import("@capacitor-community/contacts");
+  const result = await Contacts.pickContact({
+    projection: { name: true, phones: true },
+  });
+  const contact = result?.contact;
+  if (!contact) return null;
+
+  const name = contact.name?.display?.trim() || "";
+  for (const p of contact.phones ?? []) {
+    const phone = normalisePhone(p.number ?? "");
+    if (phone.length === 10) return { name, phone };
+  }
+  return { name, phone: "" };
+}
+
 /** Requests contacts permission on the device. Throws if denied. */
 export async function ensureContactsPermission(): Promise<void> {
   const { Contacts } = await import("@capacitor-community/contacts");

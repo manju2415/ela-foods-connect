@@ -21,6 +21,7 @@ import { ContactPickerDialog } from "@/components/ContactPickerDialog";
 import {
   isContactPickerAvailable,
   isNativeContacts,
+  pickContactNative,
   pickContactWeb,
   type PickedContact,
 } from "@/lib/contacts";
@@ -102,8 +103,22 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
 
   const pickFromContacts = async () => {
     if (isNativeContacts()) {
-      setContactPickerOpen(true);
-      return;
+      try {
+        const contact = await pickContactNative();
+        if (contact) {
+          if (!contact.phone) {
+            toast({ title: "No mobile number", description: "That contact has no valid 10-digit number.", variant: "destructive" });
+            return;
+          }
+          applyContact(contact);
+          return;
+        }
+        return;
+      } catch {
+        // System picker unavailable — fall back to the in-app list
+        setContactPickerOpen(true);
+        return;
+      }
     }
     try {
       const contact = await pickContactWeb();

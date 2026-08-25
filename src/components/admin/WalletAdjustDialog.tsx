@@ -47,6 +47,50 @@ export function WalletAdjustDialog({
     withdrawable_balance: number;
     purchase_only_balance: number;
   } | null>(null);
+  const [transactions, setTransactions] = useState<
+    Array<{
+      id: string;
+      type: string;
+      amount: number;
+      balance_after: number;
+      description: string | null;
+      created_at: string;
+      is_withdrawable: boolean | null;
+    }>
+  >([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
+  const loadWallet = async (uid: string) => {
+    const { data: wallet } = await supabase
+      .from("wallets")
+      .select("id, balance, withdrawable_balance, purchase_only_balance")
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    setBalances(
+      wallet
+        ? {
+            balance: Number(wallet.balance ?? 0),
+            withdrawable_balance: Number(wallet.withdrawable_balance ?? 0),
+            purchase_only_balance: Number(wallet.purchase_only_balance ?? 0),
+          }
+        : { balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 },
+    );
+
+    if (!wallet?.id) {
+      setTransactions([]);
+      return;
+    }
+    setLoadingHistory(true);
+    const { data: txns } = await supabase
+      .from("wallet_transactions")
+      .select("id, type, amount, balance_after, description, created_at, is_withdrawable")
+      .eq("wallet_id", wallet.id)
+      .order("created_at", { ascending: false })
+      .limit(25);
+    setTransactions(txns || []);
+    setLoadingHistory(false);
+  };
 
   useEffect(() => {
     if (!open || !userId) return;
@@ -54,22 +98,8 @@ export function WalletAdjustDialog({
     setReason("");
     setDirection("credit");
     setBucket("withdrawable");
-    supabase
-      .from("wallets")
-      .select("balance, withdrawable_balance, purchase_only_balance")
-      .eq("user_id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setBalances(
-          data
-            ? {
-                balance: Number(data.balance ?? 0),
-                withdrawable_balance: Number(data.withdrawable_balance ?? 0),
-                purchase_only_balance: Number(data.purchase_only_balance ?? 0),
-              }
-            : { balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 },
-        );
-      });
+    setTransactions([]);
+    void loadWallet(userId);
   }, [open, userId]);
 
   const handleSubmit = async () => {
@@ -103,7 +133,9 @@ export function WalletAdjustDialog({
     toast.success(
       `₹${value.toFixed(2)} ${direction === "credit" ? "credited to" : "debited from"} the wallet`,
     );
-    onOpenChange(false);
+    await loadWallet(userId);
+    setAmount("");
+    setReason("");
     onSuccess?.();
   };
 
@@ -188,9 +220,40 @@ export function WalletAdjustDialog({
           </div>
         </div>
 
+        <div className="space-y-2">
+          <Label>Recent transactions</Label>
+          <div className="max-h-56 space-y-2 overflow-y-auto rounded-lg border p-2">
+            {loadingHistory ? (
+              <div className="flex justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">No transactions yet</p>
+            ) : (
+              transactions.map((txn) => {
+                const isDebit = txn.type === "debit" || txn.type === "purchase";
+                return (
+                  <div key={txn.id} className="flex items-start justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm">{txn.description || txn.type}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(txn.created_at).toLocaleString("en-IN")} ·{" "}
+                        {txn.is_withdrawable ? "Withdrawable" : "Purchase only"}
+                      </p>
+                    </div>
+                    <p className={`shrink-0 text-sm font-semibold ${isDebit ? "text-destructive" : "text-green-600"}`}>
+                      {isDebit ? "-" : "+"}₹{Number(txn.amount).toFixed(2)}
+                    </p>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
+            Close
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
