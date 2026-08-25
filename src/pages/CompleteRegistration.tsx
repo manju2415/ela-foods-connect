@@ -14,9 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IfscInput } from "@/components/IfscInput";
 import { UserAgreementDialog } from "@/components/UserAgreementDialog";
-import { Loader2, MapPin, Building2, User, Phone, CheckCircle2 } from "lucide-react";
+import { Loader2, MapPin, User, Phone, CheckCircle2 } from "lucide-react";
 
 
 const INDIAN_STATES = [

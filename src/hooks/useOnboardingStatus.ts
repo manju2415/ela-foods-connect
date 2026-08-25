@@ -39,7 +39,7 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
       const [profileRes, roleRes] = await Promise.all([
         supabase
           .from("profiles")
-          .select("phone, bank_account_number, registration_fee_paid, user_level")
+          .select("phone, accepted_agreement_at, registration_fee_paid, user_level")
           .eq("id", uid)
           .single(),
         supabase
@@ -85,8 +85,8 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
       }
 
       const hasPhone = !!profile.phone;
-      const hasBankDetails = !!profile.bank_account_number;
-      const isProfileComplete = hasPhone && hasBankDetails;
+      const hasAcceptedAgreement = !!profile.accepted_agreement_at;
+      const isProfileComplete = hasPhone && hasAcceptedAgreement;
       const isPaymentComplete = (profile.registration_fee_paid || 0) > 0;
 
       setStatus({

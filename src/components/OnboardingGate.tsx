@@ -48,7 +48,7 @@ export default function OnboardingGate() {
           .eq("user_id", user.id),
         supabase
           .from("profiles")
-          .select("phone, bank_account_number, registration_fee_paid")
+          .select("phone, accepted_agreement_at, registration_fee_paid")
           .eq("id", user.id)
           .maybeSingle(),
       ]);
@@ -67,7 +67,7 @@ export default function OnboardingGate() {
       const profile = profileRes.data;
       if (!profile) return;
 
-      const profileComplete = !!profile.phone && !!profile.bank_account_number;
+      const profileComplete = !!profile.phone && !!profile.accepted_agreement_at;
       const paymentComplete = (profile.registration_fee_paid || 0) > 0;
 
       let skippedPayment = false;

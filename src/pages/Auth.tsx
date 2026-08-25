@@ -210,7 +210,7 @@ const Auth = () => {
 
     const { data: profileData } = await supabase
       .from("profiles")
-      .select("phone, bank_account_number, registration_fee_paid, user_level")
+      .select("phone, accepted_agreement_at, registration_fee_paid, user_level")
       .eq("id", verifiedUser.id)
       .single();
 
@@ -225,10 +225,10 @@ const Auth = () => {
       .maybeSingle();
 
     const isAdmin = !!adminRoleData;
-    const hasBankDetails = !!profileData?.bank_account_number;
+    const isProfileComplete = !!profileData?.phone && !!profileData?.accepted_agreement_at;
     const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
 
-    if (!isAdmin && !hasBankDetails) {
+    if (!isAdmin && !isProfileComplete) {
       navigate("/complete-registration", { replace: true });
       return;
     }
