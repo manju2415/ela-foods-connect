@@ -56,6 +56,8 @@ interface Coupon {
   is_active: boolean;
   valid_from: string;
   valid_until: string | null;
+  first_order_only: boolean;
+  audience: string;
 }
 
 interface CouponFormData {
@@ -68,6 +70,8 @@ interface CouponFormData {
   usage_limit: string;
   is_active: boolean;
   valid_until: string;
+  first_order_only: boolean;
+  audience: string;
 }
 
 const initialFormData: CouponFormData = {
@@ -80,6 +84,14 @@ const initialFormData: CouponFormData = {
   usage_limit: "",
   is_active: true,
   valid_until: "",
+  first_order_only: false,
+  audience: "all",
+};
+
+const AUDIENCE_LABELS: Record<string, string> = {
+  all: "All customers",
+  members: "Members only",
+  non_members: "Non-members only",
 };
 
 export default function Coupons() {
@@ -115,6 +127,8 @@ export default function Coupons() {
         usage_limit: data.usage_limit ? parseInt(data.usage_limit) : null,
         is_active: data.is_active,
         valid_until: data.valid_until || null,
+        first_order_only: data.first_order_only,
+        audience: data.audience,
       });
       if (error) throw error;
     },
@@ -140,6 +154,8 @@ export default function Coupons() {
           usage_limit: data.usage_limit ? parseInt(data.usage_limit) : null,
           is_active: data.is_active,
           valid_until: data.valid_until || null,
+          first_order_only: data.first_order_only,
+          audience: data.audience,
         })
         .eq("id", id);
       if (error) throw error;
@@ -183,6 +199,8 @@ export default function Coupons() {
       usage_limit: coupon.usage_limit?.toString() || "",
       is_active: coupon.is_active,
       valid_until: coupon.valid_until?.split("T")[0] || "",
+      first_order_only: coupon.first_order_only ?? false,
+      audience: coupon.audience || "all",
     });
     setIsDialogOpen(true);
   };
@@ -257,6 +275,7 @@ export default function Coupons() {
                       <TableHead>Code</TableHead>
                       <TableHead>Discount</TableHead>
                       <TableHead>Min Order</TableHead>
+                      <TableHead>Applies To</TableHead>
                       <TableHead>Usage</TableHead>
                       <TableHead>Valid Until</TableHead>
                       <TableHead>Status</TableHead>
@@ -278,6 +297,12 @@ export default function Coupons() {
                           )}
                         </TableCell>
                         <TableCell>₹{coupon.min_order_amount || 0}</TableCell>
+                        <TableCell className="text-xs">
+                          <div>{AUDIENCE_LABELS[coupon.audience] || "All customers"}</div>
+                          <div className="text-muted-foreground">
+                            {coupon.first_order_only ? "First order only" : "All orders"}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           {coupon.usage_count} / {coupon.usage_limit || "∞"}
                         </TableCell>
@@ -324,6 +349,7 @@ export default function Coupons() {
                     <div className="grid grid-cols-2 gap-3">
                       <AdminMobileField label="Discount">{coupon.discount_type === "percentage" ? `${coupon.discount_value}%` : `₹${coupon.discount_value}`}{coupon.max_discount_amount && <span className="block text-xs text-muted-foreground">Max: ₹{coupon.max_discount_amount}</span>}</AdminMobileField>
                       <AdminMobileField label="Min Order">₹{coupon.min_order_amount || 0}</AdminMobileField>
+                      <AdminMobileField label="Applies To">{AUDIENCE_LABELS[coupon.audience] || "All customers"}<span className="block text-xs text-muted-foreground">{coupon.first_order_only ? "First order only" : "All orders"}</span></AdminMobileField>
                       <AdminMobileField label="Usage">{coupon.usage_count} / {coupon.usage_limit || "∞"}</AdminMobileField>
                       <AdminMobileField label="Valid Until">{coupon.valid_until ? new Date(coupon.valid_until).toLocaleDateString() : "No expiry"}</AdminMobileField>
                     </div>
@@ -416,6 +442,39 @@ export default function Coupons() {
                     onChange={(e) => setFormData({ ...formData, usage_limit: e.target.value })}
                     placeholder="Unlimited"
                   />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Order Scope</Label>
+                  <Select
+                    value={formData.first_order_only ? "first" : "all"}
+                    onValueChange={(v) => setFormData({ ...formData, first_order_only: v === "first" })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All orders</SelectItem>
+                      <SelectItem value="first">First order only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Audience</Label>
+                  <Select
+                    value={formData.audience}
+                    onValueChange={(v) => setFormData({ ...formData, audience: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All customers</SelectItem>
+                      <SelectItem value="members">Members only</SelectItem>
+                      <SelectItem value="non_members">Non-members only</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
