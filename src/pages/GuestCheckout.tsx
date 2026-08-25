@@ -403,7 +403,6 @@ const GuestCheckout = () => {
         <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Payment Options</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {[
-            { id: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives", icon: <Package className="h-5 w-5" /> },
             { id: "upi", label: "UPI", desc: "Google Pay, PhonePe, Paytm", icon: <CreditCard className="h-5 w-5" /> },
             { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: <CreditCard className="h-5 w-5" /> },
           ].map((opt) => (
