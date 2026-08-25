@@ -157,77 +157,60 @@ const GuestCheckout = () => {
     setPlacing(true);
 
     try {
-      if (paymentMethod !== "cod" && finalAmount > 0) {
-        // Online payment via Razorpay first, then place order on success
-        await initiateRazorpayPayment({
-          amount: finalAmount,
-          receipt: `guest_${Date.now()}`,
-          notes: { description: "Guest Order" },
-          purpose: "guest_order",
-          prefill: {
-            name: guestDetails.full_name,
-            contact: guestDetails.phone,
-            email: guestDetails.email,
-          },
-          onSuccess: async () => {
-            // Place the order after successful payment
-            const { data, error } = await supabase.functions.invoke("place-guest-order", {
-              body: {
-                guest_details: guestDetails,
-                items: items.map((item) => ({
-                  product_id: item.product_id,
-                  quantity: item.quantity,
-                })),
-                coupon_code: appliedCoupon?.code || null,
-                discount_amount: discountAmount,
-                payment_method: "online",
-              },
+      // Guest orders are always paid online — the order is created only after
+      // Razorpay confirms and the payment is verified server-side.
+      await initiateRazorpayPayment({
+        amount: finalAmount,
+        receipt: `guest_${Date.now()}`,
+        notes: { description: "Guest Order" },
+        purpose: "guest_order",
+        prefill: {
+          name: guestDetails.full_name,
+          contact: guestDetails.phone,
+          email: guestDetails.email,
+        },
+        onSuccess: async (response) => {
+          const { data, error } = await supabase.functions.invoke("place-guest-order", {
+            body: {
+              guest_details: guestDetails,
+              items: items.map((item) => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+              })),
+              coupon_code: appliedCoupon?.code || null,
+              discount_amount: discountAmount,
+              payment_method: "online",
+              payment_reference: response?.razorpay_payment_id || null,
+            },
+          });
+
+          if (error || !data?.success) {
+            toast({
+              title: "Order creation failed",
+              description:
+                "Your payment went through but the order could not be created. Please contact support with your payment reference.",
+              variant: "destructive",
             });
-
-            if (error || !data?.success) {
-              toast({ title: "Error", description: "Order creation failed after payment.", variant: "destructive" });
-              setPlacing(false);
-              return;
-            }
-
-            localStorage.removeItem("ela_guest_cart");
-            setOrderResult({ orderNumber: data.order_number });
-            setStep("confirmation");
             setPlacing(false);
-          },
-          onFailure: (error) => {
-            console.error("Payment failed:", error);
-            toast({ title: "Payment Failed", description: "Please try again or use Cash on Delivery.", variant: "destructive" });
-            setPlacing(false);
-          },
-        });
-        return;
-      }
+            return;
+          }
 
-      // COD flow
-      const { data, error } = await supabase.functions.invoke("place-guest-order", {
-        body: {
-          guest_details: guestDetails,
-          items: items.map((item) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-          })),
-          coupon_code: appliedCoupon?.code || null,
-          discount_amount: discountAmount,
-          payment_method: paymentMethod,
+          localStorage.removeItem("ela_guest_cart");
+          setOrderResult({ orderNumber: data.order_number });
+          setStep("confirmation");
+          setPlacing(false);
+        },
+        onFailure: (error) => {
+          console.error("Payment failed:", error);
+          toast({
+            title: "Payment not completed",
+            description: "No order was created. Please complete the payment to confirm your order.",
+            variant: "destructive",
+          });
+          setPlacing(false);
         },
       });
-
-      if (error || !data?.success) {
-        console.error("Guest order error:", error || data?.error);
-        toast({ title: "Error", description: data?.error || "Failed to place order. Please try again.", variant: "destructive" });
-        setPlacing(false);
-        return;
-      }
-
-      localStorage.removeItem("ela_guest_cart");
-      setOrderResult({ orderNumber: data.order_number });
-      setStep("confirmation");
+      return;
     } catch (err) {
       console.error("Guest order error:", err);
       toast({ title: "Error", description: "Failed to place order. Please try again.", variant: "destructive" });
