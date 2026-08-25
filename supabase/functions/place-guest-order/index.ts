@@ -17,7 +17,15 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { guest_details, items, coupon_code, discount_amount, payment_method } = body;
+    const { guest_details, items, coupon_code, discount_amount, payment_method, payment_reference } = body;
+
+    // Guest orders must be paid online — no cash on delivery.
+    if (payment_method !== "online") {
+      return new Response(JSON.stringify({ error: "Guest orders must be paid online" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!guest_details || !items || items.length === 0) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -123,16 +131,16 @@ serve(async (req) => {
         user_id: guestUserId,
         order_number: orderNumber,
         status: "pending",
-        payment_status: "pending",
+        payment_status: "completed",
         subtotal,
         shipping_amount: shippingAmount,
         discount_amount: finalDiscount,
         wallet_amount_used: 0,
         total_amount: totalAmount,
         coupon_code: coupon_code || null,
-        is_cod: payment_method === "cod",
-        cod_amount: payment_method === "cod" ? totalAmount : 0,
-        notes: `Guest Order - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
+        is_cod: false,
+        cod_amount: 0,
+        notes: `Guest Order (paid online${payment_reference ? `, ref: ${payment_reference}` : ""}) - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
         shipping_address: {
           full_name: guest_details.full_name,
           email: guest_details.email || "",

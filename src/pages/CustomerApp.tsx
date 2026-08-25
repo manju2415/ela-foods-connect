@@ -47,11 +47,11 @@ export default function CustomerApp() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("bank_account_number, registration_fee_paid")
+        .select("phone, accepted_agreement_at, registration_fee_paid")
         .eq("id", user.id)
         .single();
 
-      const hasBankDetails = !!profile?.bank_account_number;
+      const isProfileComplete = !!profile?.phone && !!profile?.accepted_agreement_at;
       const isPaymentComplete = (profile?.registration_fee_paid || 0) > 0;
 
       let skippedPayment = false;
@@ -61,12 +61,12 @@ export default function CustomerApp() {
         /* ignore storage errors */
       }
 
-      if (!hasBankDetails) {
+      if (!isProfileComplete) {
         navigate("/complete-registration", { replace: true });
         return;
       }
 
-      if (hasBankDetails && !isPaymentComplete && !skippedPayment) {
+      if (isProfileComplete && !isPaymentComplete && !skippedPayment) {
         navigate("/registration-payment", { replace: true });
         return;
       }

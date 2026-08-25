@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  MapPin, Package, CreditCard, Ticket, X, Check,
+  MapPin, CreditCard, Ticket, X, Check,
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2,
 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
@@ -67,7 +67,7 @@ const GuestCheckout = () => {
     postal_code: "",
   });
 
-  const [paymentMethod, setPaymentMethod] = useState<string>("cod");
+  const [paymentMethod, setPaymentMethod] = useState<string>("upi");
 
   useEffect(() => {
     if (user) {
@@ -157,77 +157,60 @@ const GuestCheckout = () => {
     setPlacing(true);
 
     try {
-      if (paymentMethod !== "cod" && finalAmount > 0) {
-        // Online payment via Razorpay first, then place order on success
-        await initiateRazorpayPayment({
-          amount: finalAmount,
-          receipt: `guest_${Date.now()}`,
-          notes: { description: "Guest Order" },
-          purpose: "guest_order",
-          prefill: {
-            name: guestDetails.full_name,
-            contact: guestDetails.phone,
-            email: guestDetails.email,
-          },
-          onSuccess: async () => {
-            // Place the order after successful payment
-            const { data, error } = await supabase.functions.invoke("place-guest-order", {
-              body: {
-                guest_details: guestDetails,
-                items: items.map((item) => ({
-                  product_id: item.product_id,
-                  quantity: item.quantity,
-                })),
-                coupon_code: appliedCoupon?.code || null,
-                discount_amount: discountAmount,
-                payment_method: "online",
-              },
+      // Guest orders are always paid online — the order is created only after
+      // Razorpay confirms and the payment is verified server-side.
+      await initiateRazorpayPayment({
+        amount: finalAmount,
+        receipt: `guest_${Date.now()}`,
+        notes: { description: "Guest Order" },
+        purpose: "guest_order",
+        prefill: {
+          name: guestDetails.full_name,
+          contact: guestDetails.phone,
+          email: guestDetails.email,
+        },
+        onSuccess: async (response) => {
+          const { data, error } = await supabase.functions.invoke("place-guest-order", {
+            body: {
+              guest_details: guestDetails,
+              items: items.map((item) => ({
+                product_id: item.product_id,
+                quantity: item.quantity,
+              })),
+              coupon_code: appliedCoupon?.code || null,
+              discount_amount: discountAmount,
+              payment_method: "online",
+              payment_reference: response?.razorpay_payment_id || null,
+            },
+          });
+
+          if (error || !data?.success) {
+            toast({
+              title: "Order creation failed",
+              description:
+                "Your payment went through but the order could not be created. Please contact support with your payment reference.",
+              variant: "destructive",
             });
-
-            if (error || !data?.success) {
-              toast({ title: "Error", description: "Order creation failed after payment.", variant: "destructive" });
-              setPlacing(false);
-              return;
-            }
-
-            localStorage.removeItem("ela_guest_cart");
-            setOrderResult({ orderNumber: data.order_number });
-            setStep("confirmation");
             setPlacing(false);
-          },
-          onFailure: (error) => {
-            console.error("Payment failed:", error);
-            toast({ title: "Payment Failed", description: "Please try again or use Cash on Delivery.", variant: "destructive" });
-            setPlacing(false);
-          },
-        });
-        return;
-      }
+            return;
+          }
 
-      // COD flow
-      const { data, error } = await supabase.functions.invoke("place-guest-order", {
-        body: {
-          guest_details: guestDetails,
-          items: items.map((item) => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-          })),
-          coupon_code: appliedCoupon?.code || null,
-          discount_amount: discountAmount,
-          payment_method: paymentMethod,
+          localStorage.removeItem("ela_guest_cart");
+          setOrderResult({ orderNumber: data.order_number });
+          setStep("confirmation");
+          setPlacing(false);
+        },
+        onFailure: (error) => {
+          console.error("Payment failed:", error);
+          toast({
+            title: "Payment not completed",
+            description: "No order was created. Please complete the payment to confirm your order.",
+            variant: "destructive",
+          });
+          setPlacing(false);
         },
       });
-
-      if (error || !data?.success) {
-        console.error("Guest order error:", error || data?.error);
-        toast({ title: "Error", description: data?.error || "Failed to place order. Please try again.", variant: "destructive" });
-        setPlacing(false);
-        return;
-      }
-
-      localStorage.removeItem("ela_guest_cart");
-      setOrderResult({ orderNumber: data.order_number });
-      setStep("confirmation");
+      return;
     } catch (err) {
       console.error("Guest order error:", err);
       toast({ title: "Error", description: "Failed to place order. Please try again.", variant: "destructive" });
@@ -420,7 +403,6 @@ const GuestCheckout = () => {
         <CardHeader><CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Payment Options</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {[
-            { id: "cod", label: "Cash on Delivery", desc: "Pay when your order arrives", icon: <Package className="h-5 w-5" /> },
             { id: "upi", label: "UPI", desc: "Google Pay, PhonePe, Paytm", icon: <CreditCard className="h-5 w-5" /> },
             { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: <CreditCard className="h-5 w-5" /> },
           ].map((opt) => (
@@ -443,11 +425,9 @@ const GuestCheckout = () => {
               </div>
             </div>
           ))}
-          {paymentMethod !== "cod" && (
-            <p className="text-sm text-primary text-center pt-2 font-medium">
-              You'll be redirected to Razorpay for secure payment.
-            </p>
-          )}
+          <p className="text-sm text-primary text-center pt-2 font-medium">
+            You'll be redirected to Razorpay for secure payment. Your order is confirmed only after payment succeeds.
+          </p>
         </CardContent>
       </Card>
 
@@ -461,7 +441,7 @@ const GuestCheckout = () => {
       <div className="flex justify-between">
         <Button variant="outline" onClick={() => setStep("summary")}>Back</Button>
         <Button size="lg" onClick={handlePlaceOrder} disabled={placing}>
-          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</> : paymentMethod === "cod" ? "Place Order" : `Pay ₹${finalAmount.toFixed(2)}`}
+          {placing ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</> : `Pay ₹${finalAmount.toFixed(2)}`}
         </Button>
       </div>
     </div>
@@ -481,7 +461,7 @@ const GuestCheckout = () => {
         <CardContent className="pt-6 space-y-3">
           <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-semibold">{orderResult?.orderNumber}</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-primary">₹{finalAmount.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Cash on Delivery</span></div>
+          <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Paid online</span></div>
           <div className="flex justify-between"><span className="text-muted-foreground">Est. Delivery</span><span>2-4 business days</span></div>
         </CardContent>
       </Card>

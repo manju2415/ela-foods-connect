@@ -14,9 +14,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
-import { IfscInput } from "@/components/IfscInput";
 import { UserAgreementDialog } from "@/components/UserAgreementDialog";
-import { Loader2, MapPin, Building2, User, Phone, CheckCircle2 } from "lucide-react";
+import { Loader2, MapPin, User, Phone, CheckCircle2 } from "lucide-react";
 
 
 const INDIAN_STATES = [
@@ -77,10 +76,6 @@ const registrationSchema = z.object({
   city: z.string().trim().min(2, "City is required"),
   state: z.string().trim().min(2, "State is required"),
   postal_code: z.string().trim().min(6, "Enter a valid 6-digit PIN code").max(6),
-  bank_name: z.string().trim().min(2, "Bank name is required"),
-  bank_account_number: z.string().trim().min(8, "Enter a valid account number"),
-  bank_ifsc: z.string().trim().min(11, "Enter a valid 11-character IFSC code").max(11),
-  bank_account_holder: z.string().trim().min(2, "Account holder name is required"),
 });
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
@@ -106,10 +101,6 @@ const CompleteRegistration = () => {
       city: "",
       state: "",
       postal_code: "",
-      bank_name: "",
-      bank_account_number: "",
-      bank_ifsc: "",
-      bank_account_holder: "",
     },
   });
 
@@ -129,17 +120,17 @@ const CompleteRegistration = () => {
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, phone, bank_account_number, registration_fee_paid")
+      .select("full_name, phone, bank_account_number, accepted_agreement_at, registration_fee_paid")
       .eq("id", user.id)
       .single();
 
     if (profile) {
       // Check if profile is already complete
       const hasPhone = !!profile.phone;
-      const hasBankDetails = !!profile.bank_account_number;
+      const hasRegistered = !!profile.accepted_agreement_at || !!profile.bank_account_number;
       const hasPaid = (profile.registration_fee_paid || 0) > 0;
 
-      if (hasPhone && hasBankDetails) {
+      if (hasPhone && hasRegistered) {
         setProfileComplete(true);
         // If profile is complete but payment pending, go to payment
         if (!hasPaid) {
@@ -198,10 +189,6 @@ const CompleteRegistration = () => {
         .update({
           full_name: data.full_name,
           phone: data.phone,
-          bank_name: data.bank_name,
-          bank_account_number: data.bank_account_number,
-          bank_ifsc: data.bank_ifsc,
-          bank_account_holder: data.bank_account_holder,
           accepted_agreement_at: new Date().toISOString(),
 
         })
@@ -467,71 +454,6 @@ const CompleteRegistration = () => {
                     />
                     {form.formState.errors.postal_code && (
                       <p className="text-sm text-destructive">{form.formState.errors.postal_code.message}</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bank Details */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Bank Account Details
-                </CardTitle>
-                <CardDescription>Required for withdrawal of earnings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_name">Bank Name *</Label>
-                    <Input
-                      id="bank_name"
-                      placeholder="e.g., State Bank of India"
-                      {...form.register("bank_name")}
-                    />
-                    {form.formState.errors.bank_name && (
-                      <p className="text-sm text-destructive">{form.formState.errors.bank_name.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_ifsc">IFSC Code *</Label>
-                    <IfscInput
-                      id="bank_ifsc"
-                      value={form.watch("bank_ifsc")}
-                      onChange={(v) => form.setValue("bank_ifsc", v, { shouldValidate: true })}
-                      onVerified={(details) => {
-                        if (details?.bank) form.setValue("bank_name", details.bank, { shouldValidate: true });
-                      }}
-                    />
-                    {form.formState.errors.bank_ifsc && (
-                      <p className="text-sm text-destructive">{form.formState.errors.bank_ifsc.message}</p>
-                    )}
-                  </div>
-
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_account_number">Account Number *</Label>
-                    <Input
-                      id="bank_account_number"
-                      placeholder="Account number"
-                      {...form.register("bank_account_number")}
-                    />
-                    {form.formState.errors.bank_account_number && (
-                      <p className="text-sm text-destructive">{form.formState.errors.bank_account_number.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bank_account_holder">Account Holder Name *</Label>
-                    <Input
-                      id="bank_account_holder"
-                      placeholder="Name as per bank records"
-                      {...form.register("bank_account_holder")}
-                    />
-                    {form.formState.errors.bank_account_holder && (
-                      <p className="text-sm text-destructive">{form.formState.errors.bank_account_holder.message}</p>
                     )}
                   </div>
                 </div>
