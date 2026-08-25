@@ -425,11 +425,9 @@ const GuestCheckout = () => {
               </div>
             </div>
           ))}
-          {paymentMethod !== "cod" && (
-            <p className="text-sm text-primary text-center pt-2 font-medium">
-              You'll be redirected to Razorpay for secure payment.
-            </p>
-          )}
+          <p className="text-sm text-primary text-center pt-2 font-medium">
+            You'll be redirected to Razorpay for secure payment. Your order is confirmed only after payment succeeds.
+          </p>
         </CardContent>
       </Card>
 
