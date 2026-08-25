@@ -17,7 +17,15 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { guest_details, items, coupon_code, discount_amount, payment_method } = body;
+    const { guest_details, items, coupon_code, discount_amount, payment_method, payment_reference } = body;
+
+    // Guest orders must be paid online — no cash on delivery.
+    if (payment_method !== "online") {
+      return new Response(JSON.stringify({ error: "Guest orders must be paid online" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!guest_details || !items || items.length === 0) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
