@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
-  MapPin, Package, CreditCard, Ticket, X, Check,
+  MapPin, CreditCard, Ticket, X, Check,
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2,
 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
