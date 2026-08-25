@@ -238,11 +238,37 @@ const Checkout = () => {
       return;
     }
 
+    if (data.audience === "members" && !isMember) {
+      setCouponError("This coupon is only for members");
+      setCouponLoading(false);
+      return;
+    }
+
+    if (data.audience === "non_members" && isMember) {
+      setCouponError("This coupon is only for non-member customers");
+      setCouponLoading(false);
+      return;
+    }
+
+    if (data.first_order_only && user) {
+      const { count } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .neq("status", "cancelled");
+      if ((count || 0) > 0) {
+        setCouponError("This coupon is valid on your first order only");
+        setCouponLoading(false);
+        return;
+      }
+    }
+
     if (data.usage_limit && data.usage_count >= data.usage_limit) {
       setCouponError("Coupon usage limit reached");
       setCouponLoading(false);
       return;
     }
+
 
     if (data.valid_until && new Date(data.valid_until) < new Date()) {
       setCouponError("Coupon has expired");
