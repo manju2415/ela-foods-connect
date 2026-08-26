@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Package, User, Wallet, Truck, Users, ShoppingCart, LogIn } from "lucide-react";
+import { Home, Package, User, Wallet, Truck, Users, ShoppingCart, LogIn, Store } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,7 @@ const getNavItems = (appType: AppType, isLoggedIn: boolean): NavItem[] => {
     case "member":
       return [
         { icon: Home, label: "Home", path: "/member-app" },
+        { icon: Store, label: "Shop", path: "/products" },
         { icon: Users, label: "Network", path: "/member-app/network" },
         { icon: Wallet, label: "Wallet", path: "/member-app/wallet" },
         { icon: User, label: "Profile", path: "/member-app/profile" },
