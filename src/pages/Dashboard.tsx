@@ -362,20 +362,30 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           <div>
             <h1 className="text-3xl font-bold text-foreground">My Dashboard</h1>
             <p className="text-muted-foreground mt-1">
-              Manage your account, orders, and wallet
+              Manage your account, orders, and wallet, or browse products
             </p>
           </div>
-          {!isDeliveryPartner && (
-            <AddUserDialog 
-              onUserAdded={fetchData}
-              trigger={
-                <Button>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              }
-            />
-          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/products")}
+              className="gap-2"
+            >
+              <ShoppingCart className="h-4 w-4" />
+              Browse Products
+            </Button>
+            {!isDeliveryPartner && (
+              <AddUserDialog
+                onUserAdded={fetchData}
+                trigger={
+                  <Button>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                }
+              />
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
