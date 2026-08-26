@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Package, User, Wallet, Truck, Users, ShoppingCart, LogIn } from "lucide-react";
+import { Home, Package, User, Wallet, Truck, Users, ShoppingCart, LogIn, Store } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
