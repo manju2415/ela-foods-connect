@@ -10,7 +10,7 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Store } from "lucide-react";
 
 interface CartSheetProps {
   open: boolean;
@@ -43,8 +43,20 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col w-full sm:max-w-lg">
-        <SheetHeader>
+      <SheetContent className="flex flex-col w-full sm:max-w-lg pb-safe">
+        <SheetHeader className="space-y-2.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              onOpenChange(false);
+              navigate("/products");
+            }}
+            className="w-fit -ml-2 pl-2 pr-3 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back to Products
+          </Button>
           <SheetTitle className="flex items-center gap-2">
             <ShoppingBag className="h-5 w-5" />
             Shopping Cart ({totalItems})
@@ -144,12 +156,14 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                 </Button>
                 <Button
                   variant="outline"
+                  size="lg"
                   className="w-full"
                   onClick={() => {
                     onOpenChange(false);
                     navigate("/products");
                   }}
                 >
+                  <Store className="h-4 w-4 mr-2" />
                   Continue Shopping
                 </Button>
               </SheetFooter>
