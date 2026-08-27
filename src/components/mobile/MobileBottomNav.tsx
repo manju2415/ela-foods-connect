@@ -82,12 +82,13 @@ export const MobileBottomNav = forwardRef<HTMLElement, MobileBottomNavProps>(fun
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
+                "flex flex-col items-center justify-center flex-1 min-w-0 h-full gap-1 px-0.5 transition-colors",
                 active ? "text-primary" : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
-              <span className={cn("text-xs", active && "font-medium")}>{item.label}</span>
+              <Icon className={cn("h-5 w-5 shrink-0", active && "stroke-[2.5]")} />
+              <span className={cn("text-[10px] xs:text-xs leading-none w-full truncate text-center", active && "font-medium")}>{item.label}</span>
+
             </button>
           );
         })}

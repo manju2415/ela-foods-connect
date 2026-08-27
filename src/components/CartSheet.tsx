@@ -43,8 +43,8 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col w-full sm:max-w-lg safe-area-pb">
-        <SheetHeader className="space-y-2.5">
+      <SheetContent className="flex flex-col w-full sm:max-w-lg lg:max-w-xl p-4 sm:p-6 safe-area-pb">
+        <SheetHeader className="space-y-2 text-left">
           <Button
             variant="ghost"
             size="sm"
@@ -54,14 +54,15 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
             }}
             className="w-fit -ml-2 pl-2 pr-3 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
+            <ArrowLeft className="h-4 w-4 mr-1 shrink-0" />
             Back to Products
           </Button>
-          <SheetTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Shopping Cart ({totalItems})
+          <SheetTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <ShoppingBag className="h-5 w-5 shrink-0" />
+            <span className="truncate">Shopping Cart ({totalItems})</span>
           </SheetTitle>
         </SheetHeader>
+
 
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
@@ -81,17 +82,19 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 -mx-1 px-1">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-4">
+                <div key={item.id} className="flex gap-3 sm:gap-4">
                   <img
                     src={item.product.images?.[0] || "/placeholder.svg"}
                     alt={item.product.name}
-                    className="w-20 h-20 object-cover rounded-lg"
+                    loading="lazy"
+                    className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 object-cover rounded-lg"
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-foreground line-clamp-2">
+                    <h4 className="font-medium text-sm sm:text-base text-foreground line-clamp-2">
                       {item.product.name}
+
                     </h4>
                     {item.variant?.label && (
                       <p className="text-xs text-muted-foreground">{item.variant.label}</p>
