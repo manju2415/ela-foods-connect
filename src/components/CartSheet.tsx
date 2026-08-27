@@ -82,17 +82,19 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto py-4 space-y-4 -mx-1 px-1">
               {items.map((item) => (
-                <div key={item.id} className="flex gap-4">
+                <div key={item.id} className="flex gap-3 sm:gap-4">
                   <img
                     src={item.product.images?.[0] || "/placeholder.svg"}
                     alt={item.product.name}
-                    className="w-20 h-20 object-cover rounded-lg"
+                    loading="lazy"
+                    className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 object-cover rounded-lg"
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-medium text-foreground line-clamp-2">
+                    <h4 className="font-medium text-sm sm:text-base text-foreground line-clamp-2">
                       {item.product.name}
+
                     </h4>
                     {item.variant?.label && (
                       <p className="text-xs text-muted-foreground">{item.variant.label}</p>
