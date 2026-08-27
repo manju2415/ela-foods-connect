@@ -43,8 +43,8 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col w-full sm:max-w-lg safe-area-pb">
-        <SheetHeader className="space-y-2.5">
+      <SheetContent className="flex flex-col w-full sm:max-w-lg lg:max-w-xl p-4 sm:p-6 safe-area-pb">
+        <SheetHeader className="space-y-2 text-left">
           <Button
             variant="ghost"
             size="sm"
@@ -54,14 +54,15 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
             }}
             className="w-fit -ml-2 pl-2 pr-3 text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4 mr-1" />
+            <ArrowLeft className="h-4 w-4 mr-1 shrink-0" />
             Back to Products
           </Button>
-          <SheetTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Shopping Cart ({totalItems})
+          <SheetTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <ShoppingBag className="h-5 w-5 shrink-0" />
+            <span className="truncate">Shopping Cart ({totalItems})</span>
           </SheetTitle>
         </SheetHeader>
+
 
         {items.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
