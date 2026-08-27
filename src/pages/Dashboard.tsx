@@ -358,35 +358,36 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       {!hideChrome && <Header />}
       
       <main className={`container mx-auto px-4 ${hideChrome ? 'py-4 pb-20' : 'py-8'}`}>
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">My Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
+        <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">My Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Manage your account, orders, and wallet, or browse products
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
               variant="outline"
               onClick={() => navigate("/products")}
-              className="gap-2"
+              className="gap-2 flex-1 min-w-[9rem] md:flex-none"
             >
-              <ShoppingCart className="h-4 w-4" />
-              Browse Products
+              <ShoppingCart className="h-4 w-4 shrink-0" />
+              <span className="truncate">Browse Products</span>
             </Button>
             {!isDeliveryPartner && (
               <AddUserDialog
                 onUserAdded={fetchData}
                 trigger={
-                  <Button>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add User
+                  <Button className="flex-1 min-w-[7rem] md:flex-none">
+                    <UserPlus className="h-4 w-4 mr-2 shrink-0" />
+                    <span className="truncate">Add User</span>
                   </Button>
                 }
               />
             )}
           </div>
         </div>
+
 
         <Tabs defaultValue="overview" className="space-y-6">
           <div className="overflow-x-auto -mx-4 px-4 pb-2">
