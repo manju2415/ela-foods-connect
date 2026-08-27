@@ -43,7 +43,7 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex flex-col w-full sm:max-w-lg pb-safe">
+      <SheetContent className="flex flex-col w-full sm:max-w-lg safe-area-pb">
         <SheetHeader className="space-y-2.5">
           <Button
             variant="ghost"
