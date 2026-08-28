@@ -64,9 +64,9 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
         await fetchRegistered(list);
       } catch (err) {
         setError(
-          (err as Error).message === "permission-denied"
-            ? "Contacts permission was denied. Enable it in your phone settings > Apps > Ela Bazar > Permissions > Contacts, then tap Refresh."
-            : "Could not read your contacts. Please enter the number manually."
+          contactsErrorReason(err) === "permission-denied"
+            ? "Contacts permission was denied. Enable it in your phone settings > Apps > Ela Bazar > Permissions > Contacts, then tap Refresh — or use your phone's contact chooser below."
+            : "This app build can't read your full contact list. Use your phone's contact chooser instead, or enter the number manually."
         );
       } finally {
         setRefreshing(false);
