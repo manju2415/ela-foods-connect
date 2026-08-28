@@ -110,37 +110,54 @@ export default function PaymentRecovery() {
                   {/* Mobile */}
                   <div className="space-y-3 md:hidden">
                     {attempts.map((a) => (
-                      <AdminMobileCard
-                        key={a.id}
-                        title={a.customer_name || "Unknown customer"}
-                        subtitle={a.customer_phone || a.customer_email || a.payment_id}
-                        badge={<Badge variant={a.status === "pending" ? "destructive" : "secondary"}>{a.status}</Badge>}
-                        fields={[
-                          { label: "Amount", value: `₹${Number(a.amount).toFixed(2)}` },
-                          { label: "Items", value: String(itemCount(a.items)) },
-                          { label: "Payment", value: a.payment_id },
-                          { label: "Date", value: format(new Date(a.created_at), "dd MMM yyyy, hh:mm a") },
-                        ]}
-                        actions={
-                          a.status === "pending" ? (
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="flex-1"
-                                disabled={busyId === a.id}
-                                onClick={() => runAction(a, "create_order")}
-                              >
-                                {busyId === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4 mr-1" />}
-                                Create order
-                              </Button>
-                              <Button size="sm" variant="outline" disabled={busyId === a.id} onClick={() => runAction(a, "dismiss")}>
-                                <X className="h-4 w-4" />
-                              </Button>
+                      <AdminMobileCard key={a.id}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{a.customer_name || "Unknown customer"}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {a.customer_phone || a.customer_email || a.payment_id}
                             </div>
-                          ) : null
-                        }
-                      />
+                          </div>
+                          <Badge variant={a.status === "pending" ? "destructive" : "secondary"}>{a.status}</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <AdminMobileField label="Amount">₹{Number(a.amount).toFixed(2)}</AdminMobileField>
+                          <AdminMobileField label="Items">{itemCount(a.items)}</AdminMobileField>
+                          <AdminMobileField label="Payment">
+                            <span className="font-mono text-xs">{a.payment_id}</span>
+                          </AdminMobileField>
+                          <AdminMobileField label="Date">
+                            {format(new Date(a.created_at), "dd MMM yyyy, hh:mm a")}
+                          </AdminMobileField>
+                        </div>
+                        {a.status === "pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              disabled={busyId === a.id}
+                              onClick={() => runAction(a, "create_order")}
+                            >
+                              {busyId === a.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <PackagePlus className="h-4 w-4 mr-1" />
+                              )}
+                              Create order
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busyId === a.id}
+                              onClick={() => runAction(a, "dismiss")}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </AdminMobileCard>
                     ))}
+
                   </div>
 
                   {/* Desktop */}
