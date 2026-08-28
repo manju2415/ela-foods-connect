@@ -8,6 +8,17 @@ declare global {
   }
 }
 
+export interface PaymentAttemptContext {
+  purpose?: string;
+  customer_name?: string;
+  customer_phone?: string;
+  customer_email?: string;
+  items?: Array<{ product_id: string; quantity: number; variant_id?: string | null }>;
+  guest_details?: Record<string, unknown> | null;
+  coupon_code?: string | null;
+  discount_amount?: number;
+}
+
 interface RazorpayPaymentOptions {
   amount: number; // in INR (rupees, not paise)
   receipt?: string;
@@ -19,9 +30,16 @@ interface RazorpayPaymentOptions {
   };
   orderId?: string; // internal order id for verification
   purpose?: string;
+  /**
+   * Recorded server-side the moment the payment is verified, BEFORE the order is
+   * created. If order creation then fails, the payment is still on record and can
+   * be reconciled into an order by an admin.
+   */
+  attemptContext?: PaymentAttemptContext;
   onSuccess: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
   onFailure: (error: any) => void;
 }
+
 
 const formatRazorpayContact = (contact?: string) => {
   const digits = (contact || "").replace(/\D/g, "");
