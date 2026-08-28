@@ -23,6 +23,7 @@ import {
   FileText,
   Store,
   ShieldCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -65,6 +66,7 @@ const menuItems: MenuItem[] = [
   { title: "Users", url: "/admin/users", icon: Users, storeAdminVisible: true },
   { title: "Stores", url: "/admin/stores", icon: Store, storeAdminVisible: true },
   { title: "GSTN Report", url: "/admin/gst-report", icon: FileText, superAdminOnly: true },
+  { title: "Paid, No Order", url: "/admin/payment-recovery", icon: AlertTriangle, superAdminOnly: true },
   { title: "Policies", url: "/admin/policies", icon: FileText, superAdminOnly: true },
   { title: "Settings", url: "/admin/settings", icon: Settings, superAdminOnly: true },
 
