@@ -22,16 +22,43 @@ serve(async (req) => {
     // A successful Razorpay payment reference is the source of truth. Older
     // published clients may omit payment_method or send "razorpay", so do not
     // reject an otherwise paid order based on that display value.
-    if (typeof payment_reference !== "string" || !payment_reference.trim()) {
+    let resolvedPaymentRef =
+      typeof payment_reference === "string" && payment_reference.trim() ? payment_reference.trim() : null;
+
+    // Older/broken clients sometimes drop the payment id after a successful
+    // payment. Reconcile against the payment recorded at verification time so
+    // the customer never ends up paid-with-no-order.
+    if (!resolvedPaymentRef && guest_details?.phone) {
+      const phoneDigits = String(guest_details.phone).replace(/\D/g, "").slice(-10);
+      const { data: pendingAttempt } = await supabase
+        .from("payment_attempts")
+        .select("id, payment_id, created_at")
+        .eq("status", "pending")
+        .is("order_id", null)
+        .ilike("customer_phone", `%${phoneDigits}`)
+        .gte("created_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingAttempt?.payment_id) {
+        resolvedPaymentRef = pendingAttempt.payment_id;
+        console.log("Reconciled guest order with recorded payment", pendingAttempt.payment_id);
+      }
+    }
+
+    if (!resolvedPaymentRef) {
       console.warn("Rejected unpaid guest order request", {
         payment_method: payment_method || null,
         has_payment_reference: false,
+        phone: guest_details?.phone || null,
       });
       return new Response(JSON.stringify({ error: "Verified online payment is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     if (!guest_details || !Array.isArray(items) || items.length === 0) {
       console.warn("Rejected incomplete guest order request", {
