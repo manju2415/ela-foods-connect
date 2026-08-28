@@ -440,6 +440,28 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Shop shortcut */}
+            <Card
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/products")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate("/products"); }}
+              className="cursor-pointer border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm sm:text-base">Shop products</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    Browse the full catalogue and add items to your cart
+                  </p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-primary shrink-0" />
+              </CardContent>
+            </Card>
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {/* Wallet Balance Card */}
               <Card>
