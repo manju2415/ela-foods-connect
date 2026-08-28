@@ -367,24 +367,37 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
-              variant="outline"
               onClick={() => navigate("/products")}
-              className="gap-2 flex-1 min-w-[9rem] md:flex-none"
+              className="gap-2 w-full sm:flex-1 sm:w-auto min-w-[9rem] md:flex-none"
             >
-              <ShoppingCart className="h-4 w-4 shrink-0" />
+              <Store className="h-4 w-4 shrink-0" />
               <span className="truncate">Browse Products</span>
             </Button>
             {!isDeliveryPartner && (
               <AddUserDialog
                 onUserAdded={fetchData}
                 trigger={
-                  <Button className="flex-1 min-w-[7rem] md:flex-none">
+                  <Button variant="outline" className="flex-1 min-w-[7rem] md:flex-none">
                     <UserPlus className="h-4 w-4 mr-2 shrink-0" />
                     <span className="truncate">Add User</span>
                   </Button>
                 }
               />
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative shrink-0"
+              aria-label="Open cart"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                  {totalItems > 99 ? "99+" : totalItems}
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
