@@ -121,7 +121,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { toast } = useToast();
   const { isSuperAdmin, isAdmin, isMLMAdmin, loading: roleLoading } = useUserRole();
   const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
-  const { addToCart } = useCart();
+  const { addToCart, totalItems } = useCart();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
   
   const [profile, setProfile] = useState<Profile | null>(null);
