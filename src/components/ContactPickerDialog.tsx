@@ -76,6 +76,26 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
     [fetchRegistered]
   );
 
+  // Fallback: the OS contact chooser needs no READ_CONTACTS permission.
+  const useSystemPicker = useCallback(async () => {
+    if (!isNativeContacts()) return;
+    setSystemPicking(true);
+    try {
+      const contact = await pickContactNative();
+      if (contact?.phone) {
+        onSelect(contact);
+        onOpenChange(false);
+      } else if (contact) {
+        setError("That contact has no valid 10-digit mobile number. Pick another or enter it manually.");
+      }
+    } catch {
+      setError("Your phone's contact chooser isn't available. Please enter the number manually.");
+    } finally {
+      setSystemPicking(false);
+    }
+  }, [onSelect, onOpenChange]);
+
+
   useEffect(() => {
     if (!open) return;
     setQuery("");
