@@ -1141,6 +1141,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         />
       )}
 
+      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
+
       {!hideChrome && <Footer />}
     </div>
   );
