@@ -32,6 +32,7 @@ type RegisteredMap = Record<string, { name: string | null; is_self: boolean }>;
 export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPickerDialogProps) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [systemPicking, setSystemPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [registered, setRegistered] = useState<RegisteredMap>({});
