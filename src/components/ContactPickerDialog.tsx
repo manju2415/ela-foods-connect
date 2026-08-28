@@ -9,8 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Search, UserRound } from "lucide-react";
-import { loadDeviceContacts, type PickedContact } from "@/lib/contacts";
+import { Loader2, RefreshCw, Search, UserRound, Smartphone } from "lucide-react";
+import {
+  contactsErrorReason,
+  isNativeContacts,
+  loadDeviceContacts,
+  pickContactNative,
+  type PickedContact,
+} from "@/lib/contacts";
 import { supabase } from "@/integrations/supabase/client";
 
 const PAGE_SIZE = 50;
