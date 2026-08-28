@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AdminMobileCard } from "@/components/admin/AdminMobileCard";
+import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertTriangle, PackagePlus, X } from "lucide-react";
 import { format } from "date-fns";
