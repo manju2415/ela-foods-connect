@@ -19,15 +19,25 @@ serve(async (req) => {
     const body = await req.json();
     const { guest_details, items, coupon_code, discount_amount, payment_method, payment_reference } = body;
 
-    // Guest orders must be paid online — no cash on delivery.
-    if (payment_method !== "online") {
-      return new Response(JSON.stringify({ error: "Guest orders must be paid online" }), {
+    // A successful Razorpay payment reference is the source of truth. Older
+    // published clients may omit payment_method or send "razorpay", so do not
+    // reject an otherwise paid order based on that display value.
+    if (typeof payment_reference !== "string" || !payment_reference.trim()) {
+      console.warn("Rejected unpaid guest order request", {
+        payment_method: payment_method || null,
+        has_payment_reference: false,
+      });
+      return new Response(JSON.stringify({ error: "Verified online payment is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!guest_details || !items || items.length === 0) {
+    if (!guest_details || !Array.isArray(items) || items.length === 0) {
+      console.warn("Rejected incomplete guest order request", {
+        has_guest_details: Boolean(guest_details),
+        item_count: Array.isArray(items) ? items.length : 0,
+      });
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
