@@ -159,14 +159,29 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
         ) : error ? (
           <div className="py-6 space-y-4">
             <p className="text-sm text-destructive">{error}</p>
-            <Button type="button" variant="outline" onClick={() => load("refresh")} disabled={refreshing}>
-              {refreshing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2">
+              {isNativeContacts() && (
+                <Button type="button" onClick={useSystemPicker} disabled={systemPicking}>
+                  {systemPicking ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Smartphone className="h-4 w-4 mr-2" />
+                  )}
+                  Pick from phone
+                </Button>
               )}
-              Try again
-            </Button>
+              <Button type="button" variant="outline" onClick={() => load("refresh")} disabled={refreshing}>
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Try again
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Enter manually
+              </Button>
+            </div>
           </div>
         ) : (
           <>
