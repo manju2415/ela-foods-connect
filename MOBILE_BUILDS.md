@@ -208,3 +208,20 @@ Uses `@capacitor-community/contacts`. After `npm install && npx cap sync`, add t
 ```
 
 Then rebuild the app. On the web, the button falls back to the browser Contact Picker (Chrome on Android) and is hidden where unsupported.
+
+## Android contacts permission (required for the in-app contact list)
+
+The "Add User" screen can read the full address book to show a searchable list
+with "already registered" badges. That needs an explicit permission in the
+native manifest — without it the list shows "Could not read your contacts".
+
+Add to `android/app/src/main/AndroidManifest.xml` inside `<manifest>`:
+
+```xml
+<uses-permission android:name="android.permission.READ_CONTACTS" />
+```
+
+Then rebuild: `npx cap sync android`.
+
+Without this permission the app falls back to Android's own contact chooser
+(no permission required), which still fills in the name and mobile number.
