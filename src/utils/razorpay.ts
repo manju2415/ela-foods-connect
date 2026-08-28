@@ -122,7 +122,12 @@ export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) =
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               order_id: options.orderId,
+              amount: options.amount,
+              attempt: options.attemptContext
+                ? { ...options.attemptContext, amount: options.amount }
+                : null,
               purpose: options.purpose,
+
             },
           }
         );
