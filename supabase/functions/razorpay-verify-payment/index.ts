@@ -12,7 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose } = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose, attempt, amount } =
+      await req.json();
+
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return new Response(JSON.stringify({ error: "Missing payment details" }), {
