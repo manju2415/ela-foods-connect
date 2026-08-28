@@ -177,7 +177,7 @@ serve(async (req) => {
         coupon_code: coupon_code || null,
         is_cod: false,
         cod_amount: 0,
-        notes: `Guest Order (paid online${payment_reference ? `, ref: ${payment_reference}` : ""}) - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
+        notes: `Guest Order (paid online, ref: ${resolvedPaymentRef}) - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
         shipping_address: {
           full_name: guest_details.full_name,
           email: guest_details.email || "",
@@ -225,10 +225,17 @@ serve(async (req) => {
       }
     }
 
+    // Close out the recorded payment so it no longer shows as "paid, no order"
+    await supabase
+      .from("payment_attempts")
+      .update({ status: "converted", order_id: order.id, user_id: guestUserId })
+      .eq("payment_id", resolvedPaymentRef);
+
     return new Response(
       JSON.stringify({ success: true, order_number: orderNumber, order_id: order.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (err) {
     console.error("Guest order error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
