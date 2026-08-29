@@ -58,6 +58,9 @@ interface Order {
   notes: string | null;
   created_at: string;
   user_id: string;
+  preferred_delivery_date?: string | null;
+  preferred_delivery_slot_id?: string | null;
+  delivery_slot?: { name: string; start_time: string; end_time: string } | null;
   profiles?: { email: string; full_name: string | null } | null;
 }
 
