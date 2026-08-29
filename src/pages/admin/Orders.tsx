@@ -123,10 +123,18 @@ export default function Orders() {
 
       const profilesMap = new Map(profilesData?.map((p) => [p.id, p]) || []);
 
+      const { data: slotsData } = await supabase
+        .from("delivery_time_slots")
+        .select("id, name, start_time, end_time");
+      const slotsMap = new Map(slotsData?.map((s) => [s.id, s]) || []);
+
       return ordersData.map((order) => ({
         ...order,
         shipping_address: order.shipping_address as Order["shipping_address"],
         profiles: profilesMap.get(order.user_id) || null,
+        delivery_slot: order.preferred_delivery_slot_id
+          ? slotsMap.get(order.preferred_delivery_slot_id) || null
+          : null,
       })) as Order[];
     },
   });
