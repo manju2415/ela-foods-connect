@@ -394,6 +394,20 @@ export default function Orders() {
                 </div>
 
                 <div>
+                  <h4 className="font-medium mb-2">Preferred Delivery</h4>
+                  <p className="text-sm">
+                    {selectedOrder.preferred_delivery_date
+                      ? format(new Date(selectedOrder.preferred_delivery_date), "EEE, MMM d, yyyy")
+                      : "No date selected"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrder.delivery_slot
+                      ? `${selectedOrder.delivery_slot.name} (${selectedOrder.delivery_slot.start_time?.slice(0, 5)} - ${selectedOrder.delivery_slot.end_time?.slice(0, 5)})`
+                      : "No time slot selected"}
+                  </p>
+                </div>
+
+                <div>
                   <h4 className="font-medium mb-2">Order Items</h4>
                   <Table>
                     <TableHeader>
