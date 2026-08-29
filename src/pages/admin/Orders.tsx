@@ -276,7 +276,15 @@ export default function Orders() {
                             <div className="text-sm text-muted-foreground">{order.profiles?.email}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{format(new Date(order.created_at), "MMM d, yyyy")}</TableCell>
+                        <TableCell>
+                          <div>{format(new Date(order.created_at), "MMM d, yyyy")}</div>
+                          {(order.preferred_delivery_date || order.delivery_slot) && (
+                            <div className="text-xs text-muted-foreground">
+                              Deliver: {order.preferred_delivery_date ? format(new Date(order.preferred_delivery_date), "MMM d") : "—"}
+                              {order.delivery_slot ? ` · ${order.delivery_slot.name}` : ""}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>₹{Number(order.total_amount).toFixed(2)}</TableCell>
                         <TableCell>
                           <Select
