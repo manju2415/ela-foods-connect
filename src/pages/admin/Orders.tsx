@@ -58,6 +58,9 @@ interface Order {
   notes: string | null;
   created_at: string;
   user_id: string;
+  preferred_delivery_date?: string | null;
+  preferred_delivery_slot_id?: string | null;
+  delivery_slot?: { name: string; start_time: string; end_time: string } | null;
   profiles?: { email: string; full_name: string | null } | null;
 }
 
@@ -120,10 +123,18 @@ export default function Orders() {
 
       const profilesMap = new Map(profilesData?.map((p) => [p.id, p]) || []);
 
+      const { data: slotsData } = await supabase
+        .from("delivery_time_slots")
+        .select("id, name, start_time, end_time");
+      const slotsMap = new Map(slotsData?.map((s) => [s.id, s]) || []);
+
       return ordersData.map((order) => ({
         ...order,
         shipping_address: order.shipping_address as Order["shipping_address"],
         profiles: profilesMap.get(order.user_id) || null,
+        delivery_slot: order.preferred_delivery_slot_id
+          ? slotsMap.get(order.preferred_delivery_slot_id) || null
+          : null,
       })) as Order[];
     },
   });
@@ -265,7 +276,15 @@ export default function Orders() {
                             <div className="text-sm text-muted-foreground">{order.profiles?.email}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{format(new Date(order.created_at), "MMM d, yyyy")}</TableCell>
+                        <TableCell>
+                          <div>{format(new Date(order.created_at), "MMM d, yyyy")}</div>
+                          {(order.preferred_delivery_date || order.delivery_slot) && (
+                            <div className="text-xs text-muted-foreground">
+                              Deliver: {order.preferred_delivery_date ? format(new Date(order.preferred_delivery_date), "MMM d") : "—"}
+                              {order.delivery_slot ? ` · ${order.delivery_slot.name}` : ""}
+                            </div>
+                          )}
+                        </TableCell>
                         <TableCell>₹{Number(order.total_amount).toFixed(2)}</TableCell>
                         <TableCell>
                           <Select
@@ -380,6 +399,20 @@ export default function Orders() {
                     </p>
                     <p className="text-sm text-muted-foreground">{selectedOrder.shipping_address?.phone}</p>
                   </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">Preferred Delivery</h4>
+                  <p className="text-sm">
+                    {selectedOrder.preferred_delivery_date
+                      ? format(new Date(selectedOrder.preferred_delivery_date), "EEE, MMM d, yyyy")
+                      : "No date selected"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrder.delivery_slot
+                      ? `${selectedOrder.delivery_slot.name} (${selectedOrder.delivery_slot.start_time?.slice(0, 5)} - ${selectedOrder.delivery_slot.end_time?.slice(0, 5)})`
+                      : "No time slot selected"}
+                  </p>
                 </div>
 
                 <div>
