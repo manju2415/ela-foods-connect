@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
+import { lazyWithRetry as lazy } from "@/lib/lazyWithRetry";
 import { PWABadge } from "@/components/pwa/PWABadge";
 import { canRegisterSW, unregisterStaleAppSW } from "@/pwa/sw-guard";
 import { toast } from "sonner";
@@ -204,7 +205,7 @@ function App() {
                         <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
                         <Route path="/admin/founders" element={<SuperAdminGuard><AdminFounders /></SuperAdminGuard>} />
                         <Route path="/admin/founder-payments" element={<SuperAdminGuard><AdminFounderPayments /></SuperAdminGuard>} />
-                        <Route path="/admin/gst-report" element={<SuperAdminGuard><AdminGSTReport /></SuperAdminGuard>} />
+                        <Route path="/admin/gst-report" element={<AdminGSTReport />} />
 
                         <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                         <Route path="/admin/policies" element={<AdminPolicies />} />

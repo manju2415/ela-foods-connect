@@ -44,7 +44,7 @@ export default function DriverProfilePage() {
         .from("profiles")
         .select("full_name, email, phone")
         .eq("id", user.id)
-        .single(),
+        .maybeSingle(),
       supabase
         .from("delivery_partners")
         .select("id, is_available, vehicle_type, vehicle_number")

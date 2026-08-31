@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Gift, Users, Wallet, RefreshCw } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface ReferralCode {
   code: string;
@@ -93,11 +94,15 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
     setGenerating(false);
   };
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast({
+  const copyCode = async (code: string) => {
+    const success = await copyToClipboard(code);
+    toast(success ? {
       title: "Copied!",
       description: "Referral code copied to clipboard",
+    } : {
+      title: "Copy failed",
+      description: "Please copy the code manually.",
+      variant: "destructive",
     });
   };
 

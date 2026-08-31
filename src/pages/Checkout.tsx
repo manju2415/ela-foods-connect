@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+import { PostOrderProducts } from "@/components/PostOrderProducts";
 
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import {
@@ -91,6 +92,7 @@ const Checkout = () => {
   const [pickupStores, setPickupStores] = useState<any[]>([]);
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [orderPlaced, setOrderPlaced] = useState<{ orderNumber: string; amount: number } | null>(null);
 
 
   const [newAddress, setNewAddress] = useState({
@@ -109,12 +111,12 @@ const Checkout = () => {
       navigate("/auth?redirect=/checkout");
       return;
     }
-    if (items.length === 0) {
+    if (items.length === 0 && !orderPlaced) {
       navigate("/products");
       return;
     }
-    fetchData();
-  }, [user, items.length, navigate]);
+    if (!orderPlaced) fetchData();
+  }, [user, items.length, navigate, orderPlaced]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -363,7 +365,7 @@ const Checkout = () => {
       try { await supabase.functions.invoke("send-order-confirmation", { body: { order_id: result.order_id } }); } catch (emailError) { console.error("Confirmation email error:", emailError); }
       await clearCart();
       toast({ title, description: `Order ${result.order_number} placed successfully.` });
-      navigate("/dashboard?tab=orders");
+      setOrderPlaced({ orderNumber: result.order_number, amount: Number(result.total_amount) });
       setPlacing(false);
     };
 
@@ -391,7 +393,44 @@ const Checkout = () => {
     await finishOrder("Order Placed!");
   };
 
-  if (!user || items.length === 0) {
+  if (!user) {
+    return null;
+  }
+
+  if (orderPlaced) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8 space-y-10">
+          <div className="max-w-lg mx-auto text-center space-y-6">
+            <div className="mx-auto w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Check className="h-10 w-10 text-green-600" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Order Placed!</h2>
+              <p className="text-muted-foreground mt-2">Thank you for shopping with us.</p>
+            </div>
+            <Card>
+              <CardContent className="pt-6 space-y-3">
+                <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-semibold">{orderPlaced.orderNumber}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-primary">₹{orderPlaced.amount.toFixed(2)}</span></div>
+              </CardContent>
+            </Card>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Button onClick={() => navigate("/dashboard?tab=orders")}>View My Orders</Button>
+              <Button variant="outline" onClick={() => navigate("/products")}>Continue Shopping</Button>
+            </div>
+          </div>
+          <div className="max-w-5xl mx-auto px-1">
+            <PostOrderProducts />
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
     return null;
   }
 

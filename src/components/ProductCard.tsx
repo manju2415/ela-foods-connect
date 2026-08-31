@@ -2,13 +2,11 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { ShoppingCart, Heart, Zap } from "lucide-react";
+import { Heart, Crown } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
-import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
 import type { VariantOption } from "@/lib/variantOptions";
 
@@ -29,6 +27,8 @@ interface ProductCardProps {
   gstInclusive?: boolean | null;
   /** Optional grouped pack/quantity options (same product name, different packs) */
   variantOptions?: VariantOption[];
+  /** "compact" renders a smaller card for dense horizontal-scroll rows */
+  variant?: "default" | "compact";
 }
 
 
@@ -40,16 +40,12 @@ const ProductCard = ({
   memberPrice,
   originalPrice,
   image,
-  category,
-  isNew,
-  isBestSeller,
   unitType,
   unitValue,
-  gstPercentage,
-  gstInclusive,
   variantOptions,
+  variant = "default",
 }: ProductCardProps) => {
-  const { addToCart, buyNow } = useCart();
+  const { addToCart } = useCart();
   const navigate = useNavigate();
 
   const options = variantOptions ?? [];
@@ -69,7 +65,6 @@ const ProductCard = ({
     return (count || 0) > 0;
   };
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { isMember } = useUserRole();
 
   const displayPrice = activeOption ? activeOption.price : price;
   const outOfStock = activeOption ? activeOption.stock <= 0 : false;
@@ -78,28 +73,10 @@ const ProductCard = ({
     ? activeOption.memberPrice ?? Math.round(activeOption.price * 0.9)
     : memberPrice ?? Math.round(price * 0.9);
   // Calculate discount for compare_at_price
-  const discount = originalPrice ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100) : 0;
-  const memberDiscount = Math.round(((displayPrice - effectiveMemberPrice) / displayPrice) * 100);
+  const discount = originalPrice && originalPrice > displayPrice
+    ? Math.round(((originalPrice - displayPrice) / originalPrice) * 100)
+    : 0;
   const inWishlist = isInWishlist(id);
-
-
-  // GST calculation
-  const gstRate = gstPercentage || 0;
-  const calculateGstBreakdown = (displayPrice: number) => {
-    if (gstRate === 0) return { basePrice: displayPrice, gstAmount: 0 };
-    if (gstInclusive) {
-      // Price includes GST, calculate base price
-      const basePrice = Math.round((displayPrice * 100) / (100 + gstRate));
-      const gstAmount = displayPrice - basePrice;
-      return { basePrice, gstAmount };
-    } else {
-      // Price excludes GST
-      const gstAmount = Math.round((displayPrice * gstRate) / 100);
-      return { basePrice: displayPrice, gstAmount };
-    }
-  };
-
-  const gstBreakdown = calculateGstBreakdown(isMember ? effectiveMemberPrice : displayPrice);
 
   // Format unit display
   const getUnitDisplay = () => {
@@ -138,86 +115,70 @@ const ProductCard = ({
     addToCart(id);
   };
 
-  const handleBuyNow = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (activeOption) {
-      if (outOfStock) return;
-      buyNow(activeOption.productId, 1, activeOption.variantId);
-      return;
-    }
-    if (await hasVariants()) {
-      navigate(`/product/${slug}`);
-      return;
-    }
-    buyNow(id);
-  };
-
-
   const handleToggleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(id);
   };
 
+  const isCompact = variant === "compact";
+
   return (
-      <Card className="group overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-lg">
-      <div className="relative overflow-hidden">
+    <Card className="group w-full overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md h-full flex flex-col">
+      <div className="relative">
         <Link to={`/product/${slug}`} aria-label={`View ${name}`}>
           <OptimizedImage
             src={image}
             alt={name}
-            className="w-full aspect-square object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full aspect-square object-cover"
             containerClassName="aspect-square"
-            displayWidth={500}
-            displayHeight={500}
+            displayWidth={isCompact ? 200 : 400}
+            displayHeight={isCompact ? 200 : 400}
           />
         </Link>
-        
-        {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
-          {isNew && (
-            <Badge className="bg-accent text-accent-foreground">New</Badge>
-          )}
-          {isBestSeller && (
-            <Badge className="bg-primary text-primary-foreground">Best Seller</Badge>
-          )}
-          {discount > 0 && (
-            <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
-              {discount}% OFF
-            </Badge>
-          )}
-        </div>
 
-        {/* Wishlist Button */}
+        {discount > 0 && (
+          <div
+            className="absolute top-0 left-2 bg-secondary text-secondary-foreground text-[10px] font-bold px-2 pt-1 pb-1.5 leading-none shadow-sm"
+            style={{ clipPath: "polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%)" }}
+          >
+            {discount}% off
+          </div>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
-          className={`absolute top-3 right-3 bg-card/80 hover:bg-card transition-opacity ${
-            inWishlist ? "opacity-100 text-destructive" : "opacity-0 group-hover:opacity-100 hover:text-primary"
+          className={`absolute top-1 right-1 h-7 w-7 bg-card/80 hover:bg-card transition-opacity ${
+            inWishlist ? "opacity-100 text-destructive" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
           }`}
           onClick={handleToggleWishlist}
         >
-          <Heart className={`h-5 w-5 ${inWishlist ? "fill-current" : ""}`} />
+          <Heart className={`h-3.5 w-3.5 ${inWishlist ? "fill-current" : ""}`} />
         </Button>
-
       </div>
 
-
-      <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-          {category}
-        </p>
+      <CardContent className="p-2.5 flex-1 flex flex-col gap-1">
         <Link to={`/product/${slug}`} className="block">
-          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 mb-1">{name}</h3>
+          <h3 className="text-xs sm:text-sm font-medium text-foreground line-clamp-2 min-h-[2rem] group-hover:text-primary transition-colors">
+            {name}
+          </h3>
         </Link>
+
+        {!outOfStock && (
+          <div className="inline-flex items-center gap-1 bg-secondary/20 border border-secondary/50 text-secondary-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-fit">
+            <Crown className="h-2.5 w-2.5 fill-current shrink-0" />
+            Get for ₹{effectiveMemberPrice}
+          </div>
+        )}
+
         {options.length > 1 ? (
           <div
-            className="mb-2"
+            className="mt-0.5"
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <Select value={activeOption?.key} onValueChange={setSelectedKey}>
-              <SelectTrigger className="h-8 text-xs">
+              <SelectTrigger className="h-7 text-[11px] px-2">
                 <SelectValue placeholder="Select pack" />
               </SelectTrigger>
               <SelectContent className="z-50 bg-popover">
@@ -230,67 +191,29 @@ const ProductCard = ({
             </Select>
           </div>
         ) : (
-          unitDisplay && <p className="text-xs text-muted-foreground mb-2">{unitDisplay}</p>
+          unitDisplay && <p className="text-[11px] text-muted-foreground">{unitDisplay}</p>
         )}
-        {outOfStock && (
-          <p className="text-xs text-destructive mb-1">Out of stock</p>
-        )}
-        {/* Pricing - Show both MRP and Member Price */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">MRP:</span>
-            <span className={`font-bold ${isMember ? 'text-muted-foreground line-through' : 'text-lg text-primary'}`}>
-              ₹{displayPrice}
-            </span>
+
+        {outOfStock ? (
+          <p className="text-[11px] text-destructive mt-auto">Out of stock</p>
+        ) : (
+          <div className="flex items-baseline gap-1.5 flex-wrap mt-auto">
+            <span className="text-sm font-bold text-foreground">₹{displayPrice}</span>
             {originalPrice && originalPrice > displayPrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                ₹{originalPrice}
-              </span>
+              <span className="text-[11px] text-muted-foreground line-through">₹{originalPrice}</span>
             )}
           </div>
+        )}
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-green-600 font-medium">Member:</span>
-            <span className={`font-bold ${isMember ? 'text-lg text-green-600' : 'text-green-600'}`}>
-              ₹{effectiveMemberPrice}
-            </span>
-            {memberDiscount > 0 && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                {memberDiscount}% OFF
-              </Badge>
-            )}
-            {isMember && (
-              <Badge className="bg-green-600 text-white text-xs px-1.5 py-0.5">Your Price</Badge>
-            )}
-          </div>
-          {/* GST Breakdown */}
-          {gstRate > 0 && (
-            <div className="text-xs text-muted-foreground pt-1 border-t border-border/50 mt-1">
-              <div className="flex justify-between">
-                <span>Base Price:</span>
-                <span>₹{gstBreakdown.basePrice}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>GST ({gstRate}%){gstInclusive ? ' incl.' : ''}:</span>
-                <span>₹{gstBreakdown.gstAmount}</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Actions - always visible */}
-        <div className="flex gap-2 mt-3">
-          <Button className="flex-1 gap-1" size="sm" onClick={handleAddToCart} disabled={outOfStock}>
-            <ShoppingCart className="h-4 w-4" />
-            Add to Cart
-          </Button>
-          <Button className="flex-1 gap-1" size="sm" variant="secondary" onClick={handleBuyNow} disabled={outOfStock}>
-            <Zap className="h-4 w-4" />
-            Buy Now
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          className="w-full h-8 min-h-[32px] text-xs font-semibold mt-1"
+          onClick={handleAddToCart}
+          disabled={outOfStock}
+        >
+          {outOfStock ? "Sold Out" : "Add"}
+        </Button>
       </CardContent>
-
     </Card>
   );
 };

@@ -75,19 +75,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [user]);
 
   const loadGuestCart = async () => {
-    const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
-    if (!guestCartJson) {
+    const guestItems = readGuestCart();
+    if (guestItems.length === 0) {
       setItems([]);
       return;
     }
 
     try {
-      const guestItems: GuestCartItem[] = JSON.parse(guestCartJson);
-      if (guestItems.length === 0) {
-        setItems([]);
-        return;
-      }
-
       // Fetch product details for guest cart items
       const productIds = guestItems.map(item => item.product_id);
       const variantIds = guestItems.map(item => item.variant_id).filter(Boolean) as string[];
@@ -132,14 +126,27 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(GUEST_CART_KEY, JSON.stringify(guestItems));
   };
 
+  // Guards against corrupted/incompatible localStorage data (e.g. left over from
+  // a prior app version) throwing and permanently breaking the guest cart.
+  const readGuestCart = (): GuestCartItem[] => {
+    const raw = localStorage.getItem(GUEST_CART_KEY);
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      console.error("Corrupted guest cart data, resetting:", e);
+      localStorage.removeItem(GUEST_CART_KEY);
+      return [];
+    }
+  };
+
   const mergeGuestCart = async () => {
     if (!user) return;
 
-    const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
-    if (guestCartJson) {
+    const guestItems = readGuestCart();
+    if (guestItems.length > 0) {
       try {
-        const guestItems: GuestCartItem[] = JSON.parse(guestCartJson);
-        
         // Add guest items to user's cart
         for (const gItem of guestItems) {
           let existingQuery = supabase
@@ -259,9 +266,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       // Guest user - use localStorage
-      const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
-      let guestItems: GuestCartItem[] = guestCartJson ? JSON.parse(guestCartJson) : [];
-      
+      const guestItems = readGuestCart();
+
       const existingIndex = guestItems.findIndex(item => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
       
       if (existingIndex >= 0) {
@@ -327,15 +333,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       // Guest user
-      const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
-      if (guestCartJson) {
-        let guestItems: GuestCartItem[] = JSON.parse(guestCartJson);
-        const index = guestItems.findIndex(item => item.id === itemId);
-        if (index >= 0) {
-          guestItems[index].quantity = quantity;
-          saveGuestCart(guestItems);
-          await loadGuestCart();
-        }
+      const guestItems = readGuestCart();
+      const index = guestItems.findIndex(item => item.id === itemId);
+      if (index >= 0) {
+        guestItems[index].quantity = quantity;
+        saveGuestCart(guestItems);
+        await loadGuestCart();
       }
     }
   };
@@ -364,17 +367,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
     } else {
       // Guest user
-      const guestCartJson = localStorage.getItem(GUEST_CART_KEY);
-      if (guestCartJson) {
-        let guestItems: GuestCartItem[] = JSON.parse(guestCartJson);
-        guestItems = guestItems.filter(item => item.id !== itemId);
-        saveGuestCart(guestItems);
-        await loadGuestCart();
-        toast({
-          title: "Removed",
-          description: "Item has been removed from your cart.",
-        });
-      }
+      const guestItems = readGuestCart().filter(item => item.id !== itemId);
+      saveGuestCart(guestItems);
+      await loadGuestCart();
+      toast({
+        title: "Removed",
+        description: "Item has been removed from your cart.",
+      });
     }
   };
 

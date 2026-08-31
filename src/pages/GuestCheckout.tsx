@@ -17,6 +17,7 @@ import {
 import { initiateRazorpayPayment } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
+import { PostOrderProducts } from "@/components/PostOrderProducts";
 
 interface Coupon {
   id: string;
@@ -449,28 +450,33 @@ const GuestCheckout = () => {
 
   // ──── Step: Confirmation ────
   const renderConfirmationStep = () => (
-    <div className="max-w-lg mx-auto text-center space-y-6 py-8">
-      <div className="mx-auto w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-        <CheckCircle2 className="h-10 w-10 text-green-600" />
+    <div className="space-y-10 py-8">
+      <div className="max-w-lg mx-auto text-center space-y-6">
+        <div className="mx-auto w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+          <CheckCircle2 className="h-10 w-10 text-green-600" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">Order Placed Successfully!</h2>
+          <p className="text-muted-foreground mt-2">Thank you for your order.</p>
+        </div>
+        <Card>
+          <CardContent className="pt-6 space-y-3">
+            <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-semibold">{orderResult?.orderNumber}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-primary">₹{finalAmount.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Paid online</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Est. Delivery</span><span>2-4 business days</span></div>
+          </CardContent>
+        </Card>
+        <p className="text-sm text-muted-foreground">
+          We'll send updates to {guestDetails.phone}{guestDetails.email ? ` and ${guestDetails.email}` : ""}.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <Button onClick={() => navigate("/products")}>Continue Shopping</Button>
+          <Button variant="outline" onClick={() => navigate("/auth")}>Sign Up for Member Prices</Button>
+        </div>
       </div>
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">Order Placed Successfully!</h2>
-        <p className="text-muted-foreground mt-2">Thank you for your order.</p>
-      </div>
-      <Card>
-        <CardContent className="pt-6 space-y-3">
-          <div className="flex justify-between"><span className="text-muted-foreground">Order ID</span><span className="font-mono font-semibold">{orderResult?.orderNumber}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-primary">₹{finalAmount.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Payment</span><span>Paid online</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Est. Delivery</span><span>2-4 business days</span></div>
-        </CardContent>
-      </Card>
-      <p className="text-sm text-muted-foreground">
-        We'll send updates to {guestDetails.phone}{guestDetails.email ? ` and ${guestDetails.email}` : ""}.
-      </p>
-      <div className="flex gap-3 justify-center">
-        <Button onClick={() => navigate("/products")}>Continue Shopping</Button>
-        <Button variant="outline" onClick={() => navigate("/auth")}>Sign Up for Member Prices</Button>
+      <div className="max-w-5xl mx-auto px-1">
+        <PostOrderProducts />
       </div>
     </div>
   );

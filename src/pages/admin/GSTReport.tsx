@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,9 +129,8 @@ export default function GSTReport() {
   };
 
   return (
-    <SuperAdminGuard>
-      <AdminLayout>
-        <div className="space-y-6">
+    <AdminLayout>
+      <div className="space-y-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
               <FileSpreadsheet className="h-7 w-7 text-primary" />
@@ -221,8 +219,7 @@ export default function GSTReport() {
               )}
             </CardContent>
           </Card>
-        </div>
-      </AdminLayout>
-    </SuperAdminGuard>
+      </div>
+    </AdminLayout>
   );
 }

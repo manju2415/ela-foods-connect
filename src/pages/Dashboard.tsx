@@ -41,6 +41,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
+import { copyToClipboard } from "@/lib/clipboard";
 
 interface Profile {
   id: string;
@@ -309,11 +310,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     setSaving(false);
   };
 
-  const copyReferralCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast({
+  const copyReferralCode = async (code: string) => {
+    const success = await copyToClipboard(code);
+    toast(success ? {
       title: "Copied!",
       description: "Referral code copied to clipboard.",
+    } : {
+      title: "Copy failed",
+      description: "Please copy the code manually.",
+      variant: "destructive",
     });
   };
 

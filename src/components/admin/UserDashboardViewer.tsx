@@ -78,8 +78,8 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
     setLoading(true);
 
     const [profileRes, walletRes, ordersRes, referralsRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", userId).single(),
+      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", userId).maybeSingle(),
       supabase.from("orders").select("id, order_number, status, total_amount, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
       supabase.from("referrals").select("id, created_at, referred_id").eq("referrer_id", userId).order("created_at", { ascending: false }).limit(20)
     ]);
@@ -93,7 +93,7 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
           .from("profiles")
           .select("full_name, email")
           .eq("id", profileRes.data.referred_by)
-          .single();
+          .maybeSingle();
         
         if (referrer) {
           setReferrerName(referrer.full_name || referrer.email);

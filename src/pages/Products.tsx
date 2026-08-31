@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigationType, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -58,6 +58,21 @@ const Products = () => {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
 
+  // Preserve scroll position across back navigation: save it continuously against
+  // this history entry, and restore it once the list has loaded, but only when
+  // arriving via a back/forward (POP) navigation rather than a fresh visit.
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const scrollKey = `products-scroll:${location.key}`;
+  const restoredRef = useRef(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem(scrollKey, String(window.scrollY));
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [scrollKey]);
 
   useEffect(() => {
     fetchCategories();
@@ -157,6 +172,16 @@ const Products = () => {
 
   // Group same-named products so pack variants share one card
   const productGroups = groupProductsByName(products);
+
+  useEffect(() => {
+    if (restoredRef.current || loading) return;
+    restoredRef.current = true;
+    if (navigationType !== "POP") return;
+    const saved = sessionStorage.getItem(scrollKey);
+    if (saved) {
+      requestAnimationFrame(() => window.scrollTo({ top: Number(saved), behavior: "auto" }));
+    }
+  }, [loading, navigationType, scrollKey]);
 
 
   const handleSearch = (e: React.FormEvent) => {
@@ -341,8 +366,8 @@ const Products = () => {
           {/* Products Grid */}
           <div className="flex-1">
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="space-y-3">
                     <Skeleton className="aspect-square w-full" />
                     <Skeleton className="h-4 w-3/4" />
@@ -366,7 +391,7 @@ const Products = () => {
                 <p className="text-sm text-muted-foreground mb-4">
                   Showing {productGroups.length} product{productGroups.length !== 1 ? "s" : ""}
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                   {productGroups.map((group) => {
                     const product = group[0];
                     const options = buildVariantOptions(group, variants);

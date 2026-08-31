@@ -73,12 +73,12 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
         .from("profiles")
         .select("bank_name, bank_account_number, bank_ifsc, bank_account_holder")
         .eq("id", userId)
-        .single(),
+        .maybeSingle(),
       supabase
         .from("wallets")
         .select("withdrawable_balance")
         .eq("user_id", userId)
-        .single()
+        .maybeSingle()
     ]);
 
     if (requestsRes.data) setRequests(requestsRes.data);

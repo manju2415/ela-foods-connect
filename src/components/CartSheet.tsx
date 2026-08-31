@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -18,9 +19,11 @@ interface CartSheetProps {
 }
 
 const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
-  const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice } = useCart();
+  const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice, memberTotalPrice } = useCart();
   const { user } = useAuth();
+  const { isMember } = useUserRole();
   const navigate = useNavigate();
+  const displayTotalPrice = isMember ? memberTotalPrice : totalPrice;
 
   const handleCheckout = () => {
     onOpenChange(false);
@@ -100,7 +103,9 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                       <p className="text-xs text-muted-foreground">{item.variant.label}</p>
                     )}
                     <p className="text-primary font-semibold">
-                      ₹{item.variant?.price ?? item.product.price}
+                      ₹{isMember
+                        ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price ?? item.product.price))
+                        : (item.variant?.price ?? item.product.price)}
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <Button
@@ -140,7 +145,7 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>₹{totalPrice.toFixed(2)}</span>
+                  <span>₹{displayTotalPrice.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
@@ -149,7 +154,7 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span className="text-primary">₹{totalPrice.toFixed(2)}</span>
+                  <span className="text-primary">₹{displayTotalPrice.toFixed(2)}</span>
                 </div>
               </div>
 

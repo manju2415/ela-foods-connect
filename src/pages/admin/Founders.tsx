@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp, Pencil, CheckCircle2 } from "lucide-react";
+import { copyToClipboard } from "@/lib/clipboard";
 
 const FOUNDER_STATUS_LABEL: Record<string, string> = {
   none: "Pending Approval",
@@ -323,9 +324,13 @@ export default function Founders() {
     },
   });
 
-  const copyCode = (code: string) => {
-    navigator.clipboard.writeText(code);
-    toast.success("Code copied to clipboard");
+  const copyCode = async (code: string) => {
+    const success = await copyToClipboard(code);
+    if (success) {
+      toast.success("Code copied to clipboard");
+    } else {
+      toast.error("Copy failed. Please copy the code manually.");
+    }
   };
 
   const filteredFounders = founders.filter(

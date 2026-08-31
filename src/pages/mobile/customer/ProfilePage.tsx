@@ -38,7 +38,7 @@ export default function CustomerProfilePage() {
       .from("profiles")
       .select("full_name, email, phone")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
     
     if (data) {
       setProfile(data);
