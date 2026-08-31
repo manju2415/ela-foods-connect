@@ -22,7 +22,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { buildVariantOptions, type GroupableVariant } from "@/lib/variantOptions";
@@ -168,7 +167,8 @@ export default function ProductDetail() {
     : [];
 
   const defaultOption =
-    options.find((o) => o.variantId && variants.find((v: any) => v.id === o.variantId && v.is_default)) ||
+    options.find((o) => o.variantId && o.stock > 0 && variants.find((v: any) => v.id === o.variantId && v.is_default)) ||
+    options.find((o) => o.stock > 0) ||
     options[0] ||
     null;
   const activeOption = options.find((o) => o.key === selectedOptionKey) || defaultOption;
@@ -392,28 +392,6 @@ export default function ProductDetail() {
                 )}
               </div>
 
-              {options.length > 1 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Select Quantity / Pack:</p>
-                  <Select
-                    value={activeOption?.key}
-                    onValueChange={(key) => { setSelectedOptionKey(key); setQuantity(1); }}
-                  >
-                    <SelectTrigger className="w-full sm:w-72">
-                      <SelectValue placeholder="Select pack size" />
-                    </SelectTrigger>
-                    <SelectContent className="z-50 bg-popover">
-                      {options.map((o) => (
-                        <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
-                          {o.label} · ₹{o.price.toFixed(0)}{o.stock <= 0 ? " (Out of stock)" : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-
               <div className="space-y-3">
                 {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
@@ -451,6 +429,43 @@ export default function ProductDetail() {
 
               {product.short_description && (
                 <p className="text-muted-foreground">{product.short_description}</p>
+              )}
+
+              {options.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Choose pack size:</p>
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Pack size">
+                    {options.map((option) => {
+                      const isSelected = activeOption?.key === option.key;
+                      const outOfStock = option.stock <= 0;
+                      return (
+                        <button
+                          key={option.key}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          disabled={outOfStock}
+                          onClick={() => {
+                            setSelectedOptionKey(option.key);
+                            setQuantity(1);
+                          }}
+                          className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                              : outOfStock
+                                ? "cursor-not-allowed border-muted bg-muted text-muted-foreground opacity-60 line-through"
+                                : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                          }`}
+                        >
+                          {option.label}
+                          <span className="ml-1 no-underline">
+                            {outOfStock ? "(Out of stock)" : `(${option.stock} available)`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
               <div className="space-y-3">

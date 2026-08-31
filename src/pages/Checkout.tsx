@@ -799,10 +799,14 @@ const Checkout = () => {
                         className="w-16 h-16 object-cover rounded"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm line-clamp-2">{item.product.name}</p>
+                        <p className="font-medium text-sm line-clamp-2">
+                          {item.product.name}{item.variant?.label ? ` — ${item.variant.label}` : ""}
+                        </p>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                         <p className="text-sm font-semibold">
-                          ₹{((isMember ? (item.product.member_price || item.product.price) : item.product.price) * item.quantity).toFixed(2)}
+                          ₹{((isMember
+                            ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price || item.product.price))
+                            : (item.variant?.price ?? item.product.price)) * item.quantity).toFixed(2)}
                         </p>
                       </div>
                     </div>

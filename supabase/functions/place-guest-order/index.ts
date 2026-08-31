@@ -73,6 +73,7 @@ serve(async (req) => {
 
     // Calculate totals from DB prices to prevent price tampering
     const productIds = items.map((i: any) => i.product_id);
+    const variantIds = items.map((i: any) => i.variant_id).filter(Boolean);
     const { data: products, error: prodErr } = await supabase
       .from("products")
       .select("id, name, price")
@@ -86,18 +87,49 @@ serve(async (req) => {
     }
 
     const productMap = new Map(products.map((p: any) => [p.id, p]));
+    const { data: variants, error: variantErr } = variantIds.length
+      ? await supabase
+          .from("product_variants")
+          .select("id, product_id, label, price, stock_quantity, is_active")
+          .in("id", variantIds)
+      : { data: [], error: null };
+
+    if (variantErr) {
+      return new Response(JSON.stringify({ error: "Failed to fetch product variants" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const variantMap = new Map((variants || []).map((variant: any) => [variant.id, variant]));
     let subtotal = 0;
     const orderItems: any[] = [];
 
     for (const item of items) {
       const product = productMap.get(item.product_id);
       if (!product) continue;
-      const itemTotal = product.price * item.quantity;
+      const variant = item.variant_id ? variantMap.get(item.variant_id) : null;
+      if (item.variant_id && (!variant || variant.product_id !== product.id || !variant.is_active)) {
+        return new Response(JSON.stringify({ error: "Selected product variant is unavailable" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (variant && (item.quantity < 1 || item.quantity > variant.stock_quantity)) {
+        return new Response(JSON.stringify({ error: `${variant.label} is out of stock or has insufficient stock` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const unitPrice = variant?.price ?? product.price;
+      const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
       orderItems.push({
         product_id: item.product_id,
-        product_name: product.name,
-        product_price: product.price,
+        variant_id: variant?.id ?? null,
+        variant_label: variant?.label ?? null,
+        product_name: variant ? `${product.name} (${variant.label})` : product.name,
+        product_price: unitPrice,
         quantity: item.quantity,
         total_price: itemTotal,
       });

@@ -176,7 +176,7 @@ const GuestCheckout = () => {
           customer_phone: guestDetails.phone,
           customer_email: guestDetails.email,
           guest_details: guestDetails as unknown as Record<string, unknown>,
-          items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+          items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity })),
           coupon_code: appliedCoupon?.code || null,
           discount_amount: discountAmount,
         },
@@ -187,6 +187,7 @@ const GuestCheckout = () => {
               guest_details: guestDetails,
               items: items.map((item) => ({
                 product_id: item.product_id,
+                variant_id: item.variant_id || null,
                 quantity: item.quantity,
               })),
               coupon_code: appliedCoupon?.code || null,
@@ -340,14 +341,16 @@ const GuestCheckout = () => {
             <div key={item.id} className="flex gap-3">
               <img src={item.product.images?.[0] || "/placeholder.svg"} alt={item.product.name} className="w-16 h-16 object-cover rounded" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm line-clamp-2">{item.product.name}</p>
+                <p className="font-medium text-sm line-clamp-2">
+                  {item.product.name}{item.variant?.label ? ` — ${item.variant.label}` : ""}
+                </p>
                 <div className="flex items-center gap-2 mt-1">
                   <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.id, item.quantity - 1)}>-</Button>
                   <span className="text-sm">{item.quantity}</span>
                   <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</Button>
                   <Button variant="ghost" size="sm" className="h-6 ml-auto text-destructive" onClick={() => removeFromCart(item.id)}><X className="h-3 w-3" /></Button>
                 </div>
-                <p className="text-sm font-semibold mt-1">₹{(item.product.price * item.quantity).toFixed(2)}</p>
+                <p className="text-sm font-semibold mt-1">₹{((item.variant?.price ?? item.product.price) * item.quantity).toFixed(2)}</p>
               </div>
             </div>
           ))}

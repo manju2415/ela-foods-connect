@@ -105,9 +105,13 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
       queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
       onOpenChange(false);
       existingForm.reset();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to add delivery partner");
-    } finally {
+   } catch (error: unknown) {
+  toast.error(
+    error instanceof Error
+      ? error.message
+      : "Failed to add delivery partner"
+  );
+} finally {
       setIsSubmitting(false);
     }
   };
@@ -135,9 +139,13 @@ export function AddDeliveryPartnerDialog({ open, onOpenChange }: AddDeliveryPart
       queryClient.invalidateQueries({ queryKey: ["delivery-partners"] });
       onOpenChange(false);
       newUserForm.reset();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create delivery partner");
-    } finally {
+    } catch (error: unknown) {
+  toast.error(
+    error instanceof Error
+      ? error.message
+      : "Failed to create delivery partner"
+  );
+} finally {
       setIsSubmitting(false);
     }
   };

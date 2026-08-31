@@ -50,7 +50,9 @@ const ProductCard = ({
 
   const options = variantOptions ?? [];
   const hasOptions = options.length > 0;
-  const [selectedKey, setSelectedKey] = useState<string>(options[0]?.key ?? "");
+  const [selectedKey, setSelectedKey] = useState<string>(
+    options.find((option) => option.stock > 0)?.key ?? options[0]?.key ?? ""
+  );
   const activeOption = hasOptions
     ? options.find((o) => o.key === selectedKey) ?? options[0]
     : null;
@@ -184,7 +186,7 @@ const ProductCard = ({
               <SelectContent className="z-50 bg-popover">
                 {options.map((o) => (
                   <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
-                    {o.label} · ₹{o.price}{o.stock <= 0 ? " (Out of stock)" : ""}
+                    {o.label} · ₹{o.price} · {o.stock > 0 ? `${o.stock} available` : "Out of stock"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -197,10 +199,15 @@ const ProductCard = ({
         {outOfStock ? (
           <p className="text-[11px] text-destructive mt-auto">Out of stock</p>
         ) : (
-          <div className="flex items-baseline gap-1.5 flex-wrap mt-auto">
-            <span className="text-sm font-bold text-foreground">₹{displayPrice}</span>
-            {originalPrice && originalPrice > displayPrice && (
-              <span className="text-[11px] text-muted-foreground line-through">₹{originalPrice}</span>
+          <div className="mt-auto">
+            <div className="flex items-baseline gap-1.5 flex-wrap">
+              <span className="text-sm font-bold text-foreground">₹{displayPrice}</span>
+              {originalPrice && originalPrice > displayPrice && (
+                <span className="text-[11px] text-muted-foreground line-through">₹{originalPrice}</span>
+              )}
+            </div>
+            {activeOption && (
+              <p className="text-[11px] text-muted-foreground">{activeOption.stock} available</p>
             )}
           </div>
         )}
