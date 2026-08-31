@@ -170,6 +170,17 @@ const GuestCheckout = () => {
           contact: guestDetails.phone,
           email: guestDetails.email,
         },
+        attemptContext: {
+          purpose: "guest_order",
+          customer_name: guestDetails.full_name,
+          customer_phone: guestDetails.phone,
+          customer_email: guestDetails.email,
+          guest_details: guestDetails as unknown as Record<string, unknown>,
+          items: items.map((item) => ({ product_id: item.product_id, quantity: item.quantity })),
+          coupon_code: appliedCoupon?.code || null,
+          discount_amount: discountAmount,
+        },
+
         onSuccess: async (response) => {
           const { data, error } = await supabase.functions.invoke("place-guest-order", {
             body: {

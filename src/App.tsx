@@ -71,6 +71,7 @@ const AdminBanners = lazy(() => import("./pages/admin/Banners"));
 const AdminFounders = lazy(() => import("./pages/admin/Founders"));
 const AdminFounderPayments = lazy(() => import("./pages/admin/FounderPayments"));
 const AdminGSTReport = lazy(() => import("./pages/admin/GSTReport"));
+const AdminPaymentRecovery = lazy(() => import("./pages/admin/PaymentRecovery"));
 
 const AdminReturnRequests = lazy(() => import("./pages/admin/ReturnRequests"));
 const AdminPolicies = lazy(() => import("./pages/admin/Policies"));
@@ -205,7 +206,12 @@ function App() {
                         <Route path="/admin/advertisements" element={<AdminAdvertisements />} />
                         <Route path="/admin/founders" element={<SuperAdminGuard><AdminFounders /></SuperAdminGuard>} />
                         <Route path="/admin/founder-payments" element={<SuperAdminGuard><AdminFounderPayments /></SuperAdminGuard>} />
+<<<<<<< HEAD
                         <Route path="/admin/gst-report" element={<AdminGSTReport />} />
+=======
+                        <Route path="/admin/gst-report" element={<SuperAdminGuard><AdminGSTReport /></SuperAdminGuard>} />
+                        <Route path="/admin/payment-recovery" element={<SuperAdminGuard><AdminPaymentRecovery /></SuperAdminGuard>} />
+>>>>>>> 72e2a32fe37109b038d5824c90d4cde3da5e983a
 
                         <Route path="/admin/return-requests" element={<AdminReturnRequests />} />
                         <Route path="/admin/policies" element={<AdminPolicies />} />

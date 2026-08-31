@@ -39,7 +39,8 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw } from "lucide-react";
+import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw, Store, ArrowRight } from "lucide-react";
+import CartSheet from "@/components/CartSheet";
 import { useUserRole } from "@/hooks/useUserRole";
 import { copyToClipboard } from "@/lib/clipboard";
 
@@ -121,7 +122,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { toast } = useToast();
   const { isSuperAdmin, isAdmin, isMLMAdmin, loading: roleLoading } = useUserRole();
   const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
-  const { addToCart } = useCart();
+  const { addToCart, totalItems } = useCart();
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
   
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -372,24 +374,37 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           </div>
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
             <Button
-              variant="outline"
               onClick={() => navigate("/products")}
-              className="gap-2 flex-1 min-w-[9rem] md:flex-none"
+              className="gap-2 w-full sm:flex-1 sm:w-auto min-w-[9rem] md:flex-none"
             >
-              <ShoppingCart className="h-4 w-4 shrink-0" />
+              <Store className="h-4 w-4 shrink-0" />
               <span className="truncate">Browse Products</span>
             </Button>
             {!isDeliveryPartner && (
               <AddUserDialog
                 onUserAdded={fetchData}
                 trigger={
-                  <Button className="flex-1 min-w-[7rem] md:flex-none">
+                  <Button variant="outline" className="flex-1 min-w-[7rem] md:flex-none">
                     <UserPlus className="h-4 w-4 mr-2 shrink-0" />
                     <span className="truncate">Add User</span>
                   </Button>
                 }
               />
             )}
+            <Button
+              variant="outline"
+              size="icon"
+              className="relative shrink-0"
+              aria-label="Open cart"
+              onClick={() => setIsCartOpen(true)}
+            >
+              <ShoppingCart className="h-4 w-4" />
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                  {totalItems > 99 ? "99+" : totalItems}
+                </span>
+              )}
+            </Button>
           </div>
         </div>
 
@@ -430,6 +445,28 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Shop shortcut */}
+            <Card
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate("/products")}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate("/products"); }}
+              className="cursor-pointer border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm sm:text-base">Shop products</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    Browse the full catalogue and add items to your cart
+                  </p>
+                </div>
+                <ArrowRight className="h-5 w-5 text-primary shrink-0" />
+              </CardContent>
+            </Card>
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {/* Wallet Balance Card */}
               <Card>
@@ -1108,6 +1145,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           onSuccess={fetchData}
         />
       )}
+
+      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
 
       {!hideChrome && <Footer />}
     </div>

@@ -12,7 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose } = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose, attempt, amount } =
+      await req.json();
+
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return new Response(JSON.stringify({ error: "Missing payment details" }), {
@@ -52,6 +54,33 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
+    // Record the payment BEFORE any order is created, so a failure further down
+    // the line can never leave a paid customer without a traceable record.
+    const attemptRow = {
+      payment_id: razorpay_payment_id,
+      razorpay_order_id,
+      purpose: purpose || (order_id ? "order" : "unknown"),
+      user_id: attempt?.user_id ?? (purpose === "registration" ? order_id : null),
+      guest_details: attempt?.guest_details ?? null,
+      customer_name: attempt?.customer_name ?? null,
+      customer_phone: attempt?.customer_phone ?? null,
+      customer_email: attempt?.customer_email ?? null,
+      amount: Number(attempt?.amount ?? amount ?? 0),
+      items: attempt?.items ?? [],
+      coupon_code: attempt?.coupon_code ?? null,
+      discount_amount: Number(attempt?.discount_amount ?? 0),
+      status: purpose === "registration" || !!order_id ? "converted" : "pending",
+      order_id: purpose === "registration" ? null : order_id ?? null,
+    };
+
+    const { error: attemptErr } = await supabase
+      .from("payment_attempts")
+      .upsert(attemptRow, { onConflict: "payment_id" });
+
+    if (attemptErr) {
+      console.error("Failed to record payment attempt:", attemptErr);
+    }
+
     if (purpose === "registration" && order_id) {
       // order_id here is user_id for registration payments
       // Already handled client-side after verification
@@ -66,6 +95,7 @@ serve(async (req) => {
         console.error("Order update error:", error);
       }
     }
+
 
     return new Response(
       JSON.stringify({ verified: true, payment_id: razorpay_payment_id }),

@@ -19,15 +19,52 @@ serve(async (req) => {
     const body = await req.json();
     const { guest_details, items, coupon_code, discount_amount, payment_method, payment_reference } = body;
 
-    // Guest orders must be paid online — no cash on delivery.
-    if (payment_method !== "online") {
-      return new Response(JSON.stringify({ error: "Guest orders must be paid online" }), {
+    // A successful Razorpay payment reference is the source of truth. Older
+    // published clients may omit payment_method or send "razorpay", so do not
+    // reject an otherwise paid order based on that display value.
+    let resolvedPaymentRef =
+      typeof payment_reference === "string" && payment_reference.trim() ? payment_reference.trim() : null;
+
+    // Older/broken clients sometimes drop the payment id after a successful
+    // payment. Reconcile against the payment recorded at verification time so
+    // the customer never ends up paid-with-no-order.
+    if (!resolvedPaymentRef && guest_details?.phone) {
+      const phoneDigits = String(guest_details.phone).replace(/\D/g, "").slice(-10);
+      const { data: pendingAttempt } = await supabase
+        .from("payment_attempts")
+        .select("id, payment_id, created_at")
+        .eq("status", "pending")
+        .is("order_id", null)
+        .ilike("customer_phone", `%${phoneDigits}`)
+        .gte("created_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingAttempt?.payment_id) {
+        resolvedPaymentRef = pendingAttempt.payment_id;
+        console.log("Reconciled guest order with recorded payment", pendingAttempt.payment_id);
+      }
+    }
+
+    if (!resolvedPaymentRef) {
+      console.warn("Rejected unpaid guest order request", {
+        payment_method: payment_method || null,
+        has_payment_reference: false,
+        phone: guest_details?.phone || null,
+      });
+      return new Response(JSON.stringify({ error: "Verified online payment is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!guest_details || !items || items.length === 0) {
+
+    if (!guest_details || !Array.isArray(items) || items.length === 0) {
+      console.warn("Rejected incomplete guest order request", {
+        has_guest_details: Boolean(guest_details),
+        item_count: Array.isArray(items) ? items.length : 0,
+      });
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -140,7 +177,7 @@ serve(async (req) => {
         coupon_code: coupon_code || null,
         is_cod: false,
         cod_amount: 0,
-        notes: `Guest Order (paid online${payment_reference ? `, ref: ${payment_reference}` : ""}) - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
+        notes: `Guest Order (paid online, ref: ${resolvedPaymentRef}) - Phone: ${guest_details.phone}, Name: ${guest_details.full_name}`,
         shipping_address: {
           full_name: guest_details.full_name,
           email: guest_details.email || "",
@@ -188,10 +225,17 @@ serve(async (req) => {
       }
     }
 
+    // Close out the recorded payment so it no longer shows as "paid, no order"
+    await supabase
+      .from("payment_attempts")
+      .update({ status: "converted", order_id: order.id, user_id: guestUserId })
+      .eq("payment_id", resolvedPaymentRef);
+
     return new Response(
       JSON.stringify({ success: true, order_number: orderNumber, order_id: order.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
   } catch (err) {
     console.error("Guest order error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

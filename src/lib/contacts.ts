@@ -58,25 +58,59 @@ export async function pickContactNative(): Promise<PickedContact | null> {
   return { name, phone: "" };
 }
 
-/** Requests contacts permission on the device. Throws if denied. */
+/** Why reading the full address book failed. */
+export type ContactsErrorReason = "permission-denied" | "unavailable";
+
+export class ContactsError extends Error {
+  reason: ContactsErrorReason;
+  constructor(reason: ContactsErrorReason, message?: string) {
+    super(message ?? reason);
+    this.name = "ContactsError";
+    this.reason = reason;
+  }
+}
+
+export const contactsErrorReason = (err: unknown): ContactsErrorReason =>
+  err instanceof ContactsError ? err.reason : "unavailable";
+
+/** Requests contacts permission on the device. Throws ContactsError if denied. */
 export async function ensureContactsPermission(): Promise<void> {
   const { Contacts } = await import("@capacitor-community/contacts");
-  const status = await Contacts.checkPermissions();
+  let status: { contacts?: string };
+  try {
+    status = await Contacts.checkPermissions();
+  } catch {
+    // Permission not declared in the native manifest, or plugin missing
+    throw new ContactsError("unavailable");
+  }
   if (status.contacts === "granted") return;
-  const requested = await Contacts.requestPermissions();
+
+  let requested: { contacts?: string };
+  try {
+    requested = await Contacts.requestPermissions();
+  } catch {
+    throw new ContactsError("unavailable");
+  }
   if (requested.contacts !== "granted") {
-    throw new Error("permission-denied");
+    throw new ContactsError("permission-denied");
   }
 }
 
 /** Reads the device address book (native only). */
 export async function loadDeviceContacts(): Promise<PickedContact[]> {
+  if (!isNativeContacts()) throw new ContactsError("unavailable");
+
   const { Contacts } = await import("@capacitor-community/contacts");
   await ensureContactsPermission();
 
-  const result = await Contacts.getContacts({
-    projection: { name: true, phones: true },
-  });
+  let result: { contacts?: Array<{ name?: { display?: string }; phones?: Array<{ number?: string }> }> };
+  try {
+    result = await Contacts.getContacts({
+      projection: { name: true, phones: true },
+    });
+  } catch {
+    throw new ContactsError("unavailable");
+  }
 
   const list: PickedContact[] = [];
   for (const c of result.contacts ?? []) {

@@ -9,8 +9,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Search, UserRound } from "lucide-react";
-import { loadDeviceContacts, type PickedContact } from "@/lib/contacts";
+import { Loader2, RefreshCw, Search, UserRound, Smartphone } from "lucide-react";
+import {
+  contactsErrorReason,
+  isNativeContacts,
+  loadDeviceContacts,
+  pickContactNative,
+  type PickedContact,
+} from "@/lib/contacts";
 import { supabase } from "@/integrations/supabase/client";
 
 const PAGE_SIZE = 50;
@@ -26,6 +32,7 @@ type RegisteredMap = Record<string, { name: string | null; is_self: boolean }>;
 export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPickerDialogProps) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [systemPicking, setSystemPicking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [contacts, setContacts] = useState<PickedContact[]>([]);
   const [registered, setRegistered] = useState<RegisteredMap>({});
@@ -58,9 +65,9 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
         await fetchRegistered(list);
       } catch (err) {
         setError(
-          (err as Error).message === "permission-denied"
-            ? "Contacts permission was denied. Enable it in your phone settings > Apps > Ela Bazar > Permissions > Contacts, then tap Refresh."
-            : "Could not read your contacts. Please enter the number manually."
+          contactsErrorReason(err) === "permission-denied"
+            ? "Contacts permission was denied. Enable it in your phone settings > Apps > Ela Bazar > Permissions > Contacts, then tap Refresh — or use your phone's contact chooser below."
+            : "This app build can't read your full contact list. Use your phone's contact chooser instead, or enter the number manually."
         );
       } finally {
         setRefreshing(false);
@@ -69,6 +76,26 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
     },
     [fetchRegistered]
   );
+
+  // Fallback: the OS contact chooser needs no READ_CONTACTS permission.
+  const useSystemPicker = useCallback(async () => {
+    if (!isNativeContacts()) return;
+    setSystemPicking(true);
+    try {
+      const contact = await pickContactNative();
+      if (contact?.phone) {
+        onSelect(contact);
+        onOpenChange(false);
+      } else if (contact) {
+        setError("That contact has no valid 10-digit mobile number. Pick another or enter it manually.");
+      }
+    } catch {
+      setError("Your phone's contact chooser isn't available. Please enter the number manually.");
+    } finally {
+      setSystemPicking(false);
+    }
+  }, [onSelect, onOpenChange]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -132,14 +159,29 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
         ) : error ? (
           <div className="py-6 space-y-4">
             <p className="text-sm text-destructive">{error}</p>
-            <Button type="button" variant="outline" onClick={() => load("refresh")} disabled={refreshing}>
-              {refreshing ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4 mr-2" />
+            <div className="flex flex-col sm:flex-row gap-2">
+              {isNativeContacts() && (
+                <Button type="button" onClick={useSystemPicker} disabled={systemPicking}>
+                  {systemPicking ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Smartphone className="h-4 w-4 mr-2" />
+                  )}
+                  Pick from phone
+                </Button>
               )}
-              Try again
-            </Button>
+              <Button type="button" variant="outline" onClick={() => load("refresh")} disabled={refreshing}>
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                )}
+                Try again
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Enter manually
+              </Button>
+            </div>
           </div>
         ) : (
           <>
