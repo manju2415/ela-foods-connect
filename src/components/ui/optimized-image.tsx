@@ -56,6 +56,13 @@ const OptimizedImage = ({
       return;
     }
 
+    // Capacitor's WebView is usually current, but this keeps product images
+    // functional instead of throwing on older Android/iOS WebViews.
+    if (typeof IntersectionObserver === "undefined") {
+      setIsInView(true);
+      return;
+    }
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {

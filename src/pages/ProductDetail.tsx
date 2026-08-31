@@ -322,13 +322,15 @@ export default function ProductDetail() {
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
             {/* Image Gallery */}
             <div className="space-y-4">
-              <div className="relative aspect-[4/3] md:aspect-square overflow-hidden rounded-lg bg-muted">
+              <div className="relative mx-auto h-64 w-full max-w-md overflow-hidden rounded-lg bg-muted sm:h-72 md:h-[28rem]">
                 <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
                   className="w-full h-full object-contain"
                   containerClassName="w-full h-full"
                   priority
+                  displayWidth={448}
+                  displayHeight={448}
                 />
                 {images.length > 1 && (
                   <>
@@ -500,6 +502,7 @@ export default function ProductDetail() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Button
+                    type="button"
                     size="lg"
                     onClick={handleAddToCart}
                     disabled={isAddingToCart || effectiveStock === 0}
@@ -509,6 +512,7 @@ export default function ProductDetail() {
                     {effectiveStock === 0 ? "Out of Stock" : "Add to Cart"}
                   </Button>
                   <Button
+                    type="button"
                     size="lg"
                     variant="secondary"
                     onClick={handleBuyNow}

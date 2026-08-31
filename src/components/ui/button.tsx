@@ -41,11 +41,17 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { className, variant, size, asChild = false, ...props },
+  { className, variant, size, asChild = false, type, ...props },
   ref,
 ) {
   const Comp = asChild ? Slot : "button";
-  return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+  // Native buttons submit their nearest form by default. Most of this app's
+  // buttons trigger client-side actions, so require an explicit `type="submit"`
+  // for the few that belong to a form. This prevents accidental page jumps in
+  // mobile webviews as well as browsers.
+  const buttonProps = asChild ? props : { ...props, type: type ?? "button" };
+
+  return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...buttonProps} />;
 });
 Button.displayName = "Button";
 

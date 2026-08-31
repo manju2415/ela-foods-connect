@@ -36,9 +36,9 @@ interface GuestCartItem {
 interface CartContextType {
   items: CartItem[];
   loading: boolean;
-  addToCart: (productId: string, quantity?: number, variantId?: string | null) => Promise<void>;
-  buyNow: (productId: string, quantity?: number, variantId?: string | null) => Promise<void>;
-  updateQuantity: (itemId: string, quantity: number) => Promise<void>;
+  addToCart: (productId: string, quantity?: number, variantId?: string | null) => Promise<boolean>;
+  buyNow: (productId: string, quantity?: number, variantId?: string | null) => Promise<boolean>;
+  updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
   totalItems: number;
@@ -229,18 +229,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
-  const addToCart = async (productId: string, quantity = 1, variantId: string | null = null) => {
+  const addToCart = async (productId: string, quantity = 1, variantId: string | null = null): Promise<boolean> => {
     const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
     const requestedQuantity = (existingItem?.quantity || 0) + quantity;
     const stock = variantId ? existingItem?.variant?.stock_quantity : existingItem?.product.stock_quantity;
     if (stock !== undefined && requestedQuantity > stock) {
       toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
-      return;
+      return false;
     }
     if (user) {
       // Logged in user - use database
       if (existingItem) {
-        await updateQuantity(existingItem.id, existingItem.quantity + quantity);
+        return updateQuantity(existingItem.id, existingItem.quantity + quantity);
       } else {
         const { error } = await supabase.from("cart_items").insert({
           user_id: user.id,
@@ -256,6 +256,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             description: "Failed to add item to cart.",
             variant: "destructive",
           });
+          return false;
         } else {
           toast({
             title: "Added to Cart",
@@ -289,29 +290,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         description: "Item has been added to your cart.",
       });
     }
+
+    return true;
   };
 
   const navigate = useNavigate();
 
-  const buyNow = async (productId: string, quantity = 1, variantId: string | null = null) => {
-    await addToCart(productId, quantity, variantId);
+  const buyNow = async (productId: string, quantity = 1, variantId: string | null = null): Promise<boolean> => {
+    const wasAdded = await addToCart(productId, quantity, variantId);
+    if (!wasAdded) return false;
+
     if (user) {
       navigate("/checkout");
     } else {
       navigate("/guest-checkout");
     }
+    return true;
   };
 
-  const updateQuantity = async (itemId: string, quantity: number) => {
+  const updateQuantity = async (itemId: string, quantity: number): Promise<boolean> => {
     if (quantity <= 0) {
       await removeFromCart(itemId);
-      return;
+      return true;
     }
     const current = items.find((item) => item.id === itemId);
     const stock = current?.variant?.stock_quantity ?? current?.product.stock_quantity;
     if (stock !== undefined && quantity > stock) {
       toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
-      return;
+      return false;
     }
 
     if (user) {
@@ -328,6 +334,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           description: "Failed to update quantity.",
           variant: "destructive",
         });
+        return false;
       } else {
         await fetchCart();
       }
@@ -339,8 +346,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         guestItems[index].quantity = quantity;
         saveGuestCart(guestItems);
         await loadGuestCart();
+      } else {
+        return false;
       }
     }
+
+    return true;
   };
 
   const removeFromCart = async (itemId: string) => {
