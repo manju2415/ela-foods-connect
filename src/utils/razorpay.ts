@@ -1,3 +1,6 @@
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
+import { App as CapacitorApp } from "@capacitor/app";
 import { supabase } from "@/integrations/supabase/client";
 import { realEmailOrEmpty } from "@/lib/email";
 
@@ -40,6 +43,12 @@ interface RazorpayPaymentOptions {
   onFailure: (error: any) => void;
 }
 
+// Live website URL, used only when running in the native app: Razorpay's UPI
+// app-detection (Google Pay, PhonePe, ...) doesn't work inside the app's own
+// embedded WebView, only in a real browser context, so native builds open
+// checkout in an in-app browser tab against this page instead.
+const PAYMENT_BRIDGE_URL = "https://elabazar.com/payment-bridge";
+const PAYMENT_CALLBACK_SCHEME = "elabazarpay://payment-callback";
 
 const formatRazorpayContact = (contact?: string) => {
   const digits = (contact || "").replace(/\D/g, "");
@@ -71,7 +80,14 @@ const loadRazorpayScript = (): Promise<void> => {
   });
 };
 
-export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) => {
+/**
+ * Opens Razorpay's own Checkout modal in the current page and verifies the
+ * payment server-side. Works correctly in any real browser (mobile web,
+ * desktop web, and the in-app browser tab opened by the payment bridge page
+ * for native builds) — just not inside a bare embedded WebView, which is why
+ * native builds never call this directly (see initiateRazorpayPayment below).
+ */
+export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   // Ensure Razorpay SDK is loaded
   await loadRazorpayScript();
   if (!window.Razorpay) {
@@ -154,4 +170,69 @@ export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) =
     options.onFailure(response.error);
   });
   rzp.open();
+};
+
+const encodeBridgePayload = (value: unknown): string =>
+  encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(value)))));
+
+/**
+ * Native-only path: hands the payment off to a real browser tab (Chrome
+ * Custom Tabs) pointed at the live site's /payment-bridge page, which runs
+ * openRazorpayCheckout in a context where Razorpay can actually detect UPI
+ * apps. The bridge redirects to a custom-scheme deep link with the result,
+ * which we catch here and translate back into the normal onSuccess/onFailure
+ * callbacks, so callers don't need to know which path was taken.
+ */
+const initiateRazorpayPaymentNative = async (options: RazorpayPaymentOptions) => {
+  const { onSuccess, onFailure, ...serializable } = options;
+  const payloadParam = encodeBridgePayload(serializable);
+  const url = `${PAYMENT_BRIDGE_URL}?payload=${payloadParam}`;
+
+  let settled = false;
+  let appUrlListener: { remove: () => void } | null = null;
+  let browserFinishedListener: { remove: () => void } | null = null;
+
+  const cleanup = async () => {
+    appUrlListener?.remove();
+    browserFinishedListener?.remove();
+    try {
+      await Browser.close();
+    } catch {
+      // already closed
+    }
+  };
+
+  appUrlListener = await CapacitorApp.addListener("appUrlOpen", async ({ url: openedUrl }) => {
+    if (settled || !openedUrl.startsWith(PAYMENT_CALLBACK_SCHEME)) return;
+    settled = true;
+    await cleanup();
+
+    const params = new URL(openedUrl).searchParams;
+    if (params.get("status") === "success") {
+      onSuccess({
+        razorpay_payment_id: params.get("razorpay_payment_id") || "",
+        razorpay_order_id: params.get("razorpay_order_id") || "",
+        razorpay_signature: params.get("razorpay_signature") || "",
+      });
+    } else {
+      onFailure(new Error(params.get("error") || "Payment failed"));
+    }
+  });
+
+  browserFinishedListener = await Browser.addListener("browserFinished", async () => {
+    if (settled) return;
+    settled = true;
+    appUrlListener?.remove();
+    browserFinishedListener?.remove();
+    onFailure(new Error("Payment cancelled by user"));
+  });
+
+  await Browser.open({ url });
+};
+
+export const initiateRazorpayPayment = async (options: RazorpayPaymentOptions) => {
+  if (Capacitor.isNativePlatform()) {
+    return initiateRazorpayPaymentNative(options);
+  }
+  return openRazorpayCheckout(options);
 };

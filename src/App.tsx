@@ -40,6 +40,7 @@ const Contact = lazy(() => import("./pages/Contact"));
 const DeliveryDashboard = lazy(() => import("./pages/DeliveryDashboard"));
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 const GuestCheckout = lazy(() => import("./pages/GuestCheckout"));
+const PaymentBridge = lazy(() => import("./pages/PaymentBridge"));
 const RegistrationPayment = lazy(() => import("./pages/RegistrationPayment"));
 const CompleteRegistration = lazy(() => import("./pages/CompleteRegistration"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -183,6 +184,7 @@ function App() {
                         <Route path="/product/:slug" element={<ProductDetail />} />
                         <Route path="/checkout" element={<Checkout />} />
                         <Route path="/guest-checkout" element={<GuestCheckout />} />
+                        <Route path="/payment-bridge" element={<PaymentBridge />} />
                         <Route path="/about" element={<About />} />
                         <Route path="/contact" element={<Contact />} />
                         <Route path="/delivery" element={<DeliveryDashboard />} />
