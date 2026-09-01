@@ -118,6 +118,12 @@ const Checkout = () => {
     if (!orderPlaced) fetchData();
   }, [user, items.length, navigate, orderPlaced]);
 
+  // Placing an order swaps in the confirmation view in-page (no route change),
+  // so the router-level scroll reset doesn't cover it — reset manually.
+  useEffect(() => {
+    if (orderPlaced) window.scrollTo(0, 0);
+  }, [orderPlaced]);
+
   const fetchData = async () => {
     if (!user) return;
 

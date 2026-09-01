@@ -18,6 +18,7 @@ import AuthGuard from "@/components/AuthGuard";
 import OnboardingGate from "@/components/OnboardingGate";
 
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
+import { ScrollToTop } from "@/components/ScrollToTop";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { MLMAdminLayout } from "./components/mlm-admin/MLMAdminLayout";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
@@ -163,6 +164,7 @@ function App() {
               <BrowserRouter>
                 <CartProvider>
                   <WishlistProvider>
+                    <ScrollToTop />
                     <OnboardingGate />
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
@@ -243,13 +245,13 @@ function App() {
                         <Route path="/customer-app/orders" element={<CustomerOrdersPage />} />
                         <Route path="/customer-app/order/:orderId" element={<CustomerOrderDetailPage />} />
                         <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
-                        <Route path="/customer-app/profile" element={<CustomerProfilePage />} />
+                        <Route path="/customer-app/profile" element={<AppErrorBoundary><CustomerProfilePage /></AppErrorBoundary>} />
                         <Route path="/customer-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app" element={<MemberApp />} />
                         <Route path="/member-app/network" element={<MemberNetworkPage />} />
                         <Route path="/member-app/wallet" element={<CustomerWalletPage />} />
-                        <Route path="/member-app/profile" element={<CustomerProfilePage />} />
+                        <Route path="/member-app/profile" element={<AppErrorBoundary><CustomerProfilePage /></AppErrorBoundary>} />
                         {/* PWA Install Pages */}
                         <Route path="/install/customer" element={<CustomerInstall />} />
                         <Route path="/install/driver" element={<DriverInstall />} />

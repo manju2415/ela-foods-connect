@@ -76,6 +76,12 @@ const GuestCheckout = () => {
     }
   }, [user, navigate]);
 
+  // Step changes are in-page state updates, not route navigations, so the
+  // router-level scroll reset doesn't cover them — reset manually.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [step]);
+
   // ──── Validation ────
   const isDetailsValid = () => {
     const { full_name, phone, address_line1, city, state, postal_code } = guestDetails;

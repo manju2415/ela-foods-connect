@@ -109,25 +109,13 @@ export function useFCMPushNotifications() {
       try {
         const permStatus = await PushNotifications.checkPermissions();
         setPermissionStatus(permStatus.receive);
-
-        // IMPORTANT: Do NOT request permission or register immediately on mount.
-        // We let the app (DriverApp/MemberApp/CustomerApp) request it after the UI is stable.
-        if (permStatus.receive !== 'granted') return;
-
-        // If already granted, register once the browser is idle (reduces native startup crashes).
-        const registerLater = () => {
-          try {
-            PushNotifications.register();
-          } catch (e) {
-            console.error('[push] register threw synchronously:', e);
-          }
-        };
-
-        if ('requestIdleCallback' in window) {
-          (window as any).requestIdleCallback(() => setTimeout(registerLater, 500), { timeout: 5000 });
-        } else {
-          setTimeout(registerLater, 1500);
-        }
+        // IMPORTANT: Do NOT request permission or register automatically here,
+        // even if already granted. `.register()` calls into the native
+        // FirebaseMessaging SDK, which throws if the app was built without a
+        // valid android/app/google-services.json (no Firebase project wired
+        // up) — a native-side exception that crashes the whole app and can't
+        // be caught from JS. Only register in response to an explicit user
+        // tap (see requestPermission below), never on page mount.
       } catch (error) {
         console.error('[push] checkPermissions failed:', error);
       }

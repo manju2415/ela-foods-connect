@@ -12,6 +12,14 @@ export default {
         "2xl": "1400px",
       },
     },
+    fontFamily: {
+      // Pinned to concrete faces instead of the `system-ui`/`ui-sans-serif`
+      // default: those keywords defer to whatever font the OS has set as its
+      // UI default, so a device with a decorative/handwriting system font
+      // installed (a common Samsung "Theme" customization) renders it
+      // everywhere in the app, headings and body text alike.
+      sans: ["Roboto", "Helvetica Neue", "Arial", "-apple-system", "sans-serif"],
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
