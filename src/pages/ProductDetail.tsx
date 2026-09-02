@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { buildVariantOptions, type GroupableVariant } from "@/lib/variantOptions";
+import { buildVariantOptions, type GroupableProduct, type GroupableVariant } from "@/lib/variantOptions";
 
 
 interface Product {
@@ -39,6 +39,8 @@ interface Product {
   sku: string | null;
   stock_quantity: number;
   weight_grams: number | null;
+  unit_type: string | null;
+  unit_value: number | null;
   images: string[];
   category_id: string | null;
   is_active: boolean;
@@ -112,15 +114,15 @@ export default function ProductDetail() {
   const { data: variants = [] } = useQuery({
     queryKey: ["product-variants", product?.id],
     queryFn: async () => {
-      if (!product?.id) return [] as any[];
-      const { data, error } = await (supabase as any)
+      if (!product?.id) return [] as GroupableVariant[];
+      const { data, error } = await supabase
         .from("product_variants")
         .select("*")
         .eq("product_id", product.id)
         .eq("is_active", true)
         .order("display_order", { ascending: true });
       if (error) throw error;
-      return (data || []) as any[];
+      return (data || []) as GroupableVariant[];
     },
     enabled: !!product?.id,
   });
@@ -129,7 +131,7 @@ export default function ProductDetail() {
   const { data: siblings = [] } = useQuery({
     queryKey: ["product-siblings", product?.id, product?.name],
     queryFn: async () => {
-      if (!product?.id) return [] as any[];
+      if (!product?.id) return [] as GroupableProduct[];
       const { data, error } = await supabase
         .from("products")
         .select("id, name, slug, price, member_price, stock_quantity, unit_type, unit_value, category_id")
@@ -137,19 +139,19 @@ export default function ProductDetail() {
         .eq("is_active", true)
         .neq("id", product.id);
       if (error) throw error;
-      return (data || []) as any[];
+      return (data || []) as GroupableProduct[];
     },
     enabled: !!product?.id,
   });
 
   const { data: siblingVariants = [] } = useQuery({
-    queryKey: ["sibling-variants", siblings.map((s: any) => s.id).join(",")],
+    queryKey: ["sibling-variants", siblings.map((s) => s.id).join(",")],
     queryFn: async () => {
       if (siblings.length === 0) return [] as GroupableVariant[];
       const { data, error } = await supabase
         .from("product_variants")
         .select("id, product_id, label, price, member_price, stock_quantity, is_default, display_order")
-        .in("product_id", siblings.map((s: any) => s.id))
+        .in("product_id", siblings.map((s) => s.id))
         .eq("is_active", true)
         .order("display_order");
       if (error) throw error;
@@ -161,21 +163,17 @@ export default function ProductDetail() {
   // Unified pack/quantity options: this product's variants + same-named products
   const options = product
     ? buildVariantOptions(
-        [product as any, ...(siblings as any[])],
-        [...(variants as GroupableVariant[]), ...siblingVariants]
+        [product, ...siblings],
+        [...variants, ...siblingVariants]
       )
     : [];
 
   const defaultOption =
-    options.find((o) => o.variantId && o.stock > 0 && variants.find((v: any) => v.id === o.variantId && v.is_default)) ||
+    options.find((o) => o.variantId && o.stock > 0 && variants.find((v) => v.id === o.variantId && v.is_default)) ||
     options.find((o) => o.stock > 0) ||
     options[0] ||
     null;
   const activeOption = options.find((o) => o.key === selectedOptionKey) || defaultOption;
-  const activeVariant = activeOption?.variantId
-    ? [...(variants as any[]), ...(siblingVariants as any[])].find((v: any) => v.id === activeOption.variantId)
-    : null;
-
   const effectivePrice = activeOption?.price ?? product?.price ?? 0;
   const effectiveStock = activeOption?.stock ?? product?.stock_quantity ?? 0;
 
@@ -397,13 +395,12 @@ export default function ProductDetail() {
               <div className="space-y-3">
                 {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
-                  <span className="text-sm text-muted-foreground">MRP:</span>
                   <span className={`font-bold ${isMember ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
-                    ₹{Number(basePrice).toFixed(2)}
+                    MRP: ₹{Number(basePrice).toFixed(2)}
                   </span>
                   {product.compare_at_price && product.compare_at_price > product.price && (
                     <span className="text-lg text-muted-foreground line-through">
-                      ₹{Number(product.compare_at_price).toFixed(2)}
+                      MRP: ₹{Number(product.compare_at_price).toFixed(2)}
                     </span>
                   )}
                   {discount > 0 && (
@@ -411,10 +408,9 @@ export default function ProductDetail() {
                   )}
                 </div>
                 {/* Member Price - Always shown */}
-                <div className="flex items-baseline gap-3 p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                  <span className="text-sm text-green-700 dark:text-green-400 font-medium">Member Price:</span>
+                <div className="flex items-baseline gap-3 p-3 bg-green-200 dark:bg-green-900/70 rounded-lg border border-green-400 dark:border-green-700 shadow-sm">
                   <span className={`font-bold ${isMember ? 'text-3xl text-green-600' : 'text-2xl text-green-600'}`}>
-                    ₹{Number(effectiveMemberPrice).toFixed(2)}
+                    Member Price: ₹{Number(effectiveMemberPrice).toFixed(2)}
                   </span>
                   {memberDiscount > 0 && (
                     <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
@@ -572,10 +568,10 @@ export default function ProductDetail() {
                       {relatedProduct.name}
                     </h3>
                     <div className="flex items-baseline gap-2">
-                      <span className="font-bold">₹{Number(relatedProduct.price).toFixed(2)}</span>
+                      <span className="font-bold">MRP: ₹{Number(relatedProduct.price).toFixed(2)}</span>
                       {relatedProduct.compare_at_price && (
                         <span className="text-sm text-muted-foreground line-through">
-                          ₹{Number(relatedProduct.compare_at_price).toFixed(2)}
+                          MRP: ₹{Number(relatedProduct.compare_at_price).toFixed(2)}
                         </span>
                       )}
                     </div>

@@ -142,9 +142,9 @@ const ProductCard = ({
         {discount > 0 && (
           <div
             className="absolute top-0 left-2 bg-secondary text-secondary-foreground text-[10px] font-bold px-2 pt-1 pb-1.5 leading-none shadow-sm"
-            style={{ clipPath: "polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%)" }}
+            style={{color:"red" }}
           >
-            {discount}% off
+            {discount}% 
           </div>
         )}
 
@@ -168,9 +168,9 @@ const ProductCard = ({
         </Link>
 
         {!outOfStock && (
-          <div className="inline-flex items-center gap-1 bg-secondary/20 border border-secondary/50 text-secondary-foreground text-[10px] font-semibold px-1.5 py-0.5 rounded-full w-fit">
-            <Crown className="h-2.5 w-2.5 fill-current shrink-0" />
-            Get for ₹{effectiveMemberPrice}
+          <div className="inline-flex max-w-full items-center gap-1 sm:gap-1.5 bg-yellow-300 border border-yellow-500 text-yellow-950 text-[13px] sm:text-base leading-tight font-extrabold px-2 sm:px-3 py-1.5 rounded-lg shadow-sm w-fit dark:bg-yellow-400 dark:border-yellow-300 dark:text-yellow-950">
+            <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current shrink-0" />
+            <span>Get Price: ₹{effectiveMemberPrice}</span>
           </div>
         )}
 
@@ -200,8 +200,9 @@ const ProductCard = ({
           <p className="text-[11px] text-destructive mt-auto">Out of stock</p>
         ) : (
           <div className="mt-auto">
-            <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-sm font-bold text-foreground">₹{displayPrice}</span>
+            <div className="flex items-baseline gap-x-1 sm:gap-x-1.5 gap-y-0.5 flex-wrap">
+              <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">MRP:</span>
+              <span className="text-xs sm:text-sm font-bold text-foreground">₹{displayPrice}</span>
               {originalPrice && originalPrice > displayPrice && (
                 <span className="text-[11px] text-muted-foreground line-through">₹{originalPrice}</span>
               )}
