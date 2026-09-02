@@ -37,6 +37,10 @@ const OptimizedImage = ({
   const [isLoaded, setIsLoaded] = useState(false);
   const [isInView, setIsInView] = useState(priority);
   const [hasError, setHasError] = useState(false);
+  // If a transformed URL fails to load, fall back to the original before
+  // giving up entirely — a bad/unsupported transform shouldn't take the
+  // image down with it.
+  const [useFallbackSrc, setUseFallbackSrc] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Generate optimized URL for Supabase storage images. Request at device
@@ -50,6 +54,13 @@ const OptimizedImage = ({
       quality: qualityMap[quality],
     });
   }, [src, displayWidth, displayHeight, quality]);
+
+  useEffect(() => {
+    setUseFallbackSrc(false);
+    setHasError(false);
+  }, [src]);
+
+  const resolvedSrc = useFallbackSrc ? src : optimizedSrc;
 
   useEffect(() => {
     if (priority) {
@@ -89,6 +100,11 @@ const OptimizedImage = ({
   };
 
   const handleError = () => {
+    if (!useFallbackSrc && optimizedSrc !== src) {
+      // Retry once with the untransformed URL before giving up.
+      setUseFallbackSrc(true);
+      return;
+    }
     setHasError(true);
     setIsLoaded(true);
   };
@@ -110,7 +126,7 @@ const OptimizedImage = ({
       {/* Actual Image */}
       {isInView && !hasError && (
         <img
-          src={optimizedSrc}
+          src={resolvedSrc}
           alt={alt}
           width={displayWidth}
           height={displayHeight}
