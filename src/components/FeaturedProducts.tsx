@@ -19,6 +19,7 @@ interface Product {
   member_price: number | null;
   images: string[];
   is_featured: boolean;
+  is_fast_selling: boolean;
   unit_type: string | null;
   unit_value: number | null;
   categories: {
@@ -41,6 +42,7 @@ const FeaturedProducts = () => {
           member_price,
           images,
           is_featured,
+          is_fast_selling,
           unit_type,
           unit_value,
           categories (name)
@@ -112,7 +114,7 @@ const FeaturedProducts = () => {
         ) : (
           <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
             <CarouselContent className="-ml-4">
-              {products.map((product) => (
+              {products.map((product, index) => (
                 <CarouselItem
                   key={product.id}
                   className="pl-4 basis-1/2 sm:basis-1/2 lg:basis-1/4"
@@ -127,8 +129,10 @@ const FeaturedProducts = () => {
                     image={product.images?.[0] || "/placeholder.svg"}
                     category={product.categories?.name || "General"}
                     isBestSeller={product.is_featured}
+                    isFastSelling={product.is_fast_selling}
                     unitType={product.unit_type}
                     unitValue={product.unit_value}
+                    imagePriority={index < 2}
                   />
                 </CarouselItem>
               ))}

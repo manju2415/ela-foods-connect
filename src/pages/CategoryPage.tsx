@@ -25,6 +25,7 @@ interface Product {
   member_price: number | null;
   images: string[];
   is_featured: boolean;
+  is_fast_selling: boolean;
   category_id: string | null;
   unit_type: string | null;
   unit_value: number | null;
@@ -127,6 +128,7 @@ const CategoryPage = () => {
         member_price,
         images,
         is_featured,
+        is_fast_selling,
         category_id,
         unit_type,
         unit_value,
@@ -289,9 +291,10 @@ const CategoryPage = () => {
                 Showing {products.length} product{products.length !== 1 ? "s" : ""}
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                {products.map((product) => (
+                {products.map((product, index) => (
                   <ProductCard
                     key={product.id}
+                    imagePriority={index < 4}
                     id={product.id}
                     name={product.name}
                     slug={product.slug}
@@ -301,6 +304,7 @@ const CategoryPage = () => {
                     image={product.images?.[0] || "/placeholder.svg"}
                     category={product.categories?.name || "Snacks"}
                     isBestSeller={product.is_featured}
+                    isFastSelling={product.is_fast_selling}
                     unitType={product.unit_type}
                     unitValue={product.unit_value}
                     gstPercentage={product.gst_percentage}

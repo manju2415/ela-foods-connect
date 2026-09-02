@@ -368,7 +368,7 @@ export default function ProductDetail() {
                           : "border-transparent hover:border-muted-foreground"
                       }`}
                     >
-                      <OptimizedImage src={img} alt="" className="w-full h-full object-cover" containerClassName="w-full h-full" />
+                      <OptimizedImage src={img} alt="" className="w-full h-full object-cover" containerClassName="w-full h-full" displayWidth={80} displayHeight={80} />
                     </button>
                   ))}
                 </div>
@@ -562,6 +562,8 @@ export default function ProductDetail() {
                         alt={relatedProduct.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         containerClassName="w-full h-full"
+                        displayWidth={300}
+                        displayHeight={300}
                       />
                     </div>
                     <h3 className="font-medium group-hover:text-primary transition-colors line-clamp-2">

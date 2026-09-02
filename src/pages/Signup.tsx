@@ -1,5 +1,10 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
+import {
+  useNavigate,
+  Link,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,8 +12,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, UserPlus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -17,26 +32,50 @@ import { UserAgreementDialog } from "@/components/UserAgreementDialog";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 
-const DEMO_PHONES = ["8888888888", "9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+const DEMO_PHONES = [
+  "8888888888",
+  "9999000001",
+  "9999000002",
+  "9999000003",
+  "9999000004",
+  "9999000005",
+  "9999000006",
+];
 const DEMO_OTP = "000000";
 const RESEND_COOLDOWN = 30;
 
 const isDemoPhone = (p: string) => DEMO_PHONES.some((x) => p.endsWith(x));
 
 const signupSchema = z.object({
-  fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(100),
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
-  referralCode: z.string().trim().max(20, "Referral code is too long").optional(),
+  referralCode: z
+    .string()
+    .trim()
+    .max(20, "Referral code is too long")
+    .optional(),
 });
 type SignupData = z.infer<typeof signupSchema>;
 
 const sendOtp = async (phone: string) => {
   if (isDemoPhone(phone)) return { success: true as const };
-  const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
+  const { data, error } = await supabase.functions.invoke("msg91-send-otp", {
+    body: { phone },
+  });
   if (error || !data?.success) {
-    return { success: false as const, error: data?.error || error?.message || "Failed to send OTP" };
+    return {
+      success: false as const,
+      error: data?.error || error?.message || "Failed to send OTP",
+    };
   }
-  return { success: true as const, requestId: data.requestId as string | undefined };
+  return {
+    success: true as const,
+    requestId: data.requestId as string | undefined,
+  };
 };
 
 const verifyOtp = async (phone: string, otp: string) => {
@@ -45,9 +84,14 @@ const verifyOtp = async (phone: string, otp: string) => {
       ? { success: true as const }
       : { success: false as const, error: "Invalid OTP" };
   }
-  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
+  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", {
+    body: { phone, otp },
+  });
   if (error || !data?.success) {
-    return { success: false as const, error: data?.error || error?.message || "Invalid OTP" };
+    return {
+      success: false as const,
+      error: data?.error || error?.message || "Invalid OTP",
+    };
   }
   return { success: true as const };
 };
@@ -57,12 +101,13 @@ export default function Signup() {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [fullName, setFullName] = useState("");
   const [otp, setOtp] = useState("");
-  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(
+    null,
+  );
   const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [agreed, setAgreed] = useState(false);
-
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
@@ -101,7 +146,8 @@ export default function Signup() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (user && step === "form") navigate("/complete-registration", { replace: true });
+    if (user && step === "form")
+      navigate("/complete-registration", { replace: true });
   }, [user, step, navigate]);
 
   useEffect(() => {
@@ -117,7 +163,11 @@ export default function Signup() {
     const result = await sendOtp(full);
     setSubmitting(false);
     if (!result.success) {
-      toast({ title: "Failed to send OTP", description: result.error, variant: "destructive" });
+      toast({
+        title: "Failed to send OTP",
+        description: result.error,
+        variant: "destructive",
+      });
       return;
     }
     setFullName(data.fullName);
@@ -127,7 +177,9 @@ export default function Signup() {
     setCooldown(RESEND_COOLDOWN);
     toast({
       title: "OTP Sent",
-      description: isDemoPhone(full) ? `Demo account — use ${DEMO_OTP}` : `Sent to ${full}`,
+      description: isDemoPhone(full)
+        ? `Demo account — use ${DEMO_OTP}`
+        : `Sent to ${full}`,
     });
   };
 
@@ -137,7 +189,11 @@ export default function Signup() {
     const r = await sendOtp(phoneNumber);
     setSubmitting(false);
     if (!r.success) {
-      toast({ title: "Failed to resend OTP", description: r.error, variant: "destructive" });
+      toast({
+        title: "Failed to resend OTP",
+        description: r.error,
+        variant: "destructive",
+      });
       return;
     }
     setCooldown(RESEND_COOLDOWN);
@@ -151,21 +207,34 @@ export default function Signup() {
     const v = await verifyOtp(phoneNumber, otp);
     if (!v.success) {
       setSubmitting(false);
-      toast({ title: "Verification failed", description: v.error, variant: "destructive" });
+      toast({
+        title: "Verification failed",
+        description: v.error,
+        variant: "destructive",
+      });
       setOtp("");
       return;
     }
 
     // Create the account server-side (idempotent)
-    const { data: created, error: createErr } = await supabase.functions.invoke("signup-create-user", {
-      body: { phone: phoneNumber, fullName, referralCode, founder: isFounderSignup },
-    });
+    const { data: created, error: createErr } = await supabase.functions.invoke(
+      "signup-create-user",
+      {
+        body: {
+          phone: phoneNumber,
+          fullName,
+          referralCode,
+          founder: isFounderSignup,
+        },
+      },
+    );
 
     if (createErr || !created?.success) {
       setSubmitting(false);
       toast({
         title: "Signup failed",
-        description: created?.error || createErr?.message || "Could not create account.",
+        description:
+          created?.error || createErr?.message || "Could not create account.",
         variant: "destructive",
       });
       return;
@@ -176,13 +245,23 @@ export default function Signup() {
     setSubmitting(false);
 
     if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
       return;
     }
 
-    toast({ title: "Welcome to Elabazar!", description: "Complete your registration and payment." });
+    toast({
+      title: "Welcome to Elabazar!",
+      description: "Complete your registration and payment.",
+    });
     // Small delay so auth context settles, then continue onboarding + payment
-    setTimeout(() => navigate("/complete-registration", { replace: true }), 600);
+    setTimeout(
+      () => navigate("/complete-registration", { replace: true }),
+      600,
+    );
   };
 
   if (step === "otp") {
@@ -194,7 +273,9 @@ export default function Signup() {
               <img src={elaLogo} alt="Elabazar" className="h-16 w-auto" />
             </div>
             <CardTitle className="text-2xl">Verify OTP</CardTitle>
-            <CardDescription>Enter the 6-digit code sent to {phoneNumber}</CardDescription>
+            <CardDescription>
+              Enter the 6-digit code sent to {phoneNumber}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
@@ -206,15 +287,26 @@ export default function Signup() {
                 </InputOTPGroup>
               </InputOTP>
             </div>
-            <Button className="w-full" disabled={otp.length !== 6 || submitting} onClick={handleVerify}>
+            <Button
+              className="w-full"
+              disabled={otp.length !== 6 || submitting}
+              onClick={handleVerify}
+            >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Account
             </Button>
             <div className="text-center text-sm">
               {cooldown > 0 ? (
-                <span className="text-muted-foreground">Resend in {cooldown}s</span>
+                <span className="text-muted-foreground">
+                  Resend in {cooldown}s
+                </span>
               ) : (
-                <button type="button" className="text-primary hover:underline" onClick={handleResend} disabled={submitting}>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={handleResend}
+                  disabled={submitting}
+                >
                   Resend OTP
                 </button>
               )}
@@ -258,9 +350,15 @@ export default function Signup() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
-              <Input id="fullName" placeholder="Enter full name" {...form.register("fullName")} />
+              <Input
+                id="fullName"
+                placeholder="Enter full name"
+                {...form.register("fullName")}
+              />
               {form.formState.errors.fullName && (
-                <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.fullName.message}
+                </p>
               )}
             </div>
             <div className="space-y-2">
@@ -279,7 +377,9 @@ export default function Signup() {
                 />
               </div>
               {form.formState.errors.phone && (
-                <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
+                <p className="text-sm text-destructive">
+                  {form.formState.errors.phone.message}
+                </p>
               )}
             </div>
 
@@ -292,16 +392,20 @@ export default function Signup() {
                   referralCodeValid === true
                     ? "border-green-500"
                     : referralCodeValid === false
-                    ? "border-destructive"
-                    : ""
+                      ? "border-destructive"
+                      : ""
                 }
                 {...form.register("referralCode", {
                   onChange: (e) => validateReferralCode(e.target.value),
                 })}
               />
-              {referralCodeValid === true && <p className="text-sm text-green-600">Valid referral code!</p>}
+              {referralCodeValid === true && (
+                <p className="text-sm text-green-600">Valid referral code!</p>
+              )}
               {referralCodeValid === false && (
-                <p className="text-sm text-destructive">Invalid or inactive referral code</p>
+                <p className="text-sm text-destructive">
+                  Invalid or inactive referral code
+                </p>
               )}
             </div>
 
@@ -312,30 +416,31 @@ export default function Signup() {
                 onCheckedChange={(v) => setAgreed(v === true)}
                 className="mt-0.5"
               />
-              <Label htmlFor="agreement" className="text-sm font-normal leading-relaxed">
-                I am 18 years or older and I agree to the <UserAgreementDialog />.
+              <Label
+                htmlFor="agreement"
+                className="text-sm font-normal leading-relaxed"
+              >
+                I am 18 years or older and I agree to the{" "}
+                <UserAgreementDialog />.
               </Label>
             </div>
 
-            <Button type="submit" className="w-full" disabled={submitting || !agreed}>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={submitting || !agreed}
+            >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               <UserPlus className="mr-2 h-4 w-4" />
               Send OTP
             </Button>
 
-
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link to="/auth" className="text-primary hover:underline">
+              <Link to="/auth" className="font-medium text-primary hover:underline">
                 Log in
               </Link>
             </p>
-
-            <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Demo credentials</p>
-              <p>Phone: <span className="font-mono">8888888888</span></p>
-              <p>OTP: <span className="font-mono">{DEMO_OTP}</span></p>
-            </div>
           </form>
         </CardContent>
       </Card>

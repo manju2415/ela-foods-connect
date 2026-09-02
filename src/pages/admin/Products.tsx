@@ -65,6 +65,7 @@ interface Product {
   category_id: string | null;
   is_active: boolean;
   is_featured: boolean;
+  is_fast_selling: boolean;
   created_at: string;
   gst_percentage: number | null;
   gst_inclusive: boolean | null;
@@ -93,6 +94,7 @@ interface ProductFormData {
   category_id: string;
   is_active: boolean;
   is_featured: boolean;
+  is_fast_selling: boolean;
   gst_percentage: string;
   gst_inclusive: boolean;
   hsn_code: string;
@@ -114,6 +116,7 @@ const initialFormData: ProductFormData = {
   category_id: "",
   is_active: true,
   is_featured: false,
+  is_fast_selling: false,
   gst_percentage: "0",
   gst_inclusive: true,
   hsn_code: "",
@@ -242,6 +245,7 @@ export default function Products() {
         category_id: data.category_id || null,
         is_active: data.is_active,
         is_featured: data.is_featured,
+        is_fast_selling: data.is_fast_selling,
         images: imageUrls,
         gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
         gst_inclusive: data.gst_inclusive,
@@ -287,6 +291,7 @@ export default function Products() {
           category_id: data.category_id || null,
           is_active: data.is_active,
           is_featured: data.is_featured,
+          is_fast_selling: data.is_fast_selling,
           images: imageUrls,
           gst_percentage: data.gst_percentage ? parseFloat(data.gst_percentage) : 0,
           gst_inclusive: data.gst_inclusive,
@@ -350,6 +355,7 @@ export default function Products() {
       category_id: product.category_id || "",
       is_active: product.is_active,
       is_featured: product.is_featured,
+      is_fast_selling: product.is_fast_selling,
       gst_percentage: (product.gst_percentage || 0).toString(),
       hsn_code: product.hsn_code || "",
       gst_inclusive: product.gst_inclusive !== false,
@@ -538,6 +544,7 @@ export default function Products() {
                               {product.is_active ? "Active" : "Inactive"}
                             </Badge>
                             {product.is_featured && <Badge variant="outline">Featured</Badge>}
+                            {product.is_fast_selling && <Badge variant="outline">Fast Selling</Badge>}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -587,6 +594,7 @@ export default function Products() {
                         <div className="flex flex-wrap gap-1">
                           <Badge variant={product.is_active ? "default" : "secondary"}>{product.is_active ? "Active" : "Inactive"}</Badge>
                           {product.is_featured && <Badge variant="outline">Featured</Badge>}
+                          {product.is_fast_selling && <Badge variant="outline">Fast Selling</Badge>}
                         </div>
                       </AdminMobileField>
                     </div>
@@ -877,6 +885,14 @@ export default function Products() {
                     onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
                   />
                   <Label htmlFor="is_featured">Featured</Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="is_fast_selling"
+                    checked={formData.is_fast_selling}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_fast_selling: checked })}
+                  />
+                  <Label htmlFor="is_fast_selling">Fast Selling</Label>
                 </div>
               </div>
 

@@ -39,16 +39,17 @@ const OptimizedImage = ({
   const [hasError, setHasError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Generate optimized URL for Supabase storage images
-  const optimizedSrc = useMemo(
-    () =>
-      getOptimizedImageUrl(src, {
-        width: displayWidth,
-        height: displayHeight,
-        quality: qualityMap[quality],
-      }),
-    [src, displayWidth, displayHeight, quality]
-  );
+  // Generate optimized URL for Supabase storage images. Request at device
+  // pixel ratio (capped at 2x) so the resized image still looks sharp on
+  // retina screens, without fetching full-resolution originals everywhere.
+  const optimizedSrc = useMemo(() => {
+    const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    return getOptimizedImageUrl(src, {
+      width: displayWidth ? Math.round(displayWidth * dpr) : undefined,
+      height: displayHeight ? Math.round(displayHeight * dpr) : undefined,
+      quality: qualityMap[quality],
+    });
+  }, [src, displayWidth, displayHeight, quality]);
 
   useEffect(() => {
     if (priority) {
@@ -111,6 +112,8 @@ const OptimizedImage = ({
         <img
           src={optimizedSrc}
           alt={alt}
+          width={displayWidth}
+          height={displayHeight}
           onLoad={handleLoad}
           onError={handleError}
           loading={priority ? "eager" : "lazy"}

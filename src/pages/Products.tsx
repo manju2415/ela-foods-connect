@@ -34,6 +34,7 @@ interface Product {
   stock_quantity: number | null;
   images: string[];
   is_featured: boolean;
+  is_fast_selling: boolean;
   category_id: string | null;
   unit_type: string | null;
   unit_value: number | null;
@@ -127,6 +128,7 @@ const Products = () => {
         stock_quantity,
         images,
         is_featured,
+        is_fast_selling,
         category_id,
         unit_type,
         unit_value,
@@ -399,12 +401,13 @@ const Products = () => {
                   Showing {productGroups.length} product{productGroups.length !== 1 ? "s" : ""}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                  {productGroups.map((group) => {
+                  {productGroups.map((group, index) => {
                     const product = group[0];
                     const options = buildVariantOptions(group, variants);
                     return (
                       <ProductCard
                         key={product.id}
+                        imagePriority={index < 4}
                         id={product.id}
                         name={product.name}
                         slug={product.slug}
@@ -414,6 +417,7 @@ const Products = () => {
                         image={product.images?.[0] || "/placeholder.svg"}
                         category={product.categories?.name || "General"}
                         isBestSeller={product.is_featured}
+                        isFastSelling={product.is_fast_selling}
                         unitType={product.unit_type}
                         unitValue={product.unit_value}
                         variantOptions={options.length > 1 ? options : undefined}

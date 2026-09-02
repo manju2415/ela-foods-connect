@@ -578,9 +578,12 @@ const Auth = () => {
           )}
 
           <div className="mt-6 text-center">
+            <span className="text-sm text-muted-foreground">
+              {isLogin ? "Don't have an account? " : "Already have an account? "}
+            </span>
             <button
               type="button"
-              className="text-sm text-primary hover:underline"
+              className="text-sm font-medium text-primary hover:underline"
               onClick={() => {
                 setIsLogin(!isLogin);
                 loginForm.reset();
@@ -588,7 +591,7 @@ const Auth = () => {
                 setReferralCodeValid(null);
               }}
             >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+              {isLogin ? "Sign up" : "Log in"}
             </button>
           </div>
         </CardContent>

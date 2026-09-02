@@ -35,6 +35,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Signup = lazy(() => import("./pages/Signup"));
 const UserAgreementPage = lazy(() => import("./pages/UserAgreement"));
 
+const ShopByCategory = lazy(() => import("./pages/ShopByCategory"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail"));
 const Checkout = lazy(() => import("./pages/Checkout"));
 const About = lazy(() => import("./pages/About"));
@@ -208,7 +209,7 @@ function App() {
                         <Route path="/role-redirect" element={<AuthGuard><RoleBasedRedirect /></AuthGuard>} />
                         <Route path="/dashboard" element={<Dashboard />} />
                         <Route path="/products" element={<Products />} />
-                        <Route path="/categories" element={<Products />} />
+                        <Route path="/categories" element={<ShopByCategory />} />
                         <Route path="/category/:slug" element={<CategoryPage />} />
                         <Route path="/category/:slug/:subSlug" element={<CategoryPage />} />
                         <Route path="/product/:slug" element={<ProductDetail />} />

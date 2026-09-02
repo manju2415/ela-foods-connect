@@ -13,6 +13,7 @@ interface Product {
   member_price: number | null;
   images: string[];
   is_featured: boolean;
+  is_fast_selling: boolean;
   unit_type: string | null;
   unit_value: number | null;
   category_id: string | null;
@@ -33,7 +34,7 @@ interface Section {
 
 const PRODUCT_COLUMNS = `
   id, name, slug, price, compare_at_price, member_price, images,
-  is_featured, unit_type, unit_value, category_id, categories (name)
+  is_featured, is_fast_selling, unit_type, unit_value, category_id, categories (name)
 `;
 
 /**
@@ -156,6 +157,8 @@ export function PostOrderProducts() {
                   originalPrice={product.compare_at_price || undefined}
                   image={product.images?.[0] || "/placeholder.svg"}
                   category={product.categories?.name || "General"}
+                  isBestSeller={product.is_featured}
+                  isFastSelling={product.is_fast_selling}
                   unitType={product.unit_type}
                   unitValue={product.unit_value}
                 />

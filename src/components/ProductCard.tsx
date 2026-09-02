@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { Heart, Crown } from "lucide-react";
+import { Heart, Crown, Flame, Star } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ interface ProductCardProps {
   category: string;
   isNew?: boolean;
   isBestSeller?: boolean;
+  isFastSelling?: boolean;
   unitType?: string | null;
   unitValue?: number | null;
   gstPercentage?: number | null;
@@ -29,6 +30,8 @@ interface ProductCardProps {
   variantOptions?: VariantOption[];
   /** "compact" renders a smaller card for dense horizontal-scroll rows */
   variant?: "default" | "compact";
+  /** Load the image eagerly instead of lazily — set for cards visible above the fold on first paint */
+  imagePriority?: boolean;
 }
 
 
@@ -40,10 +43,13 @@ const ProductCard = ({
   memberPrice,
   originalPrice,
   image,
+  isBestSeller,
+  isFastSelling,
   unitType,
   unitValue,
   variantOptions,
   variant = "default",
+  imagePriority = false,
 }: ProductCardProps) => {
   const { addToCart } = useCart();
   const navigate = useNavigate();
@@ -136,6 +142,7 @@ const ProductCard = ({
             containerClassName="aspect-square"
             displayWidth={isCompact ? 200 : 400}
             displayHeight={isCompact ? 200 : 400}
+            priority={imagePriority}
           />
         </Link>
 
@@ -166,6 +173,23 @@ const ProductCard = ({
             {name}
           </h3>
         </Link>
+
+        {(isFastSelling || isBestSeller) && (
+          <div className="flex flex-wrap gap-1">
+            {isFastSelling && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                <Flame className="h-2.5 w-2.5" />
+                Fast Selling
+              </span>
+            )}
+            {isBestSeller && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                <Star className="h-2.5 w-2.5 fill-current" />
+                Best Seller
+              </span>
+            )}
+          </div>
+        )}
 
         {!outOfStock && (
           <div className="flex w-full items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-2.5 py-2 text-emerald-950 shadow-sm dark:border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50">
@@ -207,6 +231,9 @@ const ProductCard = ({
           <div className="mt-auto">
             <div className="flex items-baseline gap-x-1 sm:gap-x-1.5 gap-y-0.5 flex-wrap">
               <span className="text-xs font-semibold text-foreground sm:text-sm">MRP: ₹{displayPrice}</span>
+              {discount > 0 && (
+                <span className="text-[10px] font-bold text-green-600 dark:text-green-400 sm:text-[11px]">{discount}% off</span>
+              )}
               {originalPrice && originalPrice > displayPrice && (
                 <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">Original MRP: ₹{originalPrice}</span>
               )}
