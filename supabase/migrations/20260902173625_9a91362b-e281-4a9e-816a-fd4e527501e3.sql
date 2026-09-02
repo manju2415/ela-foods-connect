@@ -1,0 +1,1 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_fast_selling boolean NOT NULL DEFAULT false;
