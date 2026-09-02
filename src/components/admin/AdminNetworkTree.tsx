@@ -36,8 +36,15 @@ interface AdminNetworkTreeProps {
   onViewUser: (userId: string) => void;
 }
 
+interface LevelCounts {
+  founders: number;
+  masters: number;
+  associates: number;
+}
+
 export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
   const [rootUsers, setRootUsers] = useState<NetworkUser[]>([]);
+  const [levelCounts, setLevelCounts] = useState<LevelCounts>({ founders: 0, masters: 0, associates: 0 });
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [nodeDownlines, setNodeDownlines] = useState<Record<string, DownlineUser[]>>({});
@@ -48,16 +55,37 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
 
   useEffect(() => {
     fetchRootUsers();
+    fetchLevelCounts();
   }, []);
 
   const fetchRootUsers = async () => {
     setLoading(true);
     const { data, error } = await supabase.rpc("get_network_roots");
-    
+
     if (!error && data) {
       setRootUsers(data as NetworkUser[]);
     }
     setLoading(false);
+  };
+
+  // Whole-network level breakdown (matches the Overview tab) — deliberately
+  // NOT scoped to root users, since a founder/master can have an upline
+  // referrer and still not be a "root" node in get_network_roots().
+  const fetchLevelCounts = async () => {
+    const [{ data: profiles }, { data: founderRoles }] = await Promise.all([
+      supabase.from("profiles").select("id, user_level"),
+      supabase.from("user_roles").select("user_id").eq("role", "founding_member"),
+    ]);
+    if (!profiles) return;
+
+    // user_roles is the authoritative source for founder designation —
+    // profiles.user_level can drift out of sync with it.
+    const founderIds = new Set((founderRoles || []).map((r) => r.user_id));
+    setLevelCounts({
+      founders: profiles.filter((p) => founderIds.has(p.id)).length,
+      masters: profiles.filter((p) => !founderIds.has(p.id) && p.user_level === "master").length,
+      associates: profiles.filter((p) => !founderIds.has(p.id) && p.user_level === "associate").length,
+    });
   };
 
   const fetchNodeDownline = async (userId: string) => {
@@ -370,21 +398,15 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
             <p className="text-xs text-muted-foreground">Root Users</p>
           </div>
           <div className="p-3 rounded-lg bg-amber-500/10 text-center">
-            <p className="text-2xl font-bold text-amber-600">
-              {rootUsers.filter(u => u.user_level === "founder").length}
-            </p>
+            <p className="text-2xl font-bold text-amber-600">{levelCounts.founders}</p>
             <p className="text-xs text-muted-foreground">Founders</p>
           </div>
           <div className="p-3 rounded-lg bg-blue-500/10 text-center">
-            <p className="text-2xl font-bold text-blue-600">
-              {rootUsers.filter(u => u.user_level === "master").length}
-            </p>
+            <p className="text-2xl font-bold text-blue-600">{levelCounts.masters}</p>
             <p className="text-xs text-muted-foreground">Masters</p>
           </div>
           <div className="p-3 rounded-lg bg-green-500/10 text-center">
-            <p className="text-2xl font-bold text-green-600">
-              {rootUsers.filter(u => u.user_level === "associate").length}
-            </p>
+            <p className="text-2xl font-bold text-green-600">{levelCounts.associates}</p>
             <p className="text-xs text-muted-foreground">Associates</p>
           </div>
         </div>

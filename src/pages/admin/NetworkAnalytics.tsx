@@ -46,7 +46,17 @@ const NetworkAnalytics = () => {
     // Fetch profiles for user level stats
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("user_level, referral_count, registration_fee_paid");
+      .select("id, user_level, referral_count, registration_fee_paid");
+
+    // profiles.user_level can drift out of sync with the actual founder
+    // designation (see migration 20260902010000) — user_roles is the
+    // authoritative source for who the designated founders are, so use it
+    // rather than trusting user_level to say "founder".
+    const { data: founderRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "founding_member");
+    const founderIds = new Set((founderRoles || []).map((r) => r.user_id));
 
     // Fetch wallets for balance stats
     const { data: wallets } = await supabase
@@ -67,9 +77,9 @@ const NetworkAnalytics = () => {
       .limit(10);
 
     if (profiles && wallets) {
-      const founders = profiles.filter(p => p.user_level === "founder").length;
-      const masters = profiles.filter(p => p.user_level === "master").length;
-      const associates = profiles.filter(p => p.user_level === "associate").length;
+      const founders = profiles.filter(p => founderIds.has(p.id)).length;
+      const masters = profiles.filter(p => !founderIds.has(p.id) && p.user_level === "master").length;
+      const associates = profiles.filter(p => !founderIds.has(p.id) && p.user_level === "associate").length;
       const registrationFees = profiles.reduce((sum, p) => sum + (Number(p.registration_fee_paid) || 0), 0);
 
       const totalBalance = wallets.reduce((sum, w) => sum + (Number(w.balance) || 0), 0);

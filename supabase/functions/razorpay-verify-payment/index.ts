@@ -69,7 +69,7 @@ serve(async (req) => {
       items: attempt?.items ?? [],
       coupon_code: attempt?.coupon_code ?? null,
       discount_amount: Number(attempt?.discount_amount ?? 0),
-      status: purpose === "registration" || !!order_id ? "converted" : "pending",
+      status: purpose === "registration" || purpose === "wallet_topup" || !!order_id ? "converted" : "pending",
       order_id: purpose === "registration" ? null : order_id ?? null,
     };
 
@@ -84,6 +84,58 @@ serve(async (req) => {
     if (purpose === "registration" && order_id) {
       // order_id here is user_id for registration payments
       // Already handled client-side after verification
+    } else if (purpose === "wallet_topup" && attempt?.user_id) {
+      const topupAmount = Number(attempt?.amount ?? amount ?? 0);
+      if (topupAmount > 0) {
+        // Idempotent: a retried/duplicate verify call for the same payment
+        // must not credit the wallet twice.
+        const { data: existingTxn } = await supabase
+          .from("wallet_transactions")
+          .select("id")
+          .eq("reference_id", razorpay_payment_id)
+          .maybeSingle();
+
+        if (!existingTxn) {
+          const { data: walletRow, error: walletFetchErr } = await supabase
+            .from("wallets")
+            .select("id, balance, withdrawable_balance")
+            .eq("user_id", attempt.user_id)
+            .maybeSingle();
+
+          if (walletFetchErr) {
+            console.error("Wallet lookup error:", walletFetchErr);
+          } else if (walletRow) {
+            const newBalance = Number(walletRow.balance || 0) + topupAmount;
+            const newWithdrawable = Number(walletRow.withdrawable_balance || 0) + topupAmount;
+
+            const { error: walletUpdateErr } = await supabase
+              .from("wallets")
+              .update({
+                balance: newBalance,
+                withdrawable_balance: newWithdrawable,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", walletRow.id);
+
+            if (walletUpdateErr) {
+              console.error("Wallet credit error:", walletUpdateErr);
+            } else {
+              const { error: txnErr } = await supabase.from("wallet_transactions").insert({
+                wallet_id: walletRow.id,
+                amount: topupAmount,
+                type: "add_money",
+                description: "Added money to wallet",
+                is_withdrawable: true,
+                reference_id: razorpay_payment_id,
+                balance_after: newBalance,
+              });
+              if (txnErr) console.error("Wallet transaction insert error:", txnErr);
+            }
+          } else {
+            console.error("Wallet top-up: no wallet row for user", attempt.user_id);
+          }
+        }
+      }
     } else if (order_id) {
       // Update order payment status
       const { error } = await supabase

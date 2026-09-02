@@ -239,6 +239,23 @@ serve(async (req) => {
     const { error: itemsErr } = await supabase.from("order_items").insert(itemsWithOrderId);
     if (itemsErr) {
       console.error("Order items insert error:", itemsErr);
+      return new Response(JSON.stringify({ error: "Failed to create order items" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // The order is already payment-verified. Commit its inventory only after
+    // all order items exist; the RPC is idempotent across function retries.
+    const { error: stockErr } = await supabase.rpc("deduct_paid_order_stock", {
+      p_order_id: order.id,
+    });
+    if (stockErr) {
+      console.error("Paid order stock deduction error:", stockErr);
+      return new Response(JSON.stringify({ error: "Payment received, but stock could not be committed" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Update coupon usage if applied

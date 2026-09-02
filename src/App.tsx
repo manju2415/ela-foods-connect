@@ -10,6 +10,8 @@ import { PWABadge } from "@/components/pwa/PWABadge";
 import { canRegisterSW, unregisterStaleAppSW } from "@/pwa/sw-guard";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
+import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
@@ -120,6 +122,34 @@ function App() {
     if (!canRegisterSW()) {
       unregisterStaleAppSW();
     }
+  }, []);
+
+  useEffect(() => {
+    // Native app only: if this is the first launch since the APK was updated,
+    // refresh the auth session and drop all cached query data so an
+    // already-logged-in user sees new features/data immediately — the same
+    // effect a manual log-out/log-in has today, but automatic.
+    if (!Capacitor.isNativePlatform()) return;
+    const STORAGE_KEY = "ela_last_seen_app_build";
+
+    (async () => {
+      try {
+        const info = await CapacitorApp.getInfo();
+        const currentBuild = `${info.version}:${info.build}`;
+        const lastSeen = localStorage.getItem(STORAGE_KEY);
+
+        if (lastSeen && lastSeen !== currentBuild) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            await supabase.auth.refreshSession().catch(() => {});
+          }
+          queryClient.clear();
+        }
+        localStorage.setItem(STORAGE_KEY, currentBuild);
+      } catch {
+        // getInfo() unavailable — nothing to do
+      }
+    })();
   }, []);
 
   useEffect(() => {

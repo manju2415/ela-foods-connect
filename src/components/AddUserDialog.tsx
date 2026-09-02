@@ -67,37 +67,47 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     },
   });
 
-  // Fetch logged-in user's own referral code on dialog open (for non-admin)
+  // Reset the form only when the dialog actually opens, not on every
+  // re-render while it's open (e.g. a Supabase session refresh after
+  // returning from the native contact picker hands back a new `user`
+  // object reference and must not wipe in-progress input).
   useEffect(() => {
     if (!open) return;
 
     form.reset({ fullName: "", phone: "", referralCode: "" });
     setReferralCodeValid(null);
     setDuplicate(null);
-
     setSelectedAdminCode("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
-    if (!isAdmin && user) {
-      setLoadingMyCode(true);
-      supabase
-        .from("referral_codes")
-        .select("code")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data?.code) {
-            setMyCode(data.code);
-            form.setValue("referralCode", data.code);
-            setReferralCodeValid(true);
-          } else {
-            setMyCode(null);
-          }
-          setLoadingMyCode(false);
-        });
-    }
-  }, [open, isAdmin, user]);
+  // Fetch logged-in user's own referral code on dialog open (for non-admin).
+  // Keyed on user?.id (stable across token refreshes) rather than the user
+  // object itself, so this doesn't re-run and clobber the form mid-entry.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!open || isAdmin || !userId) return;
+
+    setLoadingMyCode(true);
+    supabase
+      .from("referral_codes")
+      .select("code")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.code) {
+          setMyCode(data.code);
+          form.setValue("referralCode", data.code);
+          setReferralCodeValid(true);
+        } else {
+          setMyCode(null);
+        }
+        setLoadingMyCode(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isAdmin, userId]);
 
   const contactPickerSupported = isContactPickerAvailable();
 

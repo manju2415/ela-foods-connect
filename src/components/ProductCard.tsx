@@ -168,9 +168,14 @@ const ProductCard = ({
         </Link>
 
         {!outOfStock && (
-          <div className="inline-flex max-w-full items-center gap-1 sm:gap-1.5 bg-yellow-300 border border-yellow-500 text-yellow-950 text-[13px] sm:text-base leading-tight font-extrabold px-2 sm:px-3 py-1.5 rounded-lg shadow-sm w-fit dark:bg-yellow-400 dark:border-yellow-300 dark:text-yellow-950">
-            <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current shrink-0" />
-            <span>Get Price: ₹{effectiveMemberPrice}</span>
+          <div className="flex w-full items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-2.5 py-2 text-emerald-950 shadow-sm dark:border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950">
+              <Crown className="h-3.5 w-3.5 fill-current" />
+            </span>
+            <span className="min-w-0 leading-tight">
+              <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-75 sm:text-[11px]">Get Price</span>
+              <span className="block text-base font-extrabold sm:text-lg">₹{effectiveMemberPrice}</span>
+            </span>
           </div>
         )}
 
@@ -186,7 +191,7 @@ const ProductCard = ({
               <SelectContent className="z-50 bg-popover">
                 {options.map((o) => (
                   <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
-                    {o.label} · ₹{o.price} · {o.stock > 0 ? `${o.stock} available` : "Out of stock"}
+                    {o.label} · MRP ₹{o.price} · {o.stock > 0 ? `${o.stock} available` : "Out of stock"}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -201,10 +206,9 @@ const ProductCard = ({
         ) : (
           <div className="mt-auto">
             <div className="flex items-baseline gap-x-1 sm:gap-x-1.5 gap-y-0.5 flex-wrap">
-              <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">MRP:</span>
-              <span className="text-xs sm:text-sm font-bold text-foreground">₹{displayPrice}</span>
+              <span className="text-xs font-semibold text-foreground sm:text-sm">MRP: ₹{displayPrice}</span>
               {originalPrice && originalPrice > displayPrice && (
-                <span className="text-[11px] text-muted-foreground line-through">₹{originalPrice}</span>
+                <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">Original MRP: ₹{originalPrice}</span>
               )}
             </div>
             {activeOption && (

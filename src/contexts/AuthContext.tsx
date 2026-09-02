@@ -1,6 +1,29 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
+import { App as CapacitorApp } from "@capacitor/app";
+import { toast } from "sonner";
+
+// Standard "remember me, but not forever" session policy: sign the user out
+// if the app hasn't been opened in this long, rather than immediately on
+// every close. Checked on launch/resume — no background timer needed.
+const INACTIVITY_LOGOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const LAST_ACTIVE_STORAGE_KEY = "ela_last_active_at";
+
+const markActive = () => {
+  try { localStorage.setItem(LAST_ACTIVE_STORAGE_KEY, String(Date.now())); } catch {}
+};
+
+const isInactiveTooLong = (): boolean => {
+  try {
+    const raw = localStorage.getItem(LAST_ACTIVE_STORAGE_KEY);
+    if (!raw) return false;
+    return Date.now() - Number(raw) > INACTIVITY_LOGOUT_MS;
+  } catch {
+    return false;
+  }
+};
 
 interface AuthContextType {
   user: User | null;
@@ -39,16 +62,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setLoading(false);
+        if (newSession) markActive();
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session && isInactiveTooLong()) {
+        // Hasn't opened the app in over a week — sign out rather than resume
+        // a stale session. onAuthStateChange (above) picks up SIGNED_OUT and
+        // clears user/session for us.
+        await supabase.auth.signOut().catch(() => {});
+        toast.info("You were signed out after a period of inactivity. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      if (session) markActive();
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  // Re-check on resume (native) / tab refocus (web) too — a phone can stay
+  // backgrounded-but-not-killed for a long time without a fresh app launch.
+  useEffect(() => {
+    const checkAndMark = async () => {
+      if (!(await supabase.auth.getSession()).data.session) return;
+      if (isInactiveTooLong()) {
+        await supabase.auth.signOut().catch(() => {});
+        toast.info("You were signed out after a period of inactivity. Please log in again.");
+      } else {
+        markActive();
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") checkAndMark();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    let removeResumeListener: (() => void) | undefined;
+    if (Capacitor.isNativePlatform()) {
+      CapacitorApp.addListener("resume", checkAndMark).then((handle) => {
+        removeResumeListener = () => handle.remove();
+      });
+    }
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      removeResumeListener?.();
+    };
   }, []);
 
   /**
@@ -92,6 +157,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setUser(null);
     setSession(null);
+    try { localStorage.removeItem(LAST_ACTIVE_STORAGE_KEY); } catch {}
   };
 
   return (

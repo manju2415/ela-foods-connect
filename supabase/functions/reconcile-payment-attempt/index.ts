@@ -181,16 +181,19 @@ serve(async (req) => {
     const { error: itemsErr } = await admin
       .from("order_items")
       .insert(orderItems.map((i) => ({ ...i, order_id: order.id })));
-    if (itemsErr) console.error("Recovery order items failed:", itemsErr);
+    if (itemsErr) {
+      console.error("Recovery order items failed:", itemsErr);
+      return json({ error: "Failed to create recovered order items" }, 500);
+    }
 
-    // Reduce stock for the recovered order
-    for (const item of orderItems) {
-      const product: any = productMap.get(item.product_id);
-      if (!product) continue;
-      await admin
-        .from("products")
-        .update({ stock_quantity: Math.max(0, Number(product.stock_quantity || 0) - Number(item.quantity)) })
-        .eq("id", item.product_id);
+    // Commit inventory through the same idempotent paid-order path used by
+    // normal and guest checkout (including variant inventory).
+    const { error: stockErr } = await admin.rpc("deduct_paid_order_stock", {
+      p_order_id: order.id,
+    });
+    if (stockErr) {
+      console.error("Recovery stock deduction failed:", stockErr);
+      return json({ error: "Payment recovered, but stock could not be committed" }, 409);
     }
 
     await admin

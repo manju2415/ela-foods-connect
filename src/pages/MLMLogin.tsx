@@ -22,6 +22,10 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
 
+// Shared with the customer/member login screen so the last number typed on
+// this device is remembered no matter which login page it was entered on.
+const LAST_PHONE_STORAGE_KEY = "ela_last_login_phone";
+
 const checkPhoneRegistered = async (phone: string): Promise<boolean> => {
   const { data, error } = await supabase.functions.invoke("check-phone-registered", { body: { phone, source: "app" } });
   if (error) {
@@ -90,8 +94,24 @@ const MLMLogin = () => {
 
   const form = useForm<PhoneFormData>({
     resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: "" },
+    defaultValues: {
+      phone: (() => {
+        try { return localStorage.getItem(LAST_PHONE_STORAGE_KEY) || ""; } catch { return ""; }
+      })(),
+    },
   });
+
+  // Remember whatever is typed in the login phone field for next time
+  const watchedPhone = form.watch("phone");
+  useEffect(() => {
+    try {
+      if (watchedPhone) {
+        localStorage.setItem(LAST_PHONE_STORAGE_KEY, watchedPhone);
+      } else {
+        localStorage.removeItem(LAST_PHONE_STORAGE_KEY);
+      }
+    } catch {}
+  }, [watchedPhone]);
 
   useEffect(() => {
     if (user && !hasAttemptedLogin) {

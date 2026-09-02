@@ -13,6 +13,7 @@ declare global {
 
 export interface PaymentAttemptContext {
   purpose?: string;
+  user_id?: string;
   customer_name?: string;
   customer_phone?: string;
   customer_email?: string;

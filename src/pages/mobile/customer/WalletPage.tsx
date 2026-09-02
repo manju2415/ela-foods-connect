@@ -8,8 +8,21 @@ import { PullToRefresh } from "@/components/mobile/PullToRefresh";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet, ArrowUpRight, ArrowDownLeft, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Wallet, ArrowUpRight, ArrowDownLeft, Plus, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { realEmailOrEmpty } from "@/lib/email";
+import { toast } from "sonner";
 
 interface WalletData {
   balance: number;
@@ -31,6 +44,10 @@ export default function CustomerWalletPage() {
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupSubmitting, setTopupSubmitting] = useState(false);
+  const [walletLimits, setWalletLimits] = useState({ min_wallet_topup: 100, max_wallet_balance: 0 });
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -63,9 +80,79 @@ export default function CustomerWalletPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    supabase
+      .from("mlm_settings")
+      .select("value")
+      .eq("key", "wallet_settings")
+      .maybeSingle()
+      .then(({ data }) => {
+        const value = data?.value as { min_wallet_topup?: number; max_wallet_balance?: number } | null;
+        if (value) {
+          setWalletLimits({
+            min_wallet_topup: Number(value.min_wallet_topup) || 100,
+            max_wallet_balance: Number(value.max_wallet_balance) || 0,
+          });
+        }
+      });
+  }, []);
+
   const { isPulling, isRefreshing, pullDistance, pullProgress, shouldTrigger, handlers } = usePullToRefresh({
     onRefresh: fetchData,
   });
+
+  const openTopup = () => {
+    setTopupAmount("");
+    setTopupOpen(true);
+  };
+
+  const handleConfirmTopup = async () => {
+    if (!user) return;
+    const value = Number(topupAmount);
+
+    if (!value || value <= 0) {
+      toast.error("Enter an amount to add");
+      return;
+    }
+    if (value < walletLimits.min_wallet_topup) {
+      toast.error(`Minimum amount is ₹${walletLimits.min_wallet_topup}`);
+      return;
+    }
+    const currentBalance = wallet?.balance || 0;
+    if (walletLimits.max_wallet_balance > 0 && currentBalance + value > walletLimits.max_wallet_balance) {
+      toast.error(`Wallet balance can't exceed ₹${walletLimits.max_wallet_balance}`);
+      return;
+    }
+
+    setTopupSubmitting(true);
+    try {
+      await initiateRazorpayPayment({
+        amount: value,
+        receipt: `wallet_${Date.now()}`,
+        purpose: "wallet_topup",
+        notes: { description: "Add money to wallet" },
+        attemptContext: { purpose: "wallet_topup", user_id: user.id },
+        prefill: {
+          name: (user.user_metadata?.full_name as string) || "",
+          contact: user.phone || "",
+          email: realEmailOrEmpty(user.email),
+        },
+        onSuccess: async () => {
+          toast.success("Money added to wallet!");
+          setTopupSubmitting(false);
+          setTopupOpen(false);
+          await fetchData();
+        },
+        onFailure: (err) => {
+          setTopupSubmitting(false);
+          toast.error(err?.message || "Payment failed");
+        },
+      });
+    } catch (err) {
+      setTopupSubmitting(false);
+      toast.error(err instanceof Error ? err.message : "Payment failed");
+    }
+  };
 
   const formatTransactionType = (type: string) => {
     return type.split("_").map(word => 
@@ -134,7 +221,7 @@ export default function CustomerWalletPage() {
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="h-auto py-4 flex-col gap-2">
+            <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={openTopup}>
               <Plus className="h-5 w-5" />
               <span className="text-sm">Add Money</span>
             </Button>
@@ -206,6 +293,40 @@ export default function CustomerWalletPage() {
         </div>
       </PullToRefresh>
     </div>
+
+    <Dialog open={topupOpen} onOpenChange={(open) => !topupSubmitting && setTopupOpen(open)}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add Money to Wallet</DialogTitle>
+          <DialogDescription>
+            Minimum ₹{walletLimits.min_wallet_topup}
+            {walletLimits.max_wallet_balance > 0 && ` · Max balance ₹${walletLimits.max_wallet_balance}`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="topup-amount">Amount (₹)</Label>
+          <Input
+            id="topup-amount"
+            type="number"
+            inputMode="numeric"
+            min={walletLimits.min_wallet_topup}
+            placeholder={`Enter amount (min ₹${walletLimits.min_wallet_topup})`}
+            value={topupAmount}
+            onChange={(e) => setTopupAmount(e.target.value)}
+            disabled={topupSubmitting}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setTopupOpen(false)} disabled={topupSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmTopup} disabled={topupSubmitting}>
+            {topupSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Proceed to Pay
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </MobileAppLayout>
   );
 }
