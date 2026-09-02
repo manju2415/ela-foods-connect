@@ -20,6 +20,8 @@ import elaLogo from "@/assets/ela-foods-logo.png";
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
   const [isDeliveryPartner, setIsDeliveryPartner] = useState(false);
   const { user, signOut } = useAuth();
@@ -58,6 +60,14 @@ const Header = () => {
     navigate("/auth", { replace: true });
   };
 
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+    navigate(`/products?search=${encodeURIComponent(query)}`);
+    setIsSearchOpen(false);
+  };
+
   // When a delivery partner is logged in (especially inside the driver app),
   // the primary "Dashboard" action should take them to the driver dashboard.
   // We still keep access to the customer dashboard as a separate entry.
@@ -90,9 +100,30 @@ const Header = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="hidden sm:flex">
-                <Search className="h-5 w-5" />
-              </Button>
+              {isSearchOpen ? (
+                <form onSubmit={handleSearchSubmit} className="hidden sm:flex items-center gap-1 rounded-lg border border-border bg-background px-2 shadow-sm">
+                  <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search products"
+                    aria-label="Search products"
+                    className="h-9 w-32 bg-transparent text-sm outline-none placeholder:text-muted-foreground lg:w-48"
+                  />
+                  <Button type="submit" variant="ghost" size="icon" className="h-8 w-8" aria-label="Submit product search">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8" aria-label="Close product search" onClick={() => setIsSearchOpen(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </form>
+              ) : (
+                <Button variant="ghost" size="icon" className="hidden sm:flex" aria-label="Search products" onClick={() => setIsSearchOpen(true)}>
+                  <Search className="h-5 w-5" />
+                </Button>
+              )}
               
               {user && <NotificationBell />}
               
