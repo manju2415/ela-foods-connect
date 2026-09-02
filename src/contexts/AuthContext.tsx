@@ -12,7 +12,9 @@ const INACTIVITY_LOGOUT_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const LAST_ACTIVE_STORAGE_KEY = "ela_last_active_at";
 
 const markActive = () => {
-  try { localStorage.setItem(LAST_ACTIVE_STORAGE_KEY, String(Date.now())); } catch {}
+  try { localStorage.setItem(LAST_ACTIVE_STORAGE_KEY, String(Date.now())); } catch {
+    // Storage may be unavailable in private browsing or restricted webviews.
+  }
 };
 
 const isInactiveTooLong = (): boolean => {
@@ -118,17 +120,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * After MSG91 OTP verification succeeds, sign in the user.
-   * Login-only: the user MUST already exist (created by an admin/member via invite).
+   * Existing users sign in directly; walk-ins are created server-side first.
    * No client-side signUp — all onboarding goes through server-side admin.createUser flows.
-   * The `signupData` arg is accepted for backwards compatibility but ignored.
+   * Supplying `signupData` activates the open-registration flow.
    */
   const createSessionForPhone = async (
     phone: string,
-    _signupData?: { fullName: string; referralCode: string }
+    signupData?: { fullName: string; referralCode: string }
   ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
     const cleanPhone = phone.replace(/\+/g, '');
     const mockEmail = `${cleanPhone}@elabazar.local`;
     const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
+
+    let isNewUser = false;
+    if (signupData) {
+      const { data: created, error: createError } = await supabase.functions.invoke("signup-create-user", {
+        body: {
+          phone,
+          fullName: signupData.fullName,
+          referralCode: signupData.referralCode,
+          founder: false,
+        },
+      });
+      if (createError || !created?.success) {
+        return { error: new Error(created?.error || createError?.message || "Could not create account.") };
+      }
+      isNewUser = created.isNewUser === true;
+    }
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: mockEmail,
@@ -146,7 +164,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("id", data.user.id);
     }
 
-    return { error: null, isNewUser: false };
+    return { error: null, isNewUser };
   };
 
   const signOut = async () => {
@@ -157,7 +175,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     setUser(null);
     setSession(null);
-    try { localStorage.removeItem(LAST_ACTIVE_STORAGE_KEY); } catch {}
+    try { localStorage.removeItem(LAST_ACTIVE_STORAGE_KEY); } catch {
+      // Local state is already cleared; unavailable storage needs no action.
+    }
   };
 
   return (

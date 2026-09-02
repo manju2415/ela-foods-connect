@@ -36,14 +36,46 @@ Deno.serve(async (req) => {
     const email = `${cleanPhone}@elabazar.local`;
     const password = `elabazar_${cleanPhone}_temp_2026`;
 
+    const pickWalkInFounder = async (excludeUserId?: string): Promise<string | null> => {
+      const { data: roles, error: rolesError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "founding_member");
+      if (rolesError) throw rolesError;
+      const founderIds = (roles || []).map((role) => role.user_id).filter((id) => id !== excludeUserId);
+      if (founderIds.length === 0) return null;
+      const randomBytes = new Uint32Array(1);
+      crypto.getRandomValues(randomBytes);
+      return founderIds[randomBytes[0] % founderIds.length];
+    };
+
+    const resolveReferrer = async (userId?: string): Promise<string | null> => {
+      if (typeof referralCode === "string" && referralCode.trim().length >= 3) {
+        const { data: codeRow } = await supabase
+          .from("referral_codes")
+          .select("user_id")
+          .eq("code", referralCode.trim().toUpperCase())
+          .eq("is_active", true)
+          .maybeSingle();
+        if (codeRow?.user_id && codeRow.user_id !== userId) return codeRow.user_id;
+      }
+      return founder === true ? null : await pickWalkInFounder(userId);
+    };
+
     // Check if user already exists by trying to look them up via profiles
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, referred_by")
       .eq("phone", phone.startsWith("+") ? phone : `+${cleanPhone}`)
       .maybeSingle();
 
     if (existingProfile) {
+      if (!existingProfile.referred_by && founder !== true) {
+        const walkInFounderId = await resolveReferrer(existingProfile.id);
+        if (walkInFounderId) {
+          await supabase.from("profiles").update({ referred_by: walkInFounderId }).eq("id", existingProfile.id);
+        }
+      }
       return new Response(JSON.stringify({ success: true, isNewUser: false }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -72,17 +104,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Resolve optional referral code to a referrer
-    let referredBy: string | null = null;
-    if (typeof referralCode === "string" && referralCode.trim().length >= 3) {
-      const { data: codeRow } = await supabase
-        .from("referral_codes")
-        .select("user_id")
-        .eq("code", referralCode.trim().toUpperCase())
-        .eq("is_active", true)
-        .maybeSingle();
-      referredBy = codeRow?.user_id ?? null;
-    }
+    // Valid invitations win; otherwise a walk-in is distributed randomly
+    // among the designated founders.
+    const referredBy = await resolveReferrer(created.user?.id);
 
     // Ensure profile row exists and phone is normalized
     if (created?.user) {

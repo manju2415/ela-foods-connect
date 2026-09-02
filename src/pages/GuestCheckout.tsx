@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
   MapPin, CreditCard, Ticket, X, Check,
-  ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2,
+  ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2, Crown,
 } from "lucide-react";
 import { initiateRazorpayPayment } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
@@ -156,6 +156,13 @@ const GuestCheckout = () => {
   };
 
   const discountAmount = calculateDiscount();
+  const memberSubtotal = items.reduce((sum, item) => {
+    const memberUnitPrice = item.variant
+      ? (item.variant.member_price ?? item.variant.price)
+      : (item.product.member_price ?? item.product.price);
+    return sum + memberUnitPrice * item.quantity;
+  }, 0);
+  const membershipSavings = Math.max(0, totalPrice - memberSubtotal);
   const shippingAmount = calculateShipping(totalPrice);
   const finalAmount = totalPrice - discountAmount + shippingAmount;
 
@@ -356,12 +363,46 @@ const GuestCheckout = () => {
                   <Button variant="outline" size="sm" className="h-6 w-6 p-0" onClick={() => updateQuantity(item.id, item.quantity + 1)}>+</Button>
                   <Button variant="ghost" size="sm" className="h-6 ml-auto text-destructive" onClick={() => removeFromCart(item.id)}><X className="h-3 w-3" /></Button>
                 </div>
-                <p className="text-sm font-semibold mt-1">₹{((item.variant?.price ?? item.product.price) * item.quantity).toFixed(2)}</p>
+                <div className="mt-1 space-y-0.5">
+                  <p className="text-sm font-semibold">MRP: ₹{((item.variant?.price ?? item.product.price) * item.quantity).toFixed(2)}</p>
+                  {(() => {
+                    const memberUnitPrice = item.variant
+                      ? (item.variant.member_price ?? item.variant.price)
+                      : (item.product.member_price ?? item.product.price);
+                    const mrp = item.variant?.price ?? item.product.price;
+                    return memberUnitPrice < mrp ? (
+                      <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+                        Member Price: ₹{(memberUnitPrice * item.quantity).toFixed(2)}
+                      </p>
+                    ) : null;
+                  })()}
+                </div>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
+
+      {membershipSavings > 0 && (
+        <Card className="overflow-hidden border-emerald-300 bg-emerald-50 shadow-sm dark:border-emerald-700 dark:bg-emerald-950/40">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <Crown className="h-5 w-5 fill-current" />
+              </span>
+              <div>
+                <p className="font-bold text-emerald-950 dark:text-emerald-50">Become a member and save ₹{membershipSavings.toFixed(2)} on this cart</p>
+                <p className="mt-1 text-sm text-emerald-800 dark:text-emerald-300">
+                  MRP total ₹{totalPrice.toFixed(2)} · Member-price total ₹{memberSubtotal.toFixed(2)}
+                </p>
+              </div>
+            </div>
+            <Button className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-700" onClick={() => navigate("/signup") }>
+              Get Membership
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Coupon */}
       <Card>

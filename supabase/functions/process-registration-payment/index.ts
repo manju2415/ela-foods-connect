@@ -233,6 +233,40 @@ serve(async (req) => {
       }
     }
 
+    // Walk-in registration: if no invitation was supplied and signup did not
+    // already place the user, distribute them randomly under a founder.
+    if (!referralCodeToUse && !isFounder) {
+      const { data: founderRoles } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "founding_member");
+      const founderIds = (founderRoles || []).map((role) => role.user_id).filter((id) => id !== user.id);
+      if (founderIds.length > 0) {
+        const randomBytes = new Uint32Array(1);
+        crypto.getRandomValues(randomBytes);
+        const founderId = founderIds[randomBytes[0] % founderIds.length];
+        let { data: founderCode } = await supabase
+          .from("referral_codes")
+          .select("code")
+          .eq("user_id", founderId)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+        if (!founderCode) {
+          await supabase.rpc("generate_user_referral_code", { p_user_id: founderId });
+          const result = await supabase
+            .from("referral_codes")
+            .select("code")
+            .eq("user_id", founderId)
+            .eq("is_active", true)
+            .limit(1)
+            .maybeSingle();
+          founderCode = result.data;
+        }
+        referralCodeToUse = founderCode?.code ?? null;
+      }
+    }
+
     if (referralCodeToUse) {
       // Call process_mlm_referral which handles:
       // - Referral bonus to direct referrer

@@ -80,19 +80,20 @@ const CategoryPage = () => {
     setCategory(categoryData);
 
     // If this is a subcategory, fetch the parent
+    let hasSubCategories = false;
     if (categoryData.parent_id) {
       const { data: parentData } = await supabase
         .from("categories")
         .select("*")
         .eq("id", categoryData.parent_id)
         .single();
-      
+
       if (parentData) {
         setParentCategory(parentData);
       }
     } else {
       setParentCategory(null);
-      
+
       // Fetch subcategories for parent categories
       const { data: subCats } = await supabase
         .from("categories")
@@ -100,13 +101,22 @@ const CategoryPage = () => {
         .eq("parent_id", categoryData.id)
         .eq("is_active", true)
         .order("display_order");
-      
+
       setSubCategories(subCats || []);
+      hasSubCategories = (subCats || []).length > 0;
     }
 
-    // Fetch products for this category
-    // If it's a parent category, also include products from subcategories
-    let productQuery = supabase
+    // A category with subcategories is a pure browsing screen (click through
+    // to a subcategory to see products) — no products to fetch for it here.
+    if (hasSubCategories) {
+      setProducts([]);
+      setLoading(false);
+      return;
+    }
+
+    // Leaf category (a subcategory, or a parent with no subcategories of its
+    // own): show its own products directly.
+    const { data: productsData, error: productsError } = await supabase
       .from("products")
       .select(`
         id,
@@ -124,25 +134,9 @@ const CategoryPage = () => {
         gst_inclusive,
         categories (name)
       `)
-      .eq("is_active", true);
-
-    if (categoryData.parent_id) {
-      // It's a subcategory, only get products from this category
-      productQuery = productQuery.eq("category_id", categoryData.id);
-    } else {
-      // It's a parent category, get products from this category and all subcategories
-      const { data: subCatData } = await supabase
-        .from("categories")
-        .select("id")
-        .eq("parent_id", categoryData.id);
-      
-      const subCatIds = subCatData?.map(c => c.id) || [];
-      const allCategoryIds = [categoryData.id, ...subCatIds];
-      
-      productQuery = productQuery.in("category_id", allCategoryIds);
-    }
-
-    const { data: productsData, error: productsError } = await productQuery.order("created_at", { ascending: false });
+      .eq("is_active", true)
+      .eq("category_id", categoryData.id)
+      .order("created_at", { ascending: false });
 
     if (productsError) {
       console.error("Error fetching products:", productsError);
@@ -260,12 +254,15 @@ const CategoryPage = () => {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid — only shown once we're at a leaf category (no
+            subcategories to drill into first), so clicking a parent category
+            shows its subcategories, and clicking a subcategory shows products. */}
+        {subCategories.length === 0 && (
         <div>
           <h2 className="text-xl font-semibold text-foreground mb-4">
-            {subCategories.length > 0 ? "All Products" : "Products"}
+            Products
           </h2>
-          
+
           {loading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -314,6 +311,7 @@ const CategoryPage = () => {
             </>
           )}
         </div>
+        )}
       </main>
 
       <AdvertisementBanner placement="products_bottom" />

@@ -57,6 +57,7 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
+  const [categoriesLoaded, setCategoriesLoaded] = useState(false);
 
   // Preserve scroll position across back navigation: save it continuously against
   // this history entry, and restore it once the list has loaded, but only when
@@ -78,9 +79,14 @@ const Products = () => {
     fetchCategories();
   }, []);
 
+  // Wait for categories to load before fetching products: fetchProducts
+  // resolves a ?category= slug to its category id by looking it up in
+  // `categories`, which is still empty on the very first render — firing
+  // both fetches at once silently dropped the category filter.
   useEffect(() => {
+    if (!categoriesLoaded) return;
     fetchProducts();
-  }, [selectedCategory, searchParams]);
+  }, [selectedCategory, searchParams, categoriesLoaded]);
 
   const fetchCategories = async () => {
     const { data, error } = await supabase
@@ -92,6 +98,7 @@ const Products = () => {
     if (!error && data) {
       setCategories(data);
     }
+    setCategoriesLoaded(true);
   };
 
   // Organize categories hierarchically
