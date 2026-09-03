@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImagePreload } from "@/hooks/useImagePreload";
+import { getOptimizedImageUrl } from "@/utils/imageUrl";
 
 
 const HERO_BANNER_CACHE_KEY = "ela_hero_banner";
@@ -63,8 +64,17 @@ const HeroSection = () => {
   const badgeText = banner?.badge_text || "Your Trusted Marketplace";
   const heroImage = banner?.image_url || "";
 
-  // Preload hero image for better LCP
-  useImagePreload(heroImage ? [heroImage] : []);
+  // Preload hero image for better LCP — must match the URL OptimizedImage
+  // below actually requests (displayWidth/Height + quality="high"), or the
+  // preload fetches a different asset than the one rendered and wastes it.
+  const heroPreloadSrc = heroImage
+    ? getOptimizedImageUrl(heroImage, {
+        width: Math.round(1920 * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)),
+        height: Math.round(1080 * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)),
+        quality: 90,
+      })
+    : "";
+  useImagePreload(heroPreloadSrc ? [heroPreloadSrc] : []);
 
   // Split title by newline or use as is
   const titleParts = title.split('\n');
