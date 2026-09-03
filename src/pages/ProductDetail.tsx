@@ -22,7 +22,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap, Flame } from "lucide-react";
 import { toast } from "sonner";
 import { buildVariantOptions, type GroupableProduct, type GroupableVariant } from "@/lib/variantOptions";
 
@@ -45,6 +45,7 @@ interface Product {
   category_id: string | null;
   is_active: boolean;
   is_featured: boolean;
+  is_fast_selling: boolean;
 }
 
 interface Category {
@@ -387,6 +388,12 @@ export default function ProductDetail() {
                   </Link>
                 )}
                 <h1 className="text-3xl font-bold mt-1">{product.name}</h1>
+                {product.is_fast_selling && (
+                  <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+                    <Flame className="h-3 w-3" />
+                    Fast Selling
+                  </span>
+                )}
                 {product.sku && (
                   <p className="text-sm text-muted-foreground mt-1">SKU: {product.sku}</p>
                 )}

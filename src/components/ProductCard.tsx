@@ -174,56 +174,69 @@ const ProductCard = ({
           </h3>
         </Link>
 
-        {(isFastSelling || isBestSeller) && (
-          <div className="flex flex-wrap gap-1">
-            {isFastSelling && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-                <Flame className="h-2.5 w-2.5" />
-                Fast Selling
-              </span>
-            )}
-            {isBestSeller && (
-              <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                <Star className="h-2.5 w-2.5 fill-current" />
-                Best Seller
-              </span>
-            )}
-          </div>
-        )}
-
-        {!outOfStock && (
-          <div className="flex w-full items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-2.5 py-2 text-emerald-950 shadow-sm dark:border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950">
-              <Crown className="h-3.5 w-3.5 fill-current" />
+        <div className="flex min-h-[19px] flex-wrap items-start gap-1">
+          {isFastSelling && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+              <Flame className="h-2.5 w-2.5" />
+              Fast Selling
             </span>
-            <span className="min-w-0 leading-tight">
-              <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-75 sm:text-[11px]">Get Price</span>
-              <span className="block text-base font-extrabold sm:text-lg">₹{effectiveMemberPrice}</span>
+          )}
+          {isBestSeller && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+              <Star className="h-2.5 w-2.5 fill-current" />
+              Best Seller
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
-        {options.length > 1 ? (
-          <div
-            className="mt-0.5"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+        <div
+          className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 shadow-sm ${
+            outOfStock
+              ? "border-border bg-muted text-muted-foreground"
+              : "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50"
+          }`}
+        >
+          <span
+            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+              outOfStock
+                ? "bg-muted-foreground/30 text-muted-foreground"
+                : "bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950"
+            }`}
           >
-            <Select value={activeOption?.key} onValueChange={setSelectedKey}>
-              <SelectTrigger className="h-7 text-[11px] px-2">
-                <SelectValue placeholder="Select pack" />
-              </SelectTrigger>
-              <SelectContent className="z-50 bg-popover">
-                {options.map((o) => (
-                  <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
-                    {o.label} · MRP ₹{o.price} · {o.stock > 0 ? `${o.stock} available` : "Out of stock"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : (
-          unitDisplay && <p className="text-[11px] text-muted-foreground">{unitDisplay}</p>
-        )}
+            <Crown className="h-3.5 w-3.5 fill-current" />
+          </span>
+          <span className="min-w-0 leading-tight">
+            <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-75 sm:text-[11px]">
+              {outOfStock ? "Status" : "Get Price"}
+            </span>
+            <span className="block text-base font-extrabold sm:text-lg">
+              {outOfStock ? "Unavailable" : `₹${effectiveMemberPrice}`}
+            </span>
+          </span>
+        </div>
+
+        <div className="mt-0.5 min-h-[17px]">
+          {options.length > 1 ? (
+            <div
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <Select value={activeOption?.key} onValueChange={setSelectedKey}>
+                <SelectTrigger className="h-7 text-[11px] px-2">
+                  <SelectValue placeholder="Select pack" />
+                </SelectTrigger>
+                <SelectContent className="z-50 bg-popover">
+                  {options.map((o) => (
+                    <SelectItem key={o.key} value={o.key} disabled={o.stock <= 0}>
+                      {o.label} · MRP ₹{o.price} · {o.stock > 0 ? `${o.stock} available` : "Out of stock"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            unitDisplay && <p className="text-[11px] text-muted-foreground">{unitDisplay}</p>
+          )}
+        </div>
 
         {outOfStock ? (
           <p className="text-[11px] text-destructive mt-auto">Out of stock</p>
