@@ -1,38 +1,23 @@
-# Wallet not debited on some orders — source of the bug and proposed fix
+# Why Ramesh's order shows unpaid, and removing Cash on Delivery
 
-## Where the bug comes from
+## What actually happened
 
-Not the dev/preview site, and not the current live code. It comes from **old app/browser builds still running the pre-16-August checkout** on real customer devices.
+Ramesh's order today (ELA20260904-18816, Rs. 656) was placed as **Cash on Delivery**. Nothing was charged and nothing was taken from his wallet, which is why the wallet still reads zero and the order shows payment pending — the money is meant to be collected by the delivery person at the door. His earlier Rs. 3,600 order (24 August) was also cash on delivery, and it was marked paid after delivery.
 
-Evidence:
+So this is not a bug or a loophole: cash on delivery is currently offered as a payment choice at checkout.
 
-- Order `ELA53325067` (Meena, invoice INV20260831-000018) has **no `idempotency_key`**, a legacy `ELA<8-digit>` order number, `is_cod = true` while `cod_amount = 0` and `total_amount = 0`, and **no wallet transaction**.
-- Every order placed through today's code (`ELA20260xxx-xxxxx` numbers) has an idempotency key and exactly one matching `purchase` wallet transaction.
-- Today's checkout (`src/pages/Checkout.tsx`) only calls the `place_order_atomic` database function, which debits the wallet, writes the transaction, and never marks a ₹0 order as COD.
-- The old build inserted the order row straight from the browser. The `orders` table allows that (`INSERT` policy: `auth.uid() = user_id`), but the `wallets` table has **no update policy for users** — so an old client can create an order claiming `wallet_amount_used` while being physically unable to debit the wallet. That is exactly the mismatch seen on the invoice.
+## What will change
 
-Meena's wallet was later corrected by hand: a single "Admin adjustment: purchase" debit of ₹855 on 31 Aug at 10:43 UTC (balance 3001 → 2146). The order itself never touched it.
+Cash on delivery is removed completely. Every order must be paid before it is confirmed — online payment, or wallet credit when the balance covers the order (or a mix of wallet plus online for the rest).
 
-Only two orders since 17 August show this signature:
-
-| Order | Date | Member | Wallet claimed | Debited by order | Corrected |
-|---|---|---|---|---|---|
-| ELA46411284 | 24 Aug | Sudevan P M | Rs. 3000 | no | to be verified |
-| ELA53325067 | 31 Aug | Meena | Rs. 855 | no | yes, manual admin adjustment |
-
-The invoice's "payment method: cod" is a second, cosmetic symptom: the invoice function derives the method from the order's `is_cod` flag, which the old build set incorrectly.
-
-## Proposed fix
-
-1. **Close the hole in the database.** Restrict direct client inserts into `orders` so a row cannot be created with `wallet_amount_used > 0` outside `place_order_atomic`. Any order that claims wallet payment must go through the function that actually debits the wallet.
-2. **Force stale clients to update.** Reject legacy checkout writes with a clear "please update the app" message, and make the web/PWA update prompt more aggressive so old bundles cannot keep transacting.
-3. **Correct the invoice payment label.** When an order is fully covered by wallet credit, the invoice should read "wallet", not "cod".
-4. **Reconcile the two legacy orders.** Verify Sudevan's Rs. 3000 (check whether it was ever deducted) and record a proper wallet transaction for Meena's Rs. 855 so the ledger links to the order instead of showing an unexplained admin adjustment.
-5. **Add an admin check.** A small report listing orders whose `wallet_amount_used` has no matching wallet transaction, so this can never go unnoticed again.
+1. **Checkout**: the "Cash on Delivery" option is removed; online payment is the only choice and is pre-selected. Wallet credit continues to be applied first as it does today.
+2. **Backend rule**: the order-placing routine rejects any cash-on-delivery request, so older app versions still on customers' phones cannot slip a cash order through.
+3. **Existing cash orders**: Ramesh's Rs. 656 order and any other open cash orders are left untouched — the plan does not cancel or alter them. If you want them handled (cancelled, or a payment link sent), say so and it will be added.
+4. **Delivery app and admin**: cash-collection prompts stay in place for the orders already out for delivery, since those still need collecting; they simply stop appearing for new orders.
 
 ## Technical notes
 
-- Migration: trigger or policy on `public.orders` blocking direct inserts with `wallet_amount_used > 0`; keep `place_order_atomic` (SECURITY DEFINER) as the only path.
-- `issue_order_invoice`: change the payment-method expression so a fully wallet-covered order reports `wallet` even when `is_cod` is set.
-- Data fix via SQL for the two orders (no schema change).
-- Client: version/stale-build guard around checkout plus the existing PWA update flow.
+- `src/pages/Checkout.tsx`: drop the `cod` option from the payment selector, default `paymentMethod` to `online`, keep the wallet-first logic and the Razorpay step.
+- `place_order_atomic`: restrict `p_payment_method` to `online`, and never set `is_cod` / `cod_amount` on new orders. Fully wallet-covered orders continue to complete without a gateway step.
+- Guest checkout already requires a verified gateway payment — no change needed there.
+- No schema change: the `is_cod`, `cod_amount`, `cod_collected` columns stay for historical orders and the driver/admin screens that read them.
