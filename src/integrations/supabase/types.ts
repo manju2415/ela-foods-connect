@@ -862,6 +862,7 @@ export type Database = {
           pickup_store_id: string | null
           preferred_delivery_date: string | null
           preferred_delivery_slot_id: string | null
+          sales_counted_at: string | null
           shipping_address: Json
           shipping_amount: number | null
           status: Database["public"]["Enums"]["order_status"]
@@ -891,6 +892,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          sales_counted_at?: string | null
           shipping_address: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -920,6 +922,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          sales_counted_at?: string | null
           shipping_address?: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -1042,6 +1045,36 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           value?: Json
+        }
+        Relationships: []
+      }
+      product_display_settings: {
+        Row: {
+          created_at: string
+          display_order: number
+          is_enabled: boolean
+          new_arrival_days: number | null
+          product_limit: number
+          section_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          is_enabled?: boolean
+          new_arrival_days?: number | null
+          product_limit?: number
+          section_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          is_enabled?: boolean
+          new_arrival_days?: number | null
+          product_limit?: number
+          section_key?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1236,36 +1269,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      product_display_settings: {
-        Row: {
-          created_at: string
-          display_order: number
-          is_enabled: boolean
-          new_arrival_days: number | null
-          product_limit: number
-          section_key: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          display_order?: number
-          is_enabled?: boolean
-          new_arrival_days?: number | null
-          product_limit?: number
-          section_key: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          display_order?: number
-          is_enabled?: boolean
-          new_arrival_days?: number | null
-          product_limit?: number
-          section_key?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       profiles: {
         Row: {
@@ -2022,10 +2025,6 @@ export type Database = {
       }
     }
     Functions: {
-      get_homepage_product_sections: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
       add_wallet_transaction: {
         Args: {
           p_amount: number
@@ -2056,6 +2055,7 @@ export type Database = {
         }
         Returns: Json
       }
+      count_paid_order_sales: { Args: { p_order_id: string }; Returns: boolean }
       create_notification: {
         Args: {
           p_message: string
@@ -2086,6 +2086,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      get_homepage_product_sections: { Args: never; Returns: Json }
       get_network_roots: {
         Args: never
         Returns: {
