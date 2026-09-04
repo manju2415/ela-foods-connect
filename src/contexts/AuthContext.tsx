@@ -148,13 +148,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isNewUser = created.isNewUser === true;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    let { data, error } = await supabase.auth.signInWithPassword({
       email: mockEmail,
       password: tempPassword,
     });
 
     if (error) {
-      return { error: new Error("Account not found. Please contact admin to be added.") };
+      // Accounts created outside OTP login (e.g. guest checkout) can carry a
+      // different login email — repair it server-side, then retry once.
+      const { data: repair } = await supabase.functions.invoke("link-phone-login", {
+        body: { phone: cleanPhone },
+      });
+      if (repair?.ok) {
+        const retry = await supabase.auth.signInWithPassword({
+          email: mockEmail,
+          password: tempPassword,
+        });
+        data = retry.data;
+        error = retry.error;
+      }
+      if (error) {
+        return { error: new Error("Account not found. Please contact admin to be added.") };
+      }
     }
 
     if (data.user) {
