@@ -138,7 +138,7 @@ const ProductCard = ({
           <OptimizedImage
             src={image}
             alt={name}
-            className="w-full aspect-square object-cover"
+            className={`w-full aspect-square object-cover ${outOfStock ? "grayscale opacity-50" : ""}`}
             containerClassName="aspect-square"
             displayWidth={isCompact ? 200 : 400}
             displayHeight={isCompact ? 200 : 400}

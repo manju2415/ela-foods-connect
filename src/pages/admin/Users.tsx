@@ -3,7 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useUserRole } from "@/hooks/useUserRole";
-import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
+import {
+  AdminMobileCard,
+  AdminMobileField,
+} from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +35,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users as UsersIcon, Shield, Crown, UserPlus, UserCog, Trash2, Wallet, IndianRupee } from "lucide-react";
+import {
+  Search,
+  Users as UsersIcon,
+  Shield,
+  Crown,
+  UserPlus,
+  UserCog,
+  Trash2,
+  Wallet,
+  IndianRupee,
+} from "lucide-react";
 import { toast } from "sonner";
 import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
 import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
@@ -67,11 +80,15 @@ interface User {
 
 const ROLE_COLORS: Record<AppRole, string> = {
   member: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  founding_member: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  admin: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  founding_member:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  admin:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   super_admin: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  delivery_partner: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-  mlm_admin: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  delivery_partner:
+    "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  mlm_admin:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
 };
 
 export default function UsersPage() {
@@ -96,7 +113,7 @@ export default function UsersPage() {
       if (profilesError) throw profilesError;
 
       // Get all user roles
-      const userIds = profiles.map(p => p.id);
+      const userIds = profiles.map((p) => p.id);
       const { data: roles } = await supabase
         .from("user_roles")
         .select("user_id, role")
@@ -119,12 +136,12 @@ export default function UsersPage() {
       );
 
       const rolesMap = new Map<string, AppRole[]>();
-      roles?.forEach(r => {
+      roles?.forEach((r) => {
         const existing = rolesMap.get(r.user_id) || [];
         rolesMap.set(r.user_id, [...existing, r.role]);
       });
 
-      return profiles.map(profile => ({
+      return profiles.map((profile) => ({
         ...profile,
         roles: rolesMap.get(profile.id) || [],
         ...(walletMap.get(profile.id) || {
@@ -137,7 +154,13 @@ export default function UsersPage() {
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
+    mutationFn: async ({
+      userId,
+      isActive,
+    }: {
+      userId: string;
+      isActive: boolean;
+    }) => {
       const { error } = await supabase
         .from("profiles")
         .update({ is_active: isActive })
@@ -182,7 +205,8 @@ export default function UsersPage() {
         body: { user_id: userId },
       });
       if (error) throw error;
-      if (data?.ok === false || data?.error) throw new Error(data.error || "Failed to remove user");
+      if (data?.ok === false || data?.error)
+        throw new Error(data.error || "Failed to remove user");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-users"] });
@@ -212,41 +236,47 @@ export default function UsersPage() {
     },
   });
 
-  const filteredUsers = users.filter(user =>
-    user.email.toLowerCase().includes(search.toLowerCase()) ||
-    user.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-    user.phone?.includes(search)
+  const filteredUsers = users.filter(
+    (user) =>
+      user.email.toLowerCase().includes(search.toLowerCase()) ||
+      user.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+      user.phone?.includes(search),
   );
 
   const getRoleIcon = (role: AppRole) => {
     switch (role) {
-      case "super_admin": return <Crown className="h-3 w-3" />;
-      case "admin": return <Shield className="h-3 w-3" />;
-      default: return null;
+      case "super_admin":
+        return <Crown className="h-3 w-3" />;
+      case "admin":
+        return <Shield className="h-3 w-3" />;
+      default:
+        return null;
     }
   };
 
   return (
     <AdminLayout>
-        <div className="space-y-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-              <p className="text-muted-foreground">Manage user accounts and roles</p>
-            </div>
-            <AddUserDialog
-              onUserAdded={() => {
-                queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-              }}
-              isAdmin={true}
-              trigger={
-                <Button>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              }
-            />
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+            <p className="text-muted-foreground">
+              Manage user accounts and roles
+            </p>
           </div>
+          <AddUserDialog
+            onUserAdded={() => {
+              queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+            }}
+            isAdmin={true}
+            trigger={
+              <Button>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Invite Friends & Family
+              </Button>
+            }
+          />
+        </div>
 
         <Card className="max-w-full overflow-hidden">
           <CardHeader className="p-4 sm:p-6">
@@ -277,62 +307,167 @@ export default function UsersPage() {
               </div>
             ) : (
               <>
-              <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead>Wallet</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Roles</TableHead>
+                        <TableHead>Wallet</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {user.full_name || "N/A"}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {user.email}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{user.phone || "N/A"}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {user.roles.length === 0 ? (
+                                <Badge variant="outline">No roles</Badge>
+                              ) : (
+                                user.roles.map((role) => (
+                                  <Badge
+                                    key={role}
+                                    className={`${ROLE_COLORS[role]} flex items-center gap-1`}
+                                    variant="secondary"
+                                  >
+                                    {getRoleIcon(role)}
+                                    {role.replace("_", " ")}
+                                  </Badge>
+                                ))
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">
+                              ₹{user.wallet_balance.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              W ₹{user.withdrawable_balance.toFixed(2)} · P ₹
+                              {user.purchase_only_balance.toFixed(2)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={user.is_active ? "default" : "secondary"}
+                            >
+                              {user.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(user.created_at), "MMM d, yyyy")}
+                          </TableCell>
+                          <TableCell className="text-right space-x-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingUser(user)}
+                            >
+                              <UserCog className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Adjust wallet"
+                              onClick={() => setWalletUser(user)}
+                            >
+                              <Wallet className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              title="Record registration payment"
+                              onClick={() => setPaymentUser(user)}
+                            >
+                              <IndianRupee className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedUser(user)}
+                            >
+                              Manage Roles
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setUserToDelete(user)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="space-y-3 md:hidden">
                   {filteredUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{user.full_name || "N/A"}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                    <AdminMobileCard key={user.id}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">
+                            {user.full_name || "N/A"}
+                          </div>
+                          <div className="text-sm text-muted-foreground break-all">
+                            {user.email}
+                          </div>
                         </div>
-                      </TableCell>
-                      <TableCell>{user.phone || "N/A"}</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.length === 0 ? (
-                            <Badge variant="outline">No roles</Badge>
-                          ) : (
-                            user.roles.map(role => (
-                              <Badge
-                                key={role}
-                                className={`${ROLE_COLORS[role]} flex items-center gap-1`}
-                                variant="secondary"
-                              >
-                                {getRoleIcon(role)}
-                                {role.replace("_", " ")}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">₹{user.wallet_balance.toFixed(2)}</div>
-                        <div className="text-xs text-muted-foreground">
-                          W ₹{user.withdrawable_balance.toFixed(2)} · P ₹{user.purchase_only_balance.toFixed(2)}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={user.is_active ? "default" : "secondary"}>
+                        <Badge
+                          variant={user.is_active ? "default" : "secondary"}
+                          className="shrink-0"
+                        >
                           {user.is_active ? "Active" : "Inactive"}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(user.created_at), "MMM d, yyyy")}
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
+                      </div>
+                      <div className="grid grid-cols-1 gap-3">
+                        <AdminMobileField label="Phone">
+                          {user.phone || "N/A"}
+                        </AdminMobileField>
+                        <AdminMobileField label="Roles">
+                          <div className="flex flex-wrap gap-1">
+                            {user.roles.length === 0 ? (
+                              <Badge variant="outline">No roles</Badge>
+                            ) : (
+                              user.roles.map((role) => (
+                                <Badge
+                                  key={role}
+                                  className={`${ROLE_COLORS[role]} flex items-center gap-1`}
+                                  variant="secondary"
+                                >
+                                  {getRoleIcon(role)}
+                                  {role.replace("_", " ")}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </AdminMobileField>
+                        <AdminMobileField label="Wallet">
+                          ₹{user.wallet_balance.toFixed(2)}
+                          <span className="block text-xs text-muted-foreground">
+                            W ₹{user.withdrawable_balance.toFixed(2)} · P ₹
+                            {user.purchase_only_balance.toFixed(2)}
+                          </span>
+                        </AdminMobileField>
+                        <AdminMobileField label="Joined">
+                          {format(new Date(user.created_at), "MMM d, yyyy")}
+                        </AdminMobileField>
+                      </div>
+                      <div className="flex flex-wrap gap-2 pt-1">
                         <Button
                           variant="outline"
                           size="sm"
@@ -351,7 +486,7 @@ export default function UsersPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          title="Record registration payment"
+                          title="Record payment"
                           onClick={() => setPaymentUser(user)}
                         >
                           <IndianRupee className="h-4 w-4" />
@@ -360,6 +495,7 @@ export default function UsersPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedUser(user)}
+                          className="flex-1"
                         >
                           Manage Roles
                         </Button>
@@ -370,63 +506,10 @@ export default function UsersPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              </div>
-              <div className="space-y-3 md:hidden">
-                {filteredUsers.map((user) => (
-                  <AdminMobileCard key={user.id}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium truncate">{user.full_name || "N/A"}</div>
-                        <div className="text-sm text-muted-foreground break-all">{user.email}</div>
                       </div>
-                      <Badge variant={user.is_active ? "default" : "secondary"} className="shrink-0">
-                        {user.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3">
-                      <AdminMobileField label="Phone">{user.phone || "N/A"}</AdminMobileField>
-                      <AdminMobileField label="Roles">
-                        <div className="flex flex-wrap gap-1">
-                          {user.roles.length === 0 ? (
-                            <Badge variant="outline">No roles</Badge>
-                          ) : (
-                            user.roles.map(role => (
-                              <Badge key={role} className={`${ROLE_COLORS[role]} flex items-center gap-1`} variant="secondary">
-                                {getRoleIcon(role)}
-                                {role.replace("_", " ")}
-                              </Badge>
-                            ))
-                          )}
-                        </div>
-                      </AdminMobileField>
-                      <AdminMobileField label="Wallet">₹{user.wallet_balance.toFixed(2)}<span className="block text-xs text-muted-foreground">W ₹{user.withdrawable_balance.toFixed(2)} · P ₹{user.purchase_only_balance.toFixed(2)}</span></AdminMobileField>
-                      <AdminMobileField label="Joined">{format(new Date(user.created_at), "MMM d, yyyy")}</AdminMobileField>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button variant="outline" size="sm" onClick={() => setEditingUser(user)}>
-                        <UserCog className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" title="Adjust wallet" onClick={() => setWalletUser(user)}>
-                        <Wallet className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" title="Record payment" onClick={() => setPaymentUser(user)}>
-                        <IndianRupee className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedUser(user)} className="flex-1">
-                        Manage Roles
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => setUserToDelete(user)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </AdminMobileCard>
-                ))}
-              </div>
+                    </AdminMobileCard>
+                  ))}
+                </div>
               </>
             )}
           </CardContent>
@@ -437,7 +520,9 @@ export default function UsersPage() {
           userName={walletUser?.full_name || walletUser?.email}
           open={!!walletUser}
           onOpenChange={(o) => !o && setWalletUser(null)}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+          onSuccess={() =>
+            queryClient.invalidateQueries({ queryKey: ["admin-users"] })
+          }
         />
 
         <RecordPaymentDialog
@@ -445,31 +530,41 @@ export default function UsersPage() {
           userName={paymentUser?.full_name || paymentUser?.email}
           open={!!paymentUser}
           onOpenChange={(o) => !o && setPaymentUser(null)}
-          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin-users"] })}
+          onSuccess={() =>
+            queryClient.invalidateQueries({ queryKey: ["admin-users"] })
+          }
         />
 
-
-
         {/* Manage Roles Dialog */}
-        <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <Dialog
+          open={!!selectedUser}
+          onOpenChange={() => setSelectedUser(null)}
+        >
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Manage Roles: {selectedUser?.full_name || selectedUser?.email}</DialogTitle>
+              <DialogTitle>
+                Manage Roles: {selectedUser?.full_name || selectedUser?.email}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div>
                 <h4 className="text-sm font-medium mb-2">Current Roles</h4>
                 <div className="flex flex-wrap gap-2">
                   {selectedUser?.roles.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No roles assigned</p>
+                    <p className="text-sm text-muted-foreground">
+                      No roles assigned
+                    </p>
                   ) : (
-                    selectedUser?.roles.map(role => (
+                    selectedUser?.roles.map((role) => (
                       <Badge
                         key={role}
                         className={`${ROLE_COLORS[role]} cursor-pointer`}
                         onClick={() => {
                           if (confirm(`Remove ${role} role?`)) {
-                            removeRoleMutation.mutate({ userId: selectedUser.id, role });
+                            removeRoleMutation.mutate({
+                              userId: selectedUser.id,
+                              role,
+                            });
                           }
                         }}
                       >
@@ -483,14 +578,21 @@ export default function UsersPage() {
               <div className="space-y-2">
                 <h4 className="text-sm font-medium">Add Role</h4>
                 <div className="flex gap-2">
-                  <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
+                  <Select
+                    value={newRole}
+                    onValueChange={(v) => setNewRole(v as AppRole)}
+                  >
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="founding_member">Founding Member</SelectItem>
-                      <SelectItem value="delivery_partner">Delivery Partner</SelectItem>
+                      <SelectItem value="founding_member">
+                        Founding Member
+                      </SelectItem>
+                      <SelectItem value="delivery_partner">
+                        Delivery Partner
+                      </SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
                     </SelectContent>
@@ -498,7 +600,10 @@ export default function UsersPage() {
                   <Button
                     onClick={() => {
                       if (selectedUser && newRole) {
-                        addRoleMutation.mutate({ userId: selectedUser.id, role: newRole });
+                        addRoleMutation.mutate({
+                          userId: selectedUser.id,
+                          role: newRole,
+                        });
                       }
                     }}
                     disabled={!newRole || addRoleMutation.isPending}
@@ -520,21 +625,28 @@ export default function UsersPage() {
         <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit User: {editingUser?.full_name || editingUser?.email}</DialogTitle>
+              <DialogTitle>
+                Edit User: {editingUser?.full_name || editingUser?.email}
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Account Status</Label>
                   <p className="text-sm text-muted-foreground">
-                    {editingUser?.is_active ? "User can access the platform" : "User is blocked from the platform"}
+                    {editingUser?.is_active
+                      ? "User can access the platform"
+                      : "User is blocked from the platform"}
                   </p>
                 </div>
                 <Switch
                   checked={editingUser?.is_active || false}
                   onCheckedChange={(checked) => {
                     if (editingUser) {
-                      toggleStatusMutation.mutate({ userId: editingUser.id, isActive: checked });
+                      toggleStatusMutation.mutate({
+                        userId: editingUser.id,
+                        isActive: checked,
+                      });
                     }
                   }}
                 />
@@ -542,9 +654,20 @@ export default function UsersPage() {
               <div className="border-t pt-4">
                 <h4 className="text-sm font-medium mb-2">User Details</h4>
                 <div className="text-sm space-y-1">
-                  <p><span className="text-muted-foreground">Email:</span> {editingUser?.email}</p>
-                  <p><span className="text-muted-foreground">Phone:</span> {editingUser?.phone || "N/A"}</p>
-                  <p><span className="text-muted-foreground">Joined:</span> {editingUser ? format(new Date(editingUser.created_at), "PPP") : ""}</p>
+                  <p>
+                    <span className="text-muted-foreground">Email:</span>{" "}
+                    {editingUser?.email}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Phone:</span>{" "}
+                    {editingUser?.phone || "N/A"}
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Joined:</span>{" "}
+                    {editingUser
+                      ? format(new Date(editingUser.created_at), "PPP")
+                      : ""}
+                  </p>
                 </div>
               </div>
             </div>
@@ -556,19 +679,26 @@ export default function UsersPage() {
           </DialogContent>
         </Dialog>
         {/* Remove User Confirmation */}
-        <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialog
+          open={!!userToDelete}
+          onOpenChange={() => setUserToDelete(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Remove User</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to permanently remove {userToDelete?.full_name || userToDelete?.phone}? This action cannot be undone.
+                Are you sure you want to permanently remove{" "}
+                {userToDelete?.full_name || userToDelete?.phone}? This action
+                cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={() => userToDelete && removeUserMutation.mutate(userToDelete.id)}
+                onClick={() =>
+                  userToDelete && removeUserMutation.mutate(userToDelete.id)
+                }
               >
                 {removeUserMutation.isPending ? "Removing..." : "Remove"}
               </AlertDialogAction>

@@ -1,4 +1,4 @@
--- Add user_level enum for hierarchy tracking
+-- Invite Friends & Family_level enum for hierarchy tracking
 CREATE TYPE public.user_level AS ENUM ('founder', 'master', 'associate');
 
 -- Add hierarchy tracking to profiles

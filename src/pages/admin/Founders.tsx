@@ -3,7 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { AdminLayout } from "@/components/admin/AdminLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +41,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Crown, Search, UserPlus, Trash2, Loader2, Users, Copy, TrendingUp, Pencil, CheckCircle2 } from "lucide-react";
+import {
+  Crown,
+  Search,
+  UserPlus,
+  Trash2,
+  Loader2,
+  Users,
+  Copy,
+  TrendingUp,
+  Pencil,
+  CheckCircle2,
+} from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
 
 const FOUNDER_STATUS_LABEL: Record<string, string> = {
@@ -80,7 +97,11 @@ export default function Founders() {
   const [isSearching, setIsSearching] = useState(false);
   const [removeFounder, setRemoveFounder] = useState<Founder | null>(null);
   const [editFounder, setEditFounder] = useState<Founder | null>(null);
-  const [editForm, setEditForm] = useState({ full_name: "", email: "", phone: "" });
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    email: "",
+    phone: "",
+  });
   const queryClient = useQueryClient();
 
   // Fetch founders with founding_member role
@@ -93,30 +114,32 @@ export default function Founders() {
         .select("user_id")
         .eq("role", "founding_member")
         .limit(4);
-      
+
       if (!roleData || roleData.length === 0) return [];
-      
-      const userIds = roleData.map(r => r.user_id);
-      
+
+      const userIds = roleData.map((r) => r.user_id);
+
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("id, email, full_name, phone, referral_count, founder_status, registration_fee_paid")
+        .select(
+          "id, email, full_name, phone, referral_count, founder_status, registration_fee_paid",
+        )
         .in("id", userIds);
-      
+
       const foundersWithCodes = await Promise.all(
         (profileData || []).map(async (founder) => {
           const { data: codes } = await supabase
             .from("referral_codes")
             .select("code, usage_count")
             .eq("user_id", founder.id);
-          return { 
-            ...founder, 
+          return {
+            ...founder,
             is_designated_founder: true,
-            referral_codes: codes || [] 
+            referral_codes: codes || [],
           };
-        })
+        }),
       );
-      
+
       return foundersWithCodes as Founder[];
     },
   });
@@ -132,7 +155,10 @@ export default function Founders() {
         .maybeSingle();
 
       if (data?.value) {
-        const val = data.value as { enabled?: boolean; levels?: { depth: number; amount: number; description: string }[] };
+        const val = data.value as {
+          enabled?: boolean;
+          levels?: { depth: number; amount: number; description: string }[];
+        };
         if (val.enabled !== false && val.levels) {
           return val.levels.map((l, i) => ({
             id: String(i + 1),
@@ -146,11 +172,41 @@ export default function Founders() {
 
       // Fallback defaults
       return [
-        { id: "1", level_depth: 1, commission_amount: 100, description: "Direct referral", is_active: true },
-        { id: "2", level_depth: 2, commission_amount: 75, description: "Level 2", is_active: true },
-        { id: "3", level_depth: 3, commission_amount: 50, description: "Level 3", is_active: true },
-        { id: "4", level_depth: 4, commission_amount: 40, description: "Level 4", is_active: true },
-        { id: "5", level_depth: 5, commission_amount: 30, description: "Level 5", is_active: true },
+        {
+          id: "1",
+          level_depth: 1,
+          commission_amount: 100,
+          description: "Direct referral",
+          is_active: true,
+        },
+        {
+          id: "2",
+          level_depth: 2,
+          commission_amount: 75,
+          description: "Level 2",
+          is_active: true,
+        },
+        {
+          id: "3",
+          level_depth: 3,
+          commission_amount: 50,
+          description: "Level 3",
+          is_active: true,
+        },
+        {
+          id: "4",
+          level_depth: 4,
+          commission_amount: 40,
+          description: "Level 4",
+          is_active: true,
+        },
+        {
+          id: "5",
+          level_depth: 5,
+          commission_amount: 30,
+          description: "Level 5",
+          is_active: true,
+        },
       ] as FounderCommission[];
     },
   });
@@ -161,14 +217,14 @@ export default function Founders() {
       setSearchResults([]);
       return;
     }
-    
+
     setIsSearching(true);
     const { data } = await supabase
       .from("profiles")
       .select("id, email, full_name")
       .or(`email.ilike.%${query}%,full_name.ilike.%${query}%`)
       .limit(10);
-    
+
     setSearchResults((data || []) as UserProfile[]);
     setIsSearching(false);
   };
@@ -179,7 +235,7 @@ export default function Founders() {
       if (founders.length >= 4) {
         throw new Error("Maximum 4 founders allowed");
       }
-      
+
       // Check if already has founding_member role
       const { data: existingRole } = await supabase
         .from("user_roles")
@@ -187,24 +243,24 @@ export default function Founders() {
         .eq("user_id", userId)
         .eq("role", "founding_member")
         .maybeSingle();
-      
+
       if (existingRole) {
         throw new Error("User is already a founder");
       }
-      
+
       // Add founding_member role
       const { error: roleError } = await supabase
         .from("user_roles")
         .insert({ user_id: userId, role: "founding_member" });
-      
+
       if (roleError) throw roleError;
-      
+
       // Update profile user_level to founder
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ user_level: "founder" })
         .eq("id", userId);
-      
+
       if (profileError) throw profileError;
     },
     onSuccess: () => {
@@ -229,15 +285,15 @@ export default function Founders() {
         .delete()
         .eq("user_id", userId)
         .eq("role", "founding_member");
-      
+
       if (roleError) throw roleError;
-      
+
       // Update profile user_level back to master
       const { error: profileError } = await supabase
         .from("profiles")
         .update({ user_level: "master" })
         .eq("id", userId);
-      
+
       if (profileError) throw profileError;
     },
     onSuccess: () => {
@@ -255,7 +311,11 @@ export default function Founders() {
     mutationFn: async (userId: string) => {
       const { error } = await supabase
         .from("profiles")
-        .update({ founder_status: "approved_pending_payment", user_level: "founder", is_designated_founder: true })
+        .update({
+          founder_status: "approved_pending_payment",
+          user_level: "founder",
+          is_designated_founder: true,
+        })
         .eq("id", userId);
       if (error) throw error;
     },
@@ -268,18 +328,35 @@ export default function Founders() {
 
   // Update founder profile mutation
   const updateFounderMutation = useMutation({
-    mutationFn: async ({ id, full_name, email, phone }: { id: string; full_name: string; email: string; phone: string }) => {
+    mutationFn: async ({
+      id,
+      full_name,
+      email,
+      phone,
+    }: {
+      id: string;
+      full_name: string;
+      email: string;
+      phone: string;
+    }) => {
       const trimmedName = full_name.trim();
       const trimmedEmail = email.trim();
       const digits = phone.replace(/\D/g, "");
 
-      if (trimmedName.length < 2) throw new Error("Name must be at least 2 characters");
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail)) throw new Error("Enter a valid email address");
-      if (digits && digits.length < 10) throw new Error("Enter a valid 10-digit phone number");
+      if (trimmedName.length < 2)
+        throw new Error("Name must be at least 2 characters");
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail))
+        throw new Error("Enter a valid email address");
+      if (digits && digits.length < 10)
+        throw new Error("Enter a valid 10-digit phone number");
 
       const { error } = await supabase
         .from("profiles")
-        .update({ full_name: trimmedName, email: trimmedEmail, phone: digits ? digits.slice(-10) : null })
+        .update({
+          full_name: trimmedName,
+          email: trimmedEmail,
+          phone: digits ? digits.slice(-10) : null,
+        })
         .eq("id", id);
 
       if (error) throw error;
@@ -298,20 +375,24 @@ export default function Founders() {
   const updateCommissionMutation = useMutation({
     mutationFn: async ({ id, amount }: { id: string; amount: number }) => {
       const index = Number(id) - 1;
-      const currentLevels = commissions.map(c => ({
+      const currentLevels = commissions.map((c) => ({
         depth: c.level_depth,
         amount: c.commission_amount,
         description: c.description || `Level ${c.level_depth}`,
       }));
       currentLevels[index] = { ...currentLevels[index], amount };
 
-      const { error } = await supabase
-        .from("mlm_settings")
-        .upsert({
+      const { error } = await supabase.from("mlm_settings").upsert(
+        {
           key: "founder_level_commissions",
-          value: { enabled: true, levels: currentLevels } as unknown as Record<string, never>,
+          value: { enabled: true, levels: currentLevels } as unknown as Record<
+            string,
+            never
+          >,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "key" });
+        },
+        { onConflict: "key" },
+      );
 
       if (error) throw error;
     },
@@ -336,7 +417,7 @@ export default function Founders() {
   const filteredFounders = founders.filter(
     (f) =>
       f.email.toLowerCase().includes(search.toLowerCase()) ||
-      f.full_name?.toLowerCase().includes(search.toLowerCase())
+      f.full_name?.toLowerCase().includes(search.toLowerCase()),
   );
 
   return (
@@ -350,7 +431,8 @@ export default function Founders() {
                 Designated Founders
               </h1>
               <p className="text-muted-foreground">
-                Manage the 4 designated founders who earn multi-level commissions
+                Manage the 4 designated founders who earn multi-level
+                commissions
               </p>
             </div>
             <Button
@@ -390,7 +472,10 @@ export default function Founders() {
                 <div className="text-center py-8 text-muted-foreground">
                   <Crown className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
                   <p>No founders designated yet</p>
-                  <p className="text-sm">Add users as founders to enable multi-level commissions</p>
+                  <p className="text-sm">
+                    Invite Friends & Familys as founders to enable multi-level
+                    commissions
+                  </p>
                 </div>
               ) : (
                 <Table>
@@ -412,7 +497,9 @@ export default function Founders() {
                               {founder.full_name || "No name"}
                               <Crown className="h-4 w-4 text-primary" />
                             </div>
-                            <div className="text-sm text-muted-foreground">{founder.email}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {founder.email}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -431,32 +518,43 @@ export default function Founders() {
                               ))}
                             </div>
                           ) : (
-                            <span className="text-muted-foreground">No codes</span>
+                            <span className="text-muted-foreground">
+                              No codes
+                            </span>
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary">{founder.referral_count} members</Badge>
+                          <Badge variant="secondary">
+                            {founder.referral_count} members
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant={
                               founder.founder_status === "active"
                                 ? "default"
-                                : founder.founder_status === "approved_pending_payment"
-                                ? "secondary"
-                                : "outline"
+                                : founder.founder_status ===
+                                    "approved_pending_payment"
+                                  ? "secondary"
+                                  : "outline"
                             }
                           >
-                            {FOUNDER_STATUS_LABEL[founder.founder_status || "none"] || founder.founder_status}
+                            {FOUNDER_STATUS_LABEL[
+                              founder.founder_status || "none"
+                            ] || founder.founder_status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {(!founder.founder_status || founder.founder_status === "none" || founder.founder_status === "pending_approval") && (
+                          {(!founder.founder_status ||
+                            founder.founder_status === "none" ||
+                            founder.founder_status === "pending_approval") && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="mr-2"
-                              onClick={() => approveFounderMutation.mutate(founder.id)}
+                              onClick={() =>
+                                approveFounderMutation.mutate(founder.id)
+                              }
                               disabled={approveFounderMutation.isPending}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-1" />
@@ -501,7 +599,8 @@ export default function Founders() {
                 Multi-Level Commission Rates
               </CardTitle>
               <CardDescription>
-                All upline members (Founders, Masters, Associates) earn these commissions based on level depth in their network
+                All upline members (Founders, Masters, Associates) earn these
+                commissions based on level depth in their network
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -512,7 +611,11 @@ export default function Founders() {
                     className="p-4 border rounded-lg space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <Badge variant={commission.level_depth <= 3 ? "default" : "secondary"}>
+                      <Badge
+                        variant={
+                          commission.level_depth <= 3 ? "default" : "secondary"
+                        }
+                      >
                         Level {commission.level_depth}
                       </Badge>
                     </div>
@@ -542,11 +645,16 @@ export default function Founders() {
         </div>
 
         {/* Edit Founder Dialog */}
-        <Dialog open={!!editFounder} onOpenChange={(open) => !open && setEditFounder(null)}>
+        <Dialog
+          open={!!editFounder}
+          onOpenChange={(open) => !open && setEditFounder(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Founder</DialogTitle>
-              <DialogDescription>Update the founder's profile details.</DialogDescription>
+              <DialogDescription>
+                Update the founder's profile details.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -555,7 +663,9 @@ export default function Founders() {
                   id="edit-name"
                   value={editForm.full_name}
                   maxLength={100}
-                  onChange={(e) => setEditForm((f) => ({ ...f, full_name: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, full_name: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -565,7 +675,9 @@ export default function Founders() {
                   type="email"
                   value={editForm.email}
                   maxLength={255}
-                  onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, email: e.target.value }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -575,7 +687,12 @@ export default function Founders() {
                   type="tel"
                   maxLength={10}
                   value={editForm.phone}
-                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, "") }))}
+                  onChange={(e) =>
+                    setEditForm((f) => ({
+                      ...f,
+                      phone: e.target.value.replace(/\D/g, ""),
+                    }))
+                  }
                 />
               </div>
             </div>
@@ -586,7 +703,10 @@ export default function Founders() {
               <Button
                 onClick={() =>
                   editFounder &&
-                  updateFounderMutation.mutate({ id: editFounder.id, ...editForm })
+                  updateFounderMutation.mutate({
+                    id: editFounder.id,
+                    ...editForm,
+                  })
                 }
                 disabled={updateFounderMutation.isPending}
               >
@@ -605,7 +725,8 @@ export default function Founders() {
             <DialogHeader>
               <DialogTitle>Add Designated Founder</DialogTitle>
               <DialogDescription>
-                Search for a user to designate as a founder. Founders earn commissions from all levels in their network.
+                Search for a user to designate as a founder. Founders earn
+                commissions from all levels in their network.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -637,8 +758,12 @@ export default function Founders() {
                       }`}
                       onClick={() => setSelectedUser(user)}
                     >
-                      <div className="font-medium">{user.full_name || "No name"}</div>
-                      <div className="text-sm text-muted-foreground">{user.email}</div>
+                      <div className="font-medium">
+                        {user.full_name || "No name"}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {user.email}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -652,14 +777,21 @@ export default function Founders() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button
-                onClick={() => selectedUser && addFounderMutation.mutate(selectedUser.id)}
+                onClick={() =>
+                  selectedUser && addFounderMutation.mutate(selectedUser.id)
+                }
                 disabled={!selectedUser || addFounderMutation.isPending}
               >
-                {addFounderMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {addFounderMutation.isPending && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 Add as Founder
               </Button>
             </DialogFooter>
@@ -667,19 +799,27 @@ export default function Founders() {
         </Dialog>
 
         {/* Remove Founder Confirmation */}
-        <AlertDialog open={!!removeFounder} onOpenChange={() => setRemoveFounder(null)}>
+        <AlertDialog
+          open={!!removeFounder}
+          onOpenChange={() => setRemoveFounder(null)}
+        >
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Remove Founder?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will remove {removeFounder?.full_name || removeFounder?.email} as a designated founder.
-                They will no longer earn multi-level commissions from their network.
+                This will remove{" "}
+                {removeFounder?.full_name || removeFounder?.email} as a
+                designated founder. They will no longer earn multi-level
+                commissions from their network.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                onClick={() => removeFounder && removeFounderMutation.mutate(removeFounder.id)}
+                onClick={() =>
+                  removeFounder &&
+                  removeFounderMutation.mutate(removeFounder.id)
+                }
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
                 Remove Founder

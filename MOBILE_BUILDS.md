@@ -4,15 +4,16 @@ This project contains three separate mobile apps built with Capacitor:
 
 ## App Configurations
 
-| App | Config File | App ID | Entry Route | Theme Color |
-|-----|-------------|--------|-------------|-------------|
+| App          | Config File                    | App ID        | Entry Route     | Theme Color      |
+| ------------ | ------------------------------ | ------------- | --------------- | ---------------- |
 | **Customer** | `capacitor.config.customer.ts` | `...customer` | `/customer-app` | Orange `#f97316` |
-| **Driver** | `capacitor.config.driver.ts` | `...driver` | `/driver-app` | Green `#16a34a` |
-| **Member** | `capacitor.config.member.ts` | `...member` | `/member-app` | Purple `#7c3aed` |
+| **Driver**   | `capacitor.config.driver.ts`   | `...driver`   | `/driver-app`   | Green `#16a34a`  |
+| **Member**   | `capacitor.config.member.ts`   | `...member`   | `/member-app`   | Purple `#7c3aed` |
 
 ## Features by App
 
 ### Customer App (ELA Foods) 🍽️
+
 - Browse products and categories
 - Shopping cart and checkout
 - Order tracking
@@ -21,6 +22,7 @@ This project contains three separate mobile apps built with Capacitor:
 - Push notifications for order updates
 
 ### Driver App (ELA Delivery) 🚚
+
 - View assigned deliveries
 - Update delivery status
 - **Offline mode** with local caching
@@ -29,6 +31,7 @@ This project contains three separate mobile apps built with Capacitor:
 - Push notifications for new orders
 
 ### Member App (ELA Network) 🌐
+
 - Referral network tree
 - Commission tracking
 - Wallet with withdrawable balance
@@ -49,6 +52,7 @@ This project contains three separate mobile apps built with Capacitor:
 ### Build Instructions
 
 #### Customer App
+
 ```bash
 # 1. Copy customer config
 cp capacitor.config.customer.ts capacitor.config.ts
@@ -73,6 +77,7 @@ npx cap run android
 ```
 
 #### Driver App
+
 ```bash
 cp capacitor.config.driver.ts capacitor.config.ts
 npx cap add ios && npx cap add android
@@ -86,6 +91,7 @@ npx cap run ios  # or android
 ```
 
 #### Member App
+
 ```bash
 cp capacitor.config.member.ts capacitor.config.ts
 npx cap add ios && npx cap add android
@@ -104,20 +110,22 @@ npx cap run ios  # or android
 
 Each app uses branded colors for its splash screen and icons:
 
-| App | Background | Spinner | Status Bar |
-|-----|------------|---------|------------|
-| Customer | Orange `#f97316` | White | Light style |
-| Driver | Green `#16a34a` | White | Light style |
-| Member | Purple `#7c3aed` | White | Light style |
+| App      | Background       | Spinner | Status Bar  |
+| -------- | ---------------- | ------- | ----------- |
+| Customer | Orange `#f97316` | White   | Light style |
+| Driver   | Green `#16a34a`  | White   | Light style |
+| Member   | Purple `#7c3aed` | White   | Light style |
 
 ### Generating Assets
 
 1. Install the assets plugin:
+
 ```bash
 npm install -D @capacitor/assets
 ```
 
 2. Create base assets in `resources/`:
+
 ```
 resources/
 ├── icon.png          # 1024x1024 app icon
@@ -127,6 +135,7 @@ resources/
 ```
 
 3. Generate all sizes:
+
 ```bash
 npx capacitor-assets generate
 ```
@@ -162,7 +171,7 @@ The Driver app supports offline operation:
 
 ## Hot Reload Development
 
-All configs point to the Lovable preview URL for hot reload during development. 
+All configs point to the Lovable preview URL for hot reload during development.
 For production builds, update the `server.url` to use local assets:
 
 ```typescript
@@ -177,14 +186,17 @@ server: {
 ## Troubleshooting
 
 ### Splash screen not showing
+
 - Ensure `@capacitor/splash-screen` is installed
 - Run `npx cap sync` after config changes
 
 ### Icons not updating
+
 - Clear app cache on device
 - Reinstall the app completely
 
 ### Push notifications not working
+
 - Verify FCM config files are in correct locations
 - Check that FCM_SERVER_KEY secret is set
 - Ensure app has notification permissions
@@ -193,15 +205,18 @@ server: {
 - After changing native plugins/config, run `npm install && npx cap sync android`, uninstall the old APK, then rebuild/install cleanly
 - Production APKs must load bundled assets: remove the `server.url` block from `capacitor.config.ts` before the release build
 
-### Contacts picker ("From contacts" in Add User)
+### Contacts picker ("From contacts" in Invite Friends & Family)
+
 Uses `@capacitor-community/contacts`. After `npm install && npx cap sync`, add the platform permissions:
 
 **Android** — `android/app/src/main/AndroidManifest.xml`, inside `<manifest>`:
+
 ```xml
 <uses-permission android:name="android.permission.READ_CONTACTS" />
 ```
 
 **iOS** — `ios/App/App/Info.plist`:
+
 ```xml
 <key>NSContactsUsageDescription</key>
 <string>We use your contacts so you can quickly add a member by picking their number.</string>
@@ -211,7 +226,7 @@ Then rebuild the app. On the web, the button falls back to the browser Contact P
 
 ## Android contacts permission (required for the in-app contact list)
 
-The "Add User" screen can read the full address book to show a searchable list
+The "Invite Friends & Family" screen can read the full address book to show a searchable list
 with "already registered" badges. That needs an explicit permission in the
 native manifest — without it the list shows "Could not read your contacts".
 

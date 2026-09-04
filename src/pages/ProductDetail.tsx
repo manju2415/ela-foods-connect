@@ -325,7 +325,7 @@ export default function ProductDetail() {
                 <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
-                  className="w-full h-full object-contain"
+                  className={`w-full h-full object-contain ${effectiveStock === 0 ? "grayscale opacity-50" : ""}`}
                   containerClassName="w-full h-full"
                   priority
                   displayWidth={448}

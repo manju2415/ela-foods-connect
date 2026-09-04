@@ -17,7 +17,13 @@ import { WithdrawalSection } from "@/components/dashboard/WithdrawalSection";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +45,27 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Package, Wallet, Settings, Copy, Gift, Eye, Truck, CheckCircle, Clock, XCircle, Heart, ShoppingCart, Trash2, MapPin, UserPlus, RotateCcw, Store, ArrowRight } from "lucide-react";
+import {
+  User,
+  Package,
+  Wallet,
+  Settings,
+  Copy,
+  Gift,
+  Eye,
+  Truck,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Heart,
+  ShoppingCart,
+  Trash2,
+  MapPin,
+  UserPlus,
+  RotateCcw,
+  Store,
+  ArrowRight,
+} from "lucide-react";
 import CartSheet from "@/components/CartSheet";
 import { useUserRole } from "@/hooks/useUserRole";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -120,27 +146,47 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { isSuperAdmin, isAdmin, isMLMAdmin, loading: roleLoading } = useUserRole();
-  const { wishlistItems, toggleWishlist, loading: wishlistLoading } = useWishlist();
+  const {
+    isSuperAdmin,
+    isAdmin,
+    isMLMAdmin,
+    loading: roleLoading,
+  } = useUserRole();
+  const {
+    wishlistItems,
+    toggleWishlist,
+    loading: wishlistLoading,
+  } = useWishlist();
   const { addToCart, totalItems } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
-  
+  const {
+    isLoading: onboardingLoading,
+    isFullyOnboarded,
+    isProfileComplete,
+    isPaymentComplete,
+    isDeliveryPartner,
+  } = useOnboardingStatus(user?.id);
+
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [isFoundingMember, setIsFoundingMember] = useState(false);
-  const [referralStats, setReferralStats] = useState<ReferralStats>({ total_referrals: 0, total_earnings: 0 });
+  const [referralStats, setReferralStats] = useState<ReferralStats>({
+    total_referrals: 0,
+    total_earnings: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
-  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
+  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>(
+    [],
+  );
   const [loadingWishlistProducts, setLoadingWishlistProducts] = useState(false);
   const [isReturnDialogOpen, setIsReturnDialogOpen] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
@@ -170,7 +216,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
   useEffect(() => {
     if (authLoading || onboardingLoading) return;
-    
+
     if (!user) {
       navigate("/auth");
       return;
@@ -179,7 +225,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     if (isSuperAdmin || isMLMAdmin || isAdmin) {
       return;
     }
-    
+
     // Redirect users who haven't completed registration
     if (!isFullyOnboarded && !isDeliveryPartner) {
       if (!isProfileComplete) {
@@ -191,9 +237,21 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         return;
       }
     }
-    
+
     fetchData();
-  }, [user, authLoading, onboardingLoading, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate, isSuperAdmin, isMLMAdmin, isAdmin]);
+  }, [
+    user,
+    authLoading,
+    onboardingLoading,
+    isProfileComplete,
+    isPaymentComplete,
+    isDeliveryPartner,
+    isFullyOnboarded,
+    navigate,
+    isSuperAdmin,
+    isMLMAdmin,
+    isAdmin,
+  ]);
 
   useEffect(() => {
     if (wishlistItems.length > 0) {
@@ -212,7 +270,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       .from("products")
       .select("id, name, slug, price, compare_at_price, images, stock_quantity")
       .in("id", productIds);
-    
+
     if (data) {
       setWishlistProducts(data);
     }
@@ -221,17 +279,27 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
   const fetchData = async () => {
     if (!user) return;
-    
+
     setLoading(true);
-    
+
     // Fetch profile, wallet, orders, referral codes, and founding member status in parallel
-    const [profileRes, walletRes, ordersRes, referralRes, foundingRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-      supabase.from("wallets").select("*").eq("user_id", user.id).maybeSingle(),
-      supabase.from("orders").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(10),
-      supabase.from("referral_codes").select("*").eq("user_id", user.id),
-      supabase.rpc("is_founding_member", { _user_id: user.id }),
-    ]);
+    const [profileRes, walletRes, ordersRes, referralRes, foundingRes] =
+      await Promise.all([
+        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
+        supabase
+          .from("wallets")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase.from("referral_codes").select("*").eq("user_id", user.id),
+        supabase.rpc("is_founding_member", { _user_id: user.id }),
+      ]);
 
     if (profileRes.data) {
       setProfile(profileRes.data);
@@ -244,22 +312,24 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         bank_account_holder: profileRes.data.bank_account_holder || "",
       });
     }
-    
+
     if (walletRes.data) {
       setWallet(walletRes.data);
     }
-    
+
     if (ordersRes.data) {
-      setOrders(ordersRes.data.map(order => ({
-        ...order,
-        shipping_address: order.shipping_address as Order["shipping_address"]
-      })));
+      setOrders(
+        ordersRes.data.map((order) => ({
+          ...order,
+          shipping_address: order.shipping_address as Order["shipping_address"],
+        })),
+      );
     }
-    
+
     if (referralRes.data) {
       setReferralCodes(referralRes.data);
     }
-    
+
     setIsFoundingMember(!!foundingRes.data);
 
     // Fetch referral stats for founding members
@@ -268,11 +338,14 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         .from("referrals")
         .select("incentive_amount")
         .eq("referrer_id", user.id);
-      
+
       if (referrals) {
         setReferralStats({
           total_referrals: referrals.length,
-          total_earnings: referrals.reduce((sum, r) => sum + (Number(r.incentive_amount) || 0), 0),
+          total_earnings: referrals.reduce(
+            (sum, r) => sum + (Number(r.incentive_amount) || 0),
+            0,
+          ),
         });
       }
     }
@@ -282,7 +355,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
   const handleSaveProfile = async () => {
     if (!user) return;
-    
+
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
@@ -314,14 +387,18 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
   const copyReferralCode = async (code: string) => {
     const success = await copyToClipboard(code);
-    toast(success ? {
-      title: "Copied!",
-      description: "Referral code copied to clipboard.",
-    } : {
-      title: "Copy failed",
-      description: "Please copy the code manually.",
-      variant: "destructive",
-    });
+    toast(
+      success
+        ? {
+            title: "Copied!",
+            description: "Referral code copied to clipboard.",
+          }
+        : {
+            title: "Copy failed",
+            description: "Please copy the code manually.",
+            variant: "destructive",
+          },
+    );
   };
 
   const viewOrderDetails = async (order: Order) => {
@@ -363,11 +440,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   return (
     <div className="min-h-screen bg-background">
       {!hideChrome && <Header />}
-      
-      <main className={`container mx-auto px-4 ${hideChrome ? 'py-4 pb-20' : 'py-8'}`}>
+
+      <main
+        className={`container mx-auto px-4 ${hideChrome ? "py-4 pb-20" : "py-8"}`}
+      >
         <div className="mb-6 sm:mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">My Dashboard</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">
+              My Dashboard
+            </h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Manage your account, orders, and wallet, or browse products
             </p>
@@ -384,9 +465,12 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               <AddUserDialog
                 onUserAdded={fetchData}
                 trigger={
-                  <Button variant="outline" className="flex-1 min-w-[7rem] md:flex-none">
+                  <Button
+                    variant="outline"
+                    className="flex-1 min-w-[7rem] md:flex-none"
+                  >
                     <UserPlus className="h-4 w-4 mr-2 shrink-0" />
-                    <span className="truncate">Add User</span>
+                    <span className="truncate">Invite Friends & Family</span>
                   </Button>
                 }
               />
@@ -407,7 +491,6 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
             </Button>
           </div>
         </div>
-
 
         <Tabs defaultValue="overview" className="space-y-6">
           <div className="overflow-x-auto -mx-4 px-4 pb-2">
@@ -450,7 +533,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               role="button"
               tabIndex={0}
               onClick={() => navigate("/products")}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") navigate("/products"); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") navigate("/products");
+              }}
               className="cursor-pointer border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
             >
               <CardContent className="flex items-center gap-3 p-4">
@@ -458,7 +543,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                   <Store className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm sm:text-base">Shop products</p>
+                  <p className="font-semibold text-sm sm:text-base">
+                    Shop products
+                  </p>
                   <p className="text-xs sm:text-sm text-muted-foreground truncate">
                     Browse the full catalogue and add items to your cart
                   </p>
@@ -471,7 +558,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               {/* Wallet Balance Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Wallet Balance</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Wallet Balance
+                  </CardTitle>
                   <Wallet className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -488,7 +577,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               {/* Total Orders Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Total Orders
+                  </CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
@@ -503,14 +594,19 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               {/* Member Status Card */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Member Status</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    Member Status
+                  </CardTitle>
                   <Gift className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                   {loading ? (
                     <Skeleton className="h-8 w-32" />
                   ) : (
-                    <Badge variant={isFoundingMember ? "default" : "secondary"} className="text-sm">
+                    <Badge
+                      variant={isFoundingMember ? "default" : "secondary"}
+                      className="text-sm"
+                    >
                       {isFoundingMember ? "Founding Member" : "Member"}
                     </Badge>
                   )}
@@ -525,20 +621,32 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Total Referrals</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Total Referrals
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold text-primary">{referralStats.total_referrals}</div>
-                      <p className="text-sm text-muted-foreground">People joined using your codes</p>
+                      <div className="text-3xl font-bold text-primary">
+                        {referralStats.total_referrals}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        People joined using your codes
+                      </p>
                     </CardContent>
                   </Card>
                   <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
+                      <CardTitle className="text-sm font-medium">
+                        Total Earnings
+                      </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold text-green-600">₹{referralStats.total_earnings.toFixed(2)}</div>
-                      <p className="text-sm text-muted-foreground">Credited to your wallet</p>
+                      <div className="text-3xl font-bold text-green-600">
+                        ₹{referralStats.total_earnings.toFixed(2)}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Credited to your wallet
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -561,7 +669,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                         <Skeleton className="h-12 w-full" />
                       </div>
                     ) : referralCodes.length === 0 ? (
-                      <p className="text-muted-foreground">No referral codes available. Contact support to get one.</p>
+                      <p className="text-muted-foreground">
+                        No referral codes available. Contact support to get one.
+                      </p>
                     ) : (
                       <div className="space-y-3">
                         {referralCodes.map((code) => (
@@ -570,9 +680,12 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                             className="flex items-center justify-between p-4 rounded-lg bg-muted"
                           >
                             <div>
-                              <span className="font-mono font-semibold text-xl">{code.code}</span>
+                              <span className="font-mono font-semibold text-xl">
+                                {code.code}
+                              </span>
                               <p className="text-sm text-muted-foreground">
-                                {code.usage_count} referrals {code.max_uses && `(max ${code.max_uses})`}
+                                {code.usage_count} referrals{" "}
+                                {code.max_uses && `(max ${code.max_uses})`}
                               </p>
                             </div>
                             <Button
@@ -608,7 +721,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                   <div className="text-center py-8">
                     <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                     <p className="text-muted-foreground">No orders yet</p>
-                    <Button className="mt-4" onClick={() => navigate("/products")}>
+                    <Button
+                      className="mt-4"
+                      onClick={() => navigate("/products")}
+                    >
                       Start Shopping
                     </Button>
                   </div>
@@ -644,7 +760,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
             <Card>
               <CardHeader>
                 <CardTitle>Order History</CardTitle>
-                <CardDescription>View all your past orders and track their status</CardDescription>
+                <CardDescription>
+                  View all your past orders and track their status
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {loading ? (
@@ -656,11 +774,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 ) : orders.length === 0 ? (
                   <div className="text-center py-12">
                     <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      No orders yet
+                    </h3>
                     <p className="text-muted-foreground mb-4">
                       Start shopping to see your orders here
                     </p>
-                    <Button onClick={() => navigate("/products")}>Browse Products</Button>
+                    <Button onClick={() => navigate("/products")}>
+                      Browse Products
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -671,58 +793,120 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="space-y-1">
-                            <p className="font-semibold text-lg">{order.order_number}</p>
+                            <p className="font-semibold text-lg">
+                              {order.order_number}
+                            </p>
                             <p className="text-sm text-muted-foreground">
-                              Placed on {new Date(order.created_at).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "long",
-                                year: "numeric",
-                              })}
+                              Placed on{" "}
+                              {new Date(order.created_at).toLocaleDateString(
+                                "en-IN",
+                                {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                },
+                              )}
                             </p>
                           </div>
                           <div className="flex items-center gap-3">
                             <Badge className={getStatusColor(order.status)}>
-                              {order.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                              {order.status
+                                .replace(/_/g, " ")
+                                .replace(/\b\w/g, (l) => l.toUpperCase())}
                             </Badge>
-                            <p className="font-bold text-lg">₹{Number(order.total_amount).toFixed(2)}</p>
-                            <Button variant="outline" size="sm" onClick={() => viewOrderDetails(order)}>
+                            <p className="font-bold text-lg">
+                              ₹{Number(order.total_amount).toFixed(2)}
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => viewOrderDetails(order)}
+                            >
                               <Eye className="h-4 w-4 mr-1" /> View
                             </Button>
                           </div>
                         </div>
-                        
+
                         {/* Order Status Timeline */}
                         <div className="mt-4 pt-4 border-t">
                           <div className="flex items-center justify-between text-xs">
-                            <div className={`flex flex-col items-center gap-1 ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                            <div
+                              className={`flex flex-col items-center gap-1 ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center ${["pending", "confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                              >
                                 <Clock className="h-4 w-4" />
                               </div>
                               <span>Placed</span>
                             </div>
                             <div className="flex-1 h-0.5 bg-muted mx-2">
-                              <div className={`h-full ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`} style={{ width: ["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "100%" : "0%" }} />
+                              <div
+                                className={`h-full ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`}
+                                style={{
+                                  width: [
+                                    "confirmed",
+                                    "processing",
+                                    "shipped",
+                                    "out_for_delivery",
+                                    "delivered",
+                                  ].includes(order.status)
+                                    ? "100%"
+                                    : "0%",
+                                }}
+                              />
                             </div>
-                            <div className={`flex flex-col items-center gap-1 ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                            <div
+                              className={`flex flex-col items-center gap-1 ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center ${["confirmed", "processing", "shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                              >
                                 <CheckCircle className="h-4 w-4" />
                               </div>
                               <span>Confirmed</span>
                             </div>
                             <div className="flex-1 h-0.5 bg-muted mx-2">
-                              <div className={`h-full ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`} style={{ width: ["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "100%" : "0%" }} />
+                              <div
+                                className={`h-full ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary" : ""}`}
+                                style={{
+                                  width: [
+                                    "shipped",
+                                    "out_for_delivery",
+                                    "delivered",
+                                  ].includes(order.status)
+                                    ? "100%"
+                                    : "0%",
+                                }}
+                              />
                             </div>
-                            <div className={`flex flex-col items-center gap-1 ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                            <div
+                              className={`flex flex-col items-center gap-1 ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center ${["shipped", "out_for_delivery", "delivered"].includes(order.status) ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                              >
                                 <Truck className="h-4 w-4" />
                               </div>
                               <span>Shipped</span>
                             </div>
                             <div className="flex-1 h-0.5 bg-muted mx-2">
-                              <div className={`h-full ${order.status === "delivered" ? "bg-primary" : ""}`} style={{ width: order.status === "delivered" ? "100%" : "0%" }} />
+                              <div
+                                className={`h-full ${order.status === "delivered" ? "bg-primary" : ""}`}
+                                style={{
+                                  width:
+                                    order.status === "delivered"
+                                      ? "100%"
+                                      : "0%",
+                                }}
+                              />
                             </div>
-                            <div className={`flex flex-col items-center gap-1 ${order.status === "delivered" ? "text-primary" : "text-muted-foreground"}`}>
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${order.status === "delivered" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                            <div
+                              className={`flex flex-col items-center gap-1 ${order.status === "delivered" ? "text-primary" : "text-muted-foreground"}`}
+                            >
+                              <div
+                                className={`w-8 h-8 rounded-full flex items-center justify-center ${order.status === "delivered" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+                              >
                                 <Package className="h-4 w-4" />
                               </div>
                               <span>Delivered</span>
@@ -731,7 +915,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           {order.status === "cancelled" && (
                             <div className="mt-3 flex items-center gap-2 text-destructive">
                               <XCircle className="h-4 w-4" />
-                              <span className="text-sm">This order has been cancelled</span>
+                              <span className="text-sm">
+                                This order has been cancelled
+                              </span>
                             </div>
                           )}
                         </div>
@@ -751,7 +937,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                   <Heart className="h-5 w-5" />
                   My Wishlist
                 </CardTitle>
-                <CardDescription>Products you've saved for later</CardDescription>
+                <CardDescription>
+                  Products you've saved for later
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {wishlistLoading || loadingWishlistProducts ? (
@@ -763,11 +951,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 ) : wishlistProducts.length === 0 ? (
                   <div className="text-center py-12">
                     <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Your wishlist is empty</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      Your wishlist is empty
+                    </h3>
                     <p className="text-muted-foreground mb-4">
                       Save items you love by clicking the heart icon on products
                     </p>
-                    <Button onClick={() => navigate("/products")}>Browse Products</Button>
+                    <Button onClick={() => navigate("/products")}>
+                      Browse Products
+                    </Button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -792,7 +984,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                             </h3>
                           </Link>
                           <div className="flex items-baseline gap-2 mb-3">
-                            <span className="font-bold text-lg">₹{Number(product.price).toFixed(2)}</span>
+                            <span className="font-bold text-lg">
+                              ₹{Number(product.price).toFixed(2)}
+                            </span>
                             {product.compare_at_price && (
                               <span className="text-sm text-muted-foreground line-through">
                                 ₹{Number(product.compare_at_price).toFixed(2)}
@@ -813,7 +1007,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                               disabled={product.stock_quantity === 0}
                             >
                               <ShoppingCart className="h-4 w-4 mr-1" />
-                              {product.stock_quantity === 0 ? "Out of Stock" : "Add to Cart"}
+                              {product.stock_quantity === 0
+                                ? "Out of Stock"
+                                : "Add to Cart"}
                             </Button>
                             <Button
                               size="sm"
@@ -841,7 +1037,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                   <MapPin className="h-5 w-5" />
                   My Addresses
                 </CardTitle>
-                <CardDescription>Manage your saved shipping addresses</CardDescription>
+                <CardDescription>
+                  Manage your saved shipping addresses
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <AddressManager />
@@ -866,7 +1064,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
             <Card>
               <CardHeader>
                 <CardTitle>Profile Settings</CardTitle>
-                <CardDescription>Update your personal information</CardDescription>
+                <CardDescription>
+                  Update your personal information
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {loading ? (
@@ -897,7 +1097,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                         id="full_name"
                         value={formData.full_name}
                         onChange={(e) =>
-                          setFormData({ ...formData, full_name: e.target.value })
+                          setFormData({
+                            ...formData,
+                            full_name: e.target.value,
+                          })
                         }
                         placeholder="Enter your full name"
                       />
@@ -923,7 +1126,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
             <Card>
               <CardHeader>
                 <CardTitle>Bank Details</CardTitle>
-                <CardDescription>Required for withdrawing your referral earnings</CardDescription>
+                <CardDescription>
+                  Required for withdrawing your referral earnings
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {loading ? (
@@ -942,7 +1147,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           id="bank_name"
                           value={formData.bank_name}
                           onChange={(e) =>
-                            setFormData({ ...formData, bank_name: e.target.value })
+                            setFormData({
+                              ...formData,
+                              bank_name: e.target.value,
+                            })
                           }
                           placeholder="e.g., State Bank of India"
                         />
@@ -954,7 +1162,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           id="bank_ifsc"
                           value={formData.bank_ifsc}
                           onChange={(e) =>
-                            setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })
+                            setFormData({
+                              ...formData,
+                              bank_ifsc: e.target.value.toUpperCase(),
+                            })
                           }
                           placeholder="e.g., SBIN0001234"
                         />
@@ -962,24 +1173,34 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bank_account_holder">Account Holder Name</Label>
+                      <Label htmlFor="bank_account_holder">
+                        Account Holder Name
+                      </Label>
                       <Input
                         id="bank_account_holder"
                         value={formData.bank_account_holder}
                         onChange={(e) =>
-                          setFormData({ ...formData, bank_account_holder: e.target.value })
+                          setFormData({
+                            ...formData,
+                            bank_account_holder: e.target.value,
+                          })
                         }
                         placeholder="Name as per bank account"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="bank_account_number">Account Number</Label>
+                      <Label htmlFor="bank_account_number">
+                        Account Number
+                      </Label>
                       <Input
                         id="bank_account_number"
                         value={formData.bank_account_number}
                         onChange={(e) =>
-                          setFormData({ ...formData, bank_account_number: e.target.value })
+                          setFormData({
+                            ...formData,
+                            bank_account_number: e.target.value,
+                          })
                         }
                         placeholder="Your bank account number"
                       />
@@ -997,10 +1218,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       </main>
 
       {/* Order Detail Dialog */}
-      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+      <Dialog
+        open={!!selectedOrder}
+        onOpenChange={() => setSelectedOrder(null)}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Order Details - {selectedOrder?.order_number}</DialogTitle>
+            <DialogTitle>
+              Order Details - {selectedOrder?.order_number}
+            </DialogTitle>
           </DialogHeader>
           {selectedOrder && (
             <div className="space-y-6">
@@ -1009,23 +1235,38 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 <div>
                   <p className="text-sm text-muted-foreground">Order Status</p>
                   <Badge className={getStatusColor(selectedOrder.status)}>
-                    {selectedOrder.status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                    {selectedOrder.status
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (l) => l.toUpperCase())}
                   </Badge>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Payment Status</p>
-                  <Badge variant={selectedOrder.payment_status === "completed" ? "default" : "secondary"}>
-                    {selectedOrder.payment_status.replace(/\b\w/g, l => l.toUpperCase())}
+                  <p className="text-sm text-muted-foreground">
+                    Payment Status
+                  </p>
+                  <Badge
+                    variant={
+                      selectedOrder.payment_status === "completed"
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
+                    {selectedOrder.payment_status.replace(/\b\w/g, (l) =>
+                      l.toUpperCase(),
+                    )}
                   </Badge>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-muted-foreground">Order Date</p>
                   <p className="font-medium">
-                    {new Date(selectedOrder.created_at).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {new Date(selectedOrder.created_at).toLocaleDateString(
+                      "en-IN",
+                      {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      },
+                    )}
                   </p>
                 </div>
               </div>
@@ -1036,9 +1277,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               <div>
                 <h4 className="font-semibold mb-2">Shipping Address</h4>
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">{selectedOrder.shipping_address?.full_name}</p>
+                  <p className="font-medium text-foreground">
+                    {selectedOrder.shipping_address?.full_name}
+                  </p>
                   <p>{selectedOrder.shipping_address?.address_line1}</p>
-                  <p>{selectedOrder.shipping_address?.city}, {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postal_code}</p>
+                  <p>
+                    {selectedOrder.shipping_address?.city},{" "}
+                    {selectedOrder.shipping_address?.state} -{" "}
+                    {selectedOrder.shipping_address?.postal_code}
+                  </p>
                   <p>{selectedOrder.shipping_address?.phone}</p>
                 </div>
               </div>
@@ -1067,9 +1314,15 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                       {orderItems.map((item) => (
                         <TableRow key={item.id}>
                           <TableCell>{item.product_name}</TableCell>
-                          <TableCell className="text-right">₹{Number(item.product_price).toFixed(2)}</TableCell>
-                          <TableCell className="text-right">{item.quantity}</TableCell>
-                          <TableCell className="text-right">₹{Number(item.total_price).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">
+                            ₹{Number(item.product_price).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.quantity}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            ₹{Number(item.total_price).toFixed(2)}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -1087,18 +1340,25 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>Shipping</span>
-                  <span>₹{Number(selectedOrder.shipping_amount || 0).toFixed(2)}</span>
+                  <span>
+                    ₹{Number(selectedOrder.shipping_amount || 0).toFixed(2)}
+                  </span>
                 </div>
-                {selectedOrder.discount_amount && selectedOrder.discount_amount > 0 && (
-                  <div className="flex justify-between text-sm text-green-600">
-                    <span>Discount</span>
-                    <span>-₹{Number(selectedOrder.discount_amount).toFixed(2)}</span>
-                  </div>
-                )}
+                {selectedOrder.discount_amount &&
+                  selectedOrder.discount_amount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Discount</span>
+                      <span>
+                        -₹{Number(selectedOrder.discount_amount).toFixed(2)}
+                      </span>
+                    </div>
+                  )}
                 {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Paid from wallet</span>
-                    <span>-₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
+                    <span>
+                      -₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}
+                    </span>
                   </div>
                 )}
 
@@ -1127,8 +1387,6 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
         </DialogContent>
       </Dialog>
 
-
-
       {/* Return Request Dialog */}
       {selectedOrder && (
         <ReturnRequestDialog
@@ -1136,7 +1394,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           onOpenChange={setIsReturnDialogOpen}
           orderId={selectedOrder.id}
           orderNumber={selectedOrder.order_number}
-          orderItems={orderItems.map(item => ({
+          orderItems={orderItems.map((item) => ({
             id: item.id,
             product_name: item.product_name,
             quantity: item.quantity,

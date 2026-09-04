@@ -25,11 +25,21 @@ import {
   pickContactWeb,
   type PickedContact,
 } from "@/lib/contacts";
-import { UserPlus, Loader2, Check, X, AlertCircle, BookUser } from "lucide-react";
-
+import {
+  UserPlus,
+  Loader2,
+  Check,
+  X,
+  AlertCircle,
+  BookUser,
+} from "lucide-react";
 
 const signupSchema = z.object({
-  fullName: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name is too long"),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name is too long"),
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
   referralCode: z.string().trim().min(1, "Referral code is required"),
 });
@@ -42,18 +52,26 @@ interface AddUserDialogProps {
   isAdmin?: boolean;
 }
 
-export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUserDialogProps) {
+export function AddUserDialog({
+  onUserAdded,
+  trigger,
+  isAdmin = false,
+}: AddUserDialogProps) {
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
+  const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(
+    null,
+  );
   const [checkingCode, setCheckingCode] = useState(false);
   const [myCode, setMyCode] = useState<string | null>(null);
   const [loadingMyCode, setLoadingMyCode] = useState(false);
   const [selectedAdminCode, setSelectedAdminCode] = useState("");
   const [contactPickerOpen, setContactPickerOpen] = useState(false);
-  const [duplicate, setDuplicate] = useState<{ name: string | null; isSelf: boolean } | null>(null);
+  const [duplicate, setDuplicate] = useState<{
+    name: string | null;
+    isSelf: boolean;
+  } | null>(null);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
-
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -117,7 +135,11 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
         const contact = await pickContactNative();
         if (contact) {
           if (!contact.phone) {
-            toast({ title: "No mobile number", description: "That contact has no valid 10-digit number.", variant: "destructive" });
+            toast({
+              title: "No mobile number",
+              description: "That contact has no valid 10-digit number.",
+              variant: "destructive",
+            });
             return;
           }
           applyContact(contact);
@@ -135,13 +157,19 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
       if (!contact) return;
       applyContact(contact);
     } catch {
-      toast({ title: "Could not read contacts", description: "Please enter the number manually.", variant: "destructive" });
+      toast({
+        title: "Could not read contacts",
+        description: "Please enter the number manually.",
+        variant: "destructive",
+      });
     }
   };
 
   const applyContact = (contact: PickedContact) => {
-    if (contact.phone.length === 10) form.setValue("phone", contact.phone, { shouldValidate: true });
-    if (contact.name) form.setValue("fullName", contact.name, { shouldValidate: true });
+    if (contact.phone.length === 10)
+      form.setValue("phone", contact.phone, { shouldValidate: true });
+    if (contact.name)
+      form.setValue("fullName", contact.name, { shouldValidate: true });
   };
 
   // Duplicate detection: flag numbers that already belong to a registered user
@@ -175,11 +203,7 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     };
   }, [watchedPhone]);
 
-
-
-
   const validateReferralCode = async (code: string) => {
-
     if (!code || code.length < 3) {
       setReferralCodeValid(null);
       return;
@@ -203,39 +227,57 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
 
   const handleSubmit = async (data: SignupFormData) => {
     if (!referralCodeValid) {
-      toast({ title: "Invalid referral code", description: "Please enter a valid referral code.", variant: "destructive" });
+      toast({
+        title: "Invalid referral code",
+        description: "Please enter a valid referral code.",
+        variant: "destructive",
+      });
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      const { data: result, error } = await supabase.functions.invoke("add-network-user", {
-        body: {
-          phone: data.phone,
-          full_name: data.fullName,
-          referral_code: data.referralCode.toUpperCase(),
-          added_by_user_id: user?.id || null,
+      const { data: result, error } = await supabase.functions.invoke(
+        "add-network-user",
+        {
+          body: {
+            phone: data.phone,
+            full_name: data.fullName,
+            referral_code: data.referralCode.toUpperCase(),
+            added_by_user_id: user?.id || null,
+          },
         },
-      });
+      );
 
       if (error) {
         let errorMessage = "An error occurred. Please try again.";
         try {
-          if ("context" in error && (error as any).context instanceof Response) {
+          if (
+            "context" in error &&
+            (error as any).context instanceof Response
+          ) {
             const body = await (error as any).context.json();
             if (body?.error) errorMessage = body.error;
           } else if ((error as any).message) {
             errorMessage = (error as any).message;
           }
         } catch {}
-        toast({ title: "Failed to add user", description: errorMessage, variant: "destructive" });
+        toast({
+          title: "Failed to Invite Friends & Family",
+          description: errorMessage,
+          variant: "destructive",
+        });
         setIsSubmitting(false);
         return;
       }
 
       if (result?.error) {
-        toast({ title: "Failed to add user", description: result.error, variant: "destructive" });
+        toast({
+          title: "Failed to Invite Friends & Family",
+          description: result.error,
+          variant: "destructive",
+        });
         setIsSubmitting(false);
         return;
       }
@@ -247,8 +289,12 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
       setOpen(false);
       onUserAdded?.();
     } catch (err) {
-      console.error("Add user error:", err);
-      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+      console.error("Invite Friends & Family error:", err);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     }
 
     setIsSubmitting(false);
@@ -265,8 +311,12 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             onChange={handleAdminCodeChange}
             placeholder="Search and select referral code..."
           />
-          {referralCodeValid === true && <p className="text-sm text-green-600">Valid referral code</p>}
-          {referralCodeValid === false && <p className="text-sm text-destructive">Invalid or inactive code</p>}
+          {referralCodeValid === true && (
+            <p className="text-sm text-green-600">Valid referral code</p>
+          )}
+          {referralCodeValid === false && (
+            <p className="text-sm text-destructive">Invalid or inactive code</p>
+          )}
         </div>
       );
     }
@@ -277,7 +327,8 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
         <div className="space-y-2">
           <Label>Referral Code</Label>
           <div className="flex items-center gap-2 text-muted-foreground text-sm py-2">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading your referral code...
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading your referral
+            code...
           </div>
         </div>
       );
@@ -289,7 +340,8 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
           <Label>Referral Code</Label>
           <div className="flex items-center gap-2 text-destructive text-sm py-2">
             <AlertCircle className="h-4 w-4" />
-            You don't have a referral code yet. Please contact support or generate one from your dashboard.
+            You don't have a referral code yet. Please contact support or
+            generate one from your dashboard.
           </div>
         </div>
       );
@@ -299,12 +351,18 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
       <div className="space-y-2">
         <Label>Referral Code</Label>
         <div className="relative">
-          <Input value={myCode} readOnly className="border-green-500 pr-10 bg-muted" />
+          <Input
+            value={myCode}
+            readOnly
+            className="border-green-500 pr-10 bg-muted"
+          />
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <Check className="h-4 w-4 text-green-600" />
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">Your referral code (auto-selected)</p>
+        <p className="text-sm text-muted-foreground">
+          Your referral code (auto-selected)
+        </p>
       </div>
     );
   };
@@ -323,20 +381,29 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
         <DialogHeader>
           <DialogTitle>Add New User</DialogTitle>
           <DialogDescription>
-            Add a new user to your network. They can login with their mobile number and will be asked to complete registration.
+            Add a new user to your network. They can login with their mobile
+            number and will be asked to complete registration.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
           {renderReferralField()}
           {form.formState.errors.referralCode && (
-            <p className="text-sm text-destructive">{form.formState.errors.referralCode.message}</p>
+            <p className="text-sm text-destructive">
+              {form.formState.errors.referralCode.message}
+            </p>
           )}
 
           <div className="space-y-2">
             <Label htmlFor="fullName">Full Name</Label>
-            <Input id="fullName" placeholder="Enter full name" {...form.register("fullName")} />
+            <Input
+              id="fullName"
+              placeholder="Enter full name"
+              {...form.register("fullName")}
+            />
             {form.formState.errors.fullName && (
-              <p className="text-sm text-destructive">{form.formState.errors.fullName.message}</p>
+              <p className="text-sm text-destructive">
+                {form.formState.errors.fullName.message}
+              </p>
             )}
           </div>
 
@@ -344,7 +411,12 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             <div className="flex items-center justify-between">
               <Label htmlFor="phone">Mobile Number</Label>
               {contactPickerSupported && (
-                <Button type="button" variant="ghost" size="sm" onClick={pickFromContacts}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={pickFromContacts}
+                >
                   <BookUser className="h-4 w-4 mr-1" />
                   From contacts
                 </Button>
@@ -368,11 +440,14 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
               />
             </div>
             {form.formState.errors.phone && (
-              <p className="text-sm text-destructive">{form.formState.errors.phone.message}</p>
+              <p className="text-sm text-destructive">
+                {form.formState.errors.phone.message}
+              </p>
             )}
             {checkingDuplicate && (
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this number is already registered...
+                <Loader2 className="h-3 w-3 animate-spin" /> Checking if this
+                number is already registered...
               </p>
             )}
             {duplicate && !checkingDuplicate && (
@@ -385,19 +460,30 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
             )}
           </div>
 
-
-
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
               className="flex-1"
-              disabled={isSubmitting || referralCodeValid !== true || (!isAdmin && !myCode) || !!duplicate || checkingDuplicate}
+              disabled={
+                isSubmitting ||
+                referralCodeValid !== true ||
+                (!isAdmin && !myCode) ||
+                !!duplicate ||
+                checkingDuplicate
+              }
             >
-              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Add User
+              {isSubmitting && (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              )}
+              Invite Friends & Family
             </Button>
           </div>
         </form>
@@ -412,4 +498,3 @@ export function AddUserDialog({ onUserAdded, trigger, isAdmin = false }: AddUser
     </Dialog>
   );
 }
-
