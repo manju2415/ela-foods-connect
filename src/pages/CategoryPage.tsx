@@ -7,6 +7,7 @@ import ProductCard from "@/components/ProductCard";
 import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Home } from "lucide-react";
+import { isNewArrival } from "@/utils/isNewArrival";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -27,6 +28,7 @@ interface Product {
   is_featured: boolean;
   is_fast_selling: boolean;
   stock_quantity: number | null;
+  created_at: string;
   category_id: string | null;
   unit_type: string | null;
   unit_value: number | null;
@@ -136,10 +138,13 @@ const CategoryPage = () => {
         unit_value,
         gst_percentage,
         gst_inclusive,
+        created_at,
         categories (name)
       `)
       .eq("is_active", true)
       .eq("category_id", categoryData.id)
+      .order("is_featured", { ascending: false })
+      .order("is_fast_selling", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (productsError) {
@@ -312,6 +317,7 @@ const CategoryPage = () => {
                     gstPercentage={product.gst_percentage}
                     gstInclusive={product.gst_inclusive}
                     stockQuantity={product.stock_quantity}
+                    isNewArrival={isNewArrival(product.created_at)}
                   />
                 ))}
               </div>

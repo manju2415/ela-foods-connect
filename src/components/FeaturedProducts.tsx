@@ -9,6 +9,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "@/components/ui/carousel";
+import { isNewArrival } from "@/utils/isNewArrival";
 
 interface Product {
   id: string;
@@ -23,6 +24,7 @@ interface Product {
   stock_quantity: number | null;
   unit_type: string | null;
   unit_value: number | null;
+  created_at: string;
   categories: {
     name: string;
   } | null;
@@ -47,6 +49,7 @@ const FeaturedProducts = () => {
           stock_quantity,
           unit_type,
           unit_value,
+          created_at,
           categories (name)
         `;
 
@@ -133,6 +136,7 @@ const FeaturedProducts = () => {
                     isBestSeller={product.is_featured}
                     isFastSelling={product.is_fast_selling}
                     stockQuantity={product.stock_quantity}
+                    isNewArrival={isNewArrival(product.created_at)}
                     unitType={product.unit_type}
                     unitValue={product.unit_value}
                     imagePriority={index < 2}

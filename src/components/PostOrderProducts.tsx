@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "./ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isNewArrival } from "@/utils/isNewArrival";
 
 interface Product {
   id: string;
@@ -18,6 +19,7 @@ interface Product {
   unit_type: string | null;
   unit_value: number | null;
   category_id: string | null;
+  created_at: string;
   categories: { name: string } | null;
 }
 
@@ -35,7 +37,7 @@ interface Section {
 
 const PRODUCT_COLUMNS = `
   id, name, slug, price, compare_at_price, member_price, images,
-  is_featured, is_fast_selling, stock_quantity, unit_type, unit_value, category_id, categories (name)
+  is_featured, is_fast_selling, stock_quantity, unit_type, unit_value, category_id, created_at, categories (name)
 `;
 
 /**
@@ -161,6 +163,7 @@ export function PostOrderProducts() {
                   isBestSeller={product.is_featured}
                   isFastSelling={product.is_fast_selling}
                   stockQuantity={product.stock_quantity}
+                  isNewArrival={isNewArrival(product.created_at)}
                   unitType={product.unit_type}
                   unitValue={product.unit_value}
                 />

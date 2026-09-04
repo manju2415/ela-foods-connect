@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { Heart, Crown, Flame, Star, Clock } from "lucide-react";
+import { Heart, Crown, Flame, Star, Clock, Sparkles } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +19,7 @@ interface ProductCardProps {
   originalPrice?: number; // compare_at_price (strikethrough price)
   image: string;
   category: string;
-  isNew?: boolean;
+  isNewArrival?: boolean;
   isBestSeller?: boolean;
   isFastSelling?: boolean;
   unitType?: string | null;
@@ -47,6 +47,7 @@ const ProductCard = ({
   image,
   isBestSeller,
   isFastSelling,
+  isNewArrival,
   unitType,
   unitValue,
   variantOptions,
@@ -180,6 +181,12 @@ const ProductCard = ({
         </Link>
 
         <div className="flex min-h-[19px] flex-wrap items-start gap-1">
+          {isNewArrival && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+              <Sparkles className="h-2.5 w-2.5" />
+              New Arrival
+            </span>
+          )}
           {isFastSelling && (
             <span className="inline-flex items-center gap-0.5 rounded-full bg-orange-100 px-1.5 py-0.5 text-[9px] font-semibold text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
               <Flame className="h-2.5 w-2.5" />

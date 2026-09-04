@@ -1165,6 +1165,7 @@ export type Database = {
           member_price: number | null
           name: string
           price: number
+          sales_count: number
           short_description: string | null
           sku: string | null
           slug: string
@@ -1190,6 +1191,7 @@ export type Database = {
           member_price?: number | null
           name: string
           price: number
+          sales_count?: number
           short_description?: string | null
           sku?: string | null
           slug: string
@@ -1215,6 +1217,7 @@ export type Database = {
           member_price?: number | null
           name?: string
           price?: number
+          sales_count?: number
           short_description?: string | null
           sku?: string | null
           slug?: string
@@ -1233,6 +1236,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      product_display_settings: {
+        Row: {
+          created_at: string
+          display_order: number
+          is_enabled: boolean
+          new_arrival_days: number | null
+          product_limit: number
+          section_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          is_enabled?: boolean
+          new_arrival_days?: number | null
+          product_limit?: number
+          section_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          is_enabled?: boolean
+          new_arrival_days?: number | null
+          product_limit?: number
+          section_key?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -1989,6 +2022,10 @@ export type Database = {
       }
     }
     Functions: {
+      get_homepage_product_sections: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       add_wallet_transaction: {
         Args: {
           p_amount: number

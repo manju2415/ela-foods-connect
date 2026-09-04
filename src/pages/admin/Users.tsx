@@ -272,7 +272,7 @@ export default function UsersPage() {
             trigger={
               <Button>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Invite Friends & Family
+                Invite your circle and Earn
               </Button>
             }
           />

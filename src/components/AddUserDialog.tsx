@@ -379,7 +379,7 @@ export function AddUserDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
+          <DialogTitle>Invite your circle and Earn</DialogTitle>
           <DialogDescription>
             Add a new user to your network. They can login with their mobile
             number and will be asked to complete registration.
@@ -483,7 +483,7 @@ export function AddUserDialog({
               {isSubmitting && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Invite Friends & Family
+              Invite your circle and Earn
             </Button>
           </div>
         </form>

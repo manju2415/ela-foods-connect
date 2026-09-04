@@ -24,6 +24,7 @@ import {
   Store,
   ShieldCheck,
   AlertTriangle,
+  LayoutGrid,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -55,6 +56,7 @@ const menuItems: MenuItem[] = [
   { title: "Advertisements", url: "/admin/advertisements", icon: Megaphone, superAdminOnly: true },
   { title: "Categories", url: "/admin/categories", icon: FolderTree, storeAdminVisible: true },
   { title: "Products", url: "/admin/products", icon: Package, storeAdminVisible: true },
+  { title: "Product Display", url: "/admin/product-display", icon: LayoutGrid, superAdminOnly: true },
   { title: "Inventory", url: "/admin/inventory", icon: Boxes, storeAdminVisible: true },
   { title: "Coupons", url: "/admin/coupons", icon: BadgePercent, superAdminOnly: true },
   { title: "Testimonials", url: "/admin/testimonials", icon: MessageSquareQuote, superAdminOnly: true },

@@ -60,6 +60,7 @@ const FoundingMembers = lazy(() => import("./pages/admin/FoundingMembers"));
 const ReferralCodes = lazy(() => import("./pages/admin/ReferralCodes"));
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminProducts = lazy(() => import("./pages/admin/Products"));
+const ProductDisplaySettings = lazy(() => import("./pages/admin/ProductDisplaySettings"));
 const AdminCategories = lazy(() => import("./pages/admin/Categories"));
 const AdminCoupons = lazy(() => import("./pages/admin/Coupons"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
@@ -225,6 +226,7 @@ function App() {
                         <Route path="/admin/referral-codes" element={<SuperAdminGuard><ReferralCodes /></SuperAdminGuard>} />
                         <Route path="/admin/orders" element={<AdminOrders />} />
                         <Route path="/admin/products" element={<AdminProducts />} />
+                        <Route path="/admin/product-display" element={<SuperAdminGuard><ProductDisplaySettings /></SuperAdminGuard>} />
                         <Route path="/admin/categories" element={<AdminCategories />} />
                         <Route path="/admin/coupons" element={<AdminCoupons />} />
                         <Route path="/admin/settings" element={<AdminSettings />} />

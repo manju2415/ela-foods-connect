@@ -226,7 +226,7 @@ Then rebuild the app. On the web, the button falls back to the browser Contact P
 
 ## Android contacts permission (required for the in-app contact list)
 
-The "Invite Friends & Family" screen can read the full address book to show a searchable list
+The ds "Invite Frien& Family" screen can read the full address book to show a searchable list
 with "already registered" badges. That needs an explicit permission in the
 native manifest — without it the list shows "Could not read your contacts".
 

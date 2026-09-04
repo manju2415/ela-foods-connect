@@ -328,6 +328,22 @@ export default function Products() {
     },
   });
 
+  const featureMutation = useMutation({
+    mutationFn: async ({ id, isFeatured }: { id: string; isFeatured: boolean }) => {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_featured: isFeatured })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["homepage-product-sections"] });
+      toast.success(variables.isFeatured ? "Product featured" : "Product removed from Featured");
+    },
+    onError: (error: Error) => toast.error(`Could not update product: ${error.message}`),
+  });
+
   const openCreateDialog = () => {
     setEditingProduct(null);
     setFormData(initialFormData);
@@ -503,6 +519,7 @@ export default function Products() {
                       <TableHead>Price</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Featured</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -546,6 +563,16 @@ export default function Products() {
                             {product.is_featured && <Badge variant="outline">Featured</Badge>}
                             {product.is_fast_selling && <Badge variant="outline">Fast Selling</Badge>}
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Switch
+                            aria-label={`Feature ${product.name}`}
+                            checked={product.is_featured}
+                            disabled={featureMutation.isPending}
+                            onCheckedChange={(isFeatured) =>
+                              featureMutation.mutate({ id: product.id, isFeatured })
+                            }
+                          />
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => openEditDialog(product)}>
@@ -596,6 +623,16 @@ export default function Products() {
                           {product.is_featured && <Badge variant="outline">Featured</Badge>}
                           {product.is_fast_selling && <Badge variant="outline">Fast Selling</Badge>}
                         </div>
+                      </AdminMobileField>
+                      <AdminMobileField label="Featured on homepage">
+                        <Switch
+                          aria-label={`Feature ${product.name}`}
+                          checked={product.is_featured}
+                          disabled={featureMutation.isPending}
+                          onCheckedChange={(isFeatured) =>
+                            featureMutation.mutate({ id: product.id, isFeatured })
+                          }
+                        />
                       </AdminMobileField>
                     </div>
                     <div className="flex justify-end gap-2 pt-1">

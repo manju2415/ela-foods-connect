@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import HeroSection from "@/components/HeroSection";
-import FeaturedProducts from "@/components/FeaturedProducts";
+import HomepageProductSections from "@/components/HomepageProductSections";
 import CategoriesSection from "@/components/CategoriesSection";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import ReferralBanner from "@/components/ReferralBanner";
@@ -20,7 +20,7 @@ const Index = ({ hideChrome = false }: IndexProps) => {
       <main className={`flex-1 ${hideChrome ? 'pb-16' : ''}`}>
         <HeroSection />
         <AdvertisementBanner placement="home_top" />
-        <FeaturedProducts />
+        <HomepageProductSections />
         <AdvertisementBanner placement="home_sidebar" />
         <CategoriesSection />
         <ReferralBanner />

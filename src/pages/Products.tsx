@@ -22,6 +22,7 @@ import {
   groupProductsByName,
   type GroupableVariant,
 } from "@/lib/variantOptions";
+import { isNewArrival } from "@/utils/isNewArrival";
 
 
 interface Product {
@@ -38,6 +39,7 @@ interface Product {
   category_id: string | null;
   unit_type: string | null;
   unit_value: number | null;
+  created_at: string;
   categories: {
     name: string;
   } | null;
@@ -132,9 +134,12 @@ const Products = () => {
         category_id,
         unit_type,
         unit_value,
+        created_at,
         categories (name)
       `)
       .eq("is_active", true)
+      .order("is_featured", { ascending: false })
+      .order("is_fast_selling", { ascending: false })
       .order("created_at", { ascending: false });
 
     // Filter by category
@@ -422,6 +427,7 @@ const Products = () => {
                         unitValue={product.unit_value}
                         variantOptions={options.length > 1 ? options : undefined}
                         stockQuantity={product.stock_quantity}
+                        isNewArrival={isNewArrival(product.created_at)}
                       />
                     );
                   })}

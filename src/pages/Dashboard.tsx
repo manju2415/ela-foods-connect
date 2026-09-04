@@ -470,7 +470,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                     className="flex-1 min-w-[7rem] md:flex-none"
                   >
                     <UserPlus className="h-4 w-4 mr-2 shrink-0" />
-                    <span className="truncate">Invite Friends & Family</span>
+                    <span className="truncate">Invite your circle and Earn</span>
                   </Button>
                 }
               />
