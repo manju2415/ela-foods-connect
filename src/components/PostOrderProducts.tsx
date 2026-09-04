@@ -14,6 +14,7 @@ interface Product {
   images: string[];
   is_featured: boolean;
   is_fast_selling: boolean;
+  stock_quantity: number | null;
   unit_type: string | null;
   unit_value: number | null;
   category_id: string | null;
@@ -34,7 +35,7 @@ interface Section {
 
 const PRODUCT_COLUMNS = `
   id, name, slug, price, compare_at_price, member_price, images,
-  is_featured, is_fast_selling, unit_type, unit_value, category_id, categories (name)
+  is_featured, is_fast_selling, stock_quantity, unit_type, unit_value, category_id, categories (name)
 `;
 
 /**
@@ -159,6 +160,7 @@ export function PostOrderProducts() {
                   category={product.categories?.name || "General"}
                   isBestSeller={product.is_featured}
                   isFastSelling={product.is_fast_selling}
+                  stockQuantity={product.stock_quantity}
                   unitType={product.unit_type}
                   unitValue={product.unit_value}
                 />

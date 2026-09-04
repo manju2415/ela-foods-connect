@@ -20,6 +20,7 @@ interface Product {
   images: string[];
   is_featured: boolean;
   is_fast_selling: boolean;
+  stock_quantity: number | null;
   unit_type: string | null;
   unit_value: number | null;
   categories: {
@@ -43,6 +44,7 @@ const FeaturedProducts = () => {
           images,
           is_featured,
           is_fast_selling,
+          stock_quantity,
           unit_type,
           unit_value,
           categories (name)
@@ -130,6 +132,7 @@ const FeaturedProducts = () => {
                     category={product.categories?.name || "General"}
                     isBestSeller={product.is_featured}
                     isFastSelling={product.is_fast_selling}
+                    stockQuantity={product.stock_quantity}
                     unitType={product.unit_type}
                     unitValue={product.unit_value}
                     imagePriority={index < 2}

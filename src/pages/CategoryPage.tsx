@@ -26,6 +26,7 @@ interface Product {
   images: string[];
   is_featured: boolean;
   is_fast_selling: boolean;
+  stock_quantity: number | null;
   category_id: string | null;
   unit_type: string | null;
   unit_value: number | null;
@@ -129,6 +130,7 @@ const CategoryPage = () => {
         images,
         is_featured,
         is_fast_selling,
+        stock_quantity,
         category_id,
         unit_type,
         unit_value,
@@ -309,6 +311,7 @@ const CategoryPage = () => {
                     unitValue={product.unit_value}
                     gstPercentage={product.gst_percentage}
                     gstInclusive={product.gst_inclusive}
+                    stockQuantity={product.stock_quantity}
                   />
                 ))}
               </div>

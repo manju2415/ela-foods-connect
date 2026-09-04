@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { Heart, Crown, Flame, Star } from "lucide-react";
+import { Heart, Crown, Flame, Star, Clock } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,6 +28,8 @@ interface ProductCardProps {
   gstInclusive?: boolean | null;
   /** Optional grouped pack/quantity options (same product name, different packs) */
   variantOptions?: VariantOption[];
+  /** Stock for a product with no pack options — used to detect out-of-stock when variantOptions isn't provided */
+  stockQuantity?: number | null;
   /** "compact" renders a smaller card for dense horizontal-scroll rows */
   variant?: "default" | "compact";
   /** Load the image eagerly instead of lazily — set for cards visible above the fold on first paint */
@@ -48,6 +50,7 @@ const ProductCard = ({
   unitType,
   unitValue,
   variantOptions,
+  stockQuantity,
   variant = "default",
   imagePriority = false,
 }: ProductCardProps) => {
@@ -75,7 +78,9 @@ const ProductCard = ({
   const { isInWishlist, toggleWishlist } = useWishlist();
 
   const displayPrice = activeOption ? activeOption.price : price;
-  const outOfStock = activeOption ? activeOption.stock <= 0 : false;
+  const outOfStock = activeOption
+    ? activeOption.stock <= 0
+    : stockQuantity != null && stockQuantity <= 0;
   // Auto-calculate member price if not set (10% discount)
   const effectiveMemberPrice = activeOption
     ? activeOption.memberPrice ?? Math.round(activeOption.price * 0.9)
@@ -132,7 +137,7 @@ const ProductCard = ({
   const isCompact = variant === "compact";
 
   return (
-    <Card className="group w-full overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md h-full flex flex-col">
+    <Card className="group w-full h-full overflow-hidden border-border/50 hover:border-primary/30 transition-all duration-300 hover:shadow-md flex flex-col">
       <div className="relative">
         <Link to={`/product/${slug}`} aria-label={`View ${name}`}>
           <OptimizedImage
@@ -167,7 +172,7 @@ const ProductCard = ({
         </Button>
       </div>
 
-      <CardContent className="p-2.5 flex-1 flex flex-col gap-1">
+      <CardContent className="p-2.5 flex-1 flex flex-col justify-between gap-1">
         <Link to={`/product/${slug}`} className="block">
           <h3 className="text-xs sm:text-sm font-medium text-foreground line-clamp-2 min-h-[2rem] group-hover:text-primary transition-colors">
             {name}
@@ -190,27 +195,31 @@ const ProductCard = ({
         </div>
 
         <div
-          className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 shadow-sm ${
+          className={`flex min-h-[52px] w-full items-center gap-2 rounded-lg border px-2.5 py-2 shadow-sm ${
             outOfStock
-              ? "border-border bg-muted text-muted-foreground"
+              ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200"
               : "border-emerald-300 bg-emerald-100 text-emerald-950 dark:border-emerald-600 dark:bg-emerald-900/70 dark:text-emerald-50"
           }`}
         >
           <span
             className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
               outOfStock
-                ? "bg-muted-foreground/30 text-muted-foreground"
+                ? "bg-amber-400 text-white dark:bg-amber-500 dark:text-amber-950"
                 : "bg-emerald-500 text-white dark:bg-emerald-400 dark:text-emerald-950"
             }`}
           >
-            <Crown className="h-3.5 w-3.5 fill-current" />
+            {outOfStock ? (
+              <Clock className="h-3.5 w-3.5" />
+            ) : (
+              <Crown className="h-3.5 w-3.5 fill-current" />
+            )}
           </span>
           <span className="min-w-0 leading-tight">
             <span className="block text-[10px] font-semibold uppercase tracking-wide opacity-75 sm:text-[11px]">
-              {outOfStock ? "Status" : "Get Price"}
+              {outOfStock ? "Fresh Arrival Awaited" : "Get Price"}
             </span>
             <span className="block text-base font-extrabold sm:text-lg">
-              {outOfStock ? "Unavailable" : `₹${effectiveMemberPrice}`}
+              {outOfStock ? "Out of Stock" : `₹${effectiveMemberPrice}`}
             </span>
           </span>
         </div>
@@ -238,33 +247,37 @@ const ProductCard = ({
           )}
         </div>
 
-        {outOfStock ? (
-          <p className="text-[11px] text-destructive mt-auto">Out of stock</p>
-        ) : (
-          <div className="mt-auto">
-            <div className="flex items-baseline gap-x-1 sm:gap-x-1.5 gap-y-0.5 flex-wrap">
-              <span className="text-xs font-semibold text-foreground sm:text-sm">MRP: ₹{displayPrice}</span>
-              {discount > 0 && (
-                <span className="text-[10px] font-bold text-green-600 dark:text-green-400 sm:text-[11px]">{discount}% off</span>
+        <div>
+          {outOfStock ? (
+            <span className="text-xs font-semibold text-muted-foreground line-through sm:text-sm">
+              MRP: ₹{displayPrice}
+            </span>
+          ) : (
+            <>
+              <div className="flex items-baseline gap-x-1 sm:gap-x-1.5 gap-y-0.5 flex-wrap">
+                <span className="text-xs font-semibold text-foreground sm:text-sm">MRP: ₹{displayPrice}</span>
+                {discount > 0 && (
+                  <span className="text-[10px] font-bold text-green-600 dark:text-green-400 sm:text-[11px]">{discount}% off</span>
+                )}
+                {originalPrice && originalPrice > displayPrice && (
+                  <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">Original MRP: ₹{originalPrice}</span>
+                )}
+              </div>
+              {activeOption && (
+                <p className="text-[11px] text-muted-foreground">{activeOption.stock} available</p>
               )}
-              {originalPrice && originalPrice > displayPrice && (
-                <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">Original MRP: ₹{originalPrice}</span>
-              )}
-            </div>
-            {activeOption && (
-              <p className="text-[11px] text-muted-foreground">{activeOption.stock} available</p>
-            )}
-          </div>
-        )}
+            </>
+          )}
 
-        <Button
-          size="sm"
-          className="w-full h-8 min-h-[32px] text-xs font-semibold mt-1"
-          onClick={handleAddToCart}
-          disabled={outOfStock}
-        >
-          {outOfStock ? "Sold Out" : "Add"}
-        </Button>
+          <Button
+            size="sm"
+            className="w-full h-8 min-h-[32px] text-xs font-semibold mt-1"
+            onClick={handleAddToCart}
+            disabled={outOfStock}
+          >
+            {outOfStock ? "Sold Out" : "Add"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
