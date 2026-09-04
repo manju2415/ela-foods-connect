@@ -421,6 +421,7 @@ const Products = () => {
                         unitType={product.unit_type}
                         unitValue={product.unit_value}
                         variantOptions={options.length > 1 ? options : undefined}
+                        stockQuantity={product.stock_quantity}
                       />
                     );
                   })}
