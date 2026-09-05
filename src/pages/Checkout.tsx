@@ -16,7 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
+import { MapPin, Plus, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
 import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
@@ -78,7 +78,7 @@ const Checkout = () => {
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, withdrawable_balance: 0, purchase_only_balance: 0 });
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [useWallet, setUseWallet] = useState(true);
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
+  const [paymentMethod] = useState<"online">("online");
   const [loading, setLoading] = useState(true);
   const [placing, setPlacing] = useState(false);
   const [showAddAddress, setShowAddAddress] = useState(false);
@@ -326,7 +326,7 @@ const Checkout = () => {
     if (!user) return;
 
     let validEmail = "";
-    if (paymentMethod === "online") {
+    if (finalAmount > 0) {
       const validated = validateEmail(contactEmail);
       if (!validated.value) {
         setEmailError(validated.error || "Please enter a valid email address");
@@ -384,7 +384,7 @@ const Checkout = () => {
       setPlacing(false);
     };
 
-    if (paymentMethod === "online" && Number(result.total_amount) > 0) {
+    if (Number(result.total_amount) > 0) {
       try {
         await initiateRazorpayPayment({
           amount: Number(result.total_amount), receipt: result.order_number,
@@ -688,12 +688,7 @@ const Checkout = () => {
                 )}
 
                 {/* Online Payment */}
-                <div
-                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                    paymentMethod === "online" ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                  onClick={() => setPaymentMethod("online")}
-                >
+                <div className="p-4 rounded-lg border border-primary bg-primary/5">
                   <div className="flex items-center gap-3">
                     <CreditCard className="h-5 w-5 text-primary" />
                     <div>
@@ -702,11 +697,11 @@ const Checkout = () => {
                         UPI, Credit/Debit Card, Net Banking, Wallets
                       </p>
                     </div>
-                    {paymentMethod === "online" && <Check className="h-5 w-5 text-primary ml-auto" />}
+                    <Check className="h-5 w-5 text-primary ml-auto" />
                   </div>
                 </div>
 
-                {paymentMethod === "online" && (
+                {finalAmount > 0 && (
                   <div className="space-y-2">
                     <Label htmlFor="paymentEmail">Email Address</Label>
                     <Input
@@ -732,26 +727,6 @@ const Checkout = () => {
                   </div>
                 )}
 
-
-
-                {/* Cash on Delivery */}
-                <div
-                  className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                    paymentMethod === "cod" ? "border-primary bg-primary/5" : "border-border"
-                  }`}
-                  onClick={() => setPaymentMethod("cod")}
-                >
-                  <div className="flex items-center gap-3">
-                    <Package className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium">Cash on Delivery</p>
-                      <p className="text-sm text-muted-foreground">
-                        Pay when your order arrives
-                      </p>
-                    </div>
-                    {paymentMethod === "cod" && <Check className="h-5 w-5 text-primary ml-auto" />}
-                  </div>
-                </div>
               </CardContent>
             </Card>
 
