@@ -45,6 +45,7 @@ import {
   Trash2,
   Wallet,
   IndianRupee,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
@@ -92,6 +93,7 @@ const ROLE_COLORS: Record<AppRole, string> = {
 };
 
 export default function UsersPage() {
+  const { isSuperAdmin } = useUserRole();
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -244,6 +246,24 @@ export default function UsersPage() {
       user.phone?.includes(search),
   );
 
+  const exportUserReport = () => {
+    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const header = ["User Name", "Mobile Number", "Email"];
+    const rows = users.map((user) =>
+      [user.full_name || "N/A", user.phone || "N/A", user.email]
+        .map(escapeCsv)
+        .join(","),
+    );
+    const csv = [header.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `user-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getRoleIcon = (role: AppRole) => {
     switch (role) {
       case "super_admin":
@@ -265,18 +285,30 @@ export default function UsersPage() {
               Manage user accounts and roles
             </p>
           </div>
-          <AddUserDialog
-            onUserAdded={() => {
-              queryClient.invalidateQueries({ queryKey: ["admin-users"] });
-            }}
-            isAdmin={true}
-            trigger={
-              <Button>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Invite your circle and Earn
+          <div className="flex flex-wrap gap-2">
+            {isSuperAdmin && (
+              <Button
+                variant="outline"
+                onClick={exportUserReport}
+                disabled={users.length === 0}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download Report
               </Button>
-            }
-          />
+            )}
+            <AddUserDialog
+              onUserAdded={() => {
+                queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+              }}
+              isAdmin={true}
+              trigger={
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Invite your circle and Earn
+                </Button>
+              }
+            />
+          </div>
         </div>
 
         <Card className="max-w-full overflow-hidden">
