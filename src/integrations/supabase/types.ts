@@ -616,6 +616,24 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -862,6 +880,7 @@ export type Database = {
           pickup_store_id: string | null
           preferred_delivery_date: string | null
           preferred_delivery_slot_id: string | null
+          purchase_commission_credited: boolean
           sales_counted_at: string | null
           shipping_address: Json
           shipping_amount: number | null
@@ -892,6 +911,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          purchase_commission_credited?: boolean
           sales_counted_at?: string | null
           shipping_address: Json
           shipping_amount?: number | null
@@ -922,6 +942,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          purchase_commission_credited?: boolean
           sales_counted_at?: string | null
           shipping_address?: Json
           shipping_amount?: number | null
@@ -1020,6 +1041,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      phone_batch_check_log: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       platform_settings: {
         Row: {
@@ -2135,6 +2174,16 @@ export type Database = {
         Returns: string
       }
       next_invoice_number: { Args: { p_type: string }; Returns: string }
+      notify_admins: {
+        Args: {
+          p_message: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_title: string
+          p_type?: string
+        }
+        Returns: undefined
+      }
       owns_order: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
