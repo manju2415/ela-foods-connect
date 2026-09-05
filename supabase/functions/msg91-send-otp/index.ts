@@ -147,6 +147,9 @@ serve(async (req) => {
       );
     }
 
+    // Genuine failure — allow an immediate retry.
+    recentSends.delete(mobile);
+
     return new Response(
       JSON.stringify({
         success: false,
