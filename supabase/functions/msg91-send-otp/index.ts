@@ -126,10 +126,17 @@ serve(async (req) => {
       data.type === 'OTP sent successfully' ||
       data.message === 'OTP sent successfully';
 
-    if (isSuccess) {
+    // 311 = "same request generated twice within 10 seconds". The first OTP is
+    // already on its way, so treat it as a success rather than an error.
+    const isDuplicate = String((data as { code?: string | number }).code ?? '') === '311' ||
+      /within 10 sec|same request/i.test(data.message ?? '');
+
+    if (isSuccess || isDuplicate) {
+      recentSends.set(mobile, { at: Date.now(), requestId: data.request_id });
       return new Response(
         JSON.stringify({
           success: true,
+          deduped: !isSuccess,
           requestId: data.request_id,
           providerStatus: response.status,
           providerResponse: data,
