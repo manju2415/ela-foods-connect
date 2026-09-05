@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, User, Menu, X, Search, LogOut, Shield, Truck } from "lucide-react";
-import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -142,69 +141,57 @@ const Header = () => {
               </Button>
 
               {user ? (
-                Capacitor.isNativePlatform() ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
-                        <User className="h-4 w-4" />
-                        Account
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem className="text-muted-foreground text-xs">
-                        {user.email}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      {isAdmin && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate("/admin")}>
-                            <Shield className="h-4 w-4 mr-2" />
-                            Admin Panel
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
-                        Dashboard
-                      </DropdownMenuItem>
-                      {!isDeliveryPartner && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
-                            My Orders
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
-                            Wallet
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      {isDeliveryPartner && (
-                        <>
-                          <DropdownMenuItem onClick={() => navigate("/driver-app/orders")}>
-                            My Deliveries
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate("/driver-app/earnings")}>
-                            Earnings
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sign Out
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    className="hidden sm:flex gap-2"
-                    onClick={handleSignOut}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </Button>
-                )
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="hidden sm:flex gap-2">
+                      <User className="h-4 w-4" />
+                      Account
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem className="text-muted-foreground text-xs">
+                      {user.email}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/admin")}>
+                          <Shield className="h-4 w-4 mr-2" />
+                          Admin Panel
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                      </>
+                    )}
+                    <DropdownMenuItem onClick={() => navigate(dashboardPath, { replace: location.pathname === "/auth" })}>
+                      Dashboard
+                    </DropdownMenuItem>
+                    {!isDeliveryPartner && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=orders")}>
+                          My Orders
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/dashboard?tab=wallet")}>
+                          Wallet
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    {isDeliveryPartner && (
+                      <>
+                        <DropdownMenuItem onClick={() => navigate("/driver-app/orders")}>
+                          My Deliveries
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => navigate("/driver-app/earnings")}>
+                          Earnings
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Button
                   variant="outline"

@@ -66,11 +66,11 @@ export default function Policies() {
       content: string;
     }) => {
       const { error } = await supabase
-        .from("site_policies" as any)
-        .update({ 
-          title, 
-          content, 
-          updated_at: new Date().toISOString() 
+        .from("site_policies")
+        .update({
+          title,
+          content,
+          updated_at: new Date().toISOString()
         })
         .eq("id", id);
       if (error) throw error;
@@ -88,7 +88,7 @@ export default function Policies() {
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
-        .from("site_policies" as any)
+        .from("site_policies")
         .update({ is_active, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;

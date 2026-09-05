@@ -54,7 +54,12 @@ serve(async (req) => {
     console.log('[msg91-verify-otp] HTTP Status:', response.status);
     console.log('[msg91-verify-otp] Response:', responseText);
 
-    let data: any = {};
+    interface Msg91Response {
+      type?: string;
+      message?: string;
+    }
+
+    let data: Msg91Response = {};
     try {
       data = JSON.parse(responseText);
     } catch {

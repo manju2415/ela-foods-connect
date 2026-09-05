@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
+import type { OrderStatus } from "@/components/OrderStatusTimeline";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { PullToRefresh } from "@/components/mobile/PullToRefresh";
@@ -107,7 +109,7 @@ export default function DriverOrdersPage() {
       }
     } else {
       // Load from cache when offline
-      const cached = await getCachedAssignments();
+      const cached = await getCachedAssignments<Assignment>();
       setAssignments(cached);
     }
 
@@ -139,7 +141,7 @@ export default function DriverOrdersPage() {
       return;
     }
 
-    const updates: any = { status: newStatus };
+    const updates: Partial<Tables<"order_assignments">> = { status: newStatus };
     if (newStatus === "picked_up") {
       updates.picked_up_at = new Date().toISOString();
       if (photoUrl) updates.pickup_photo_url = photoUrl;
@@ -168,31 +170,42 @@ export default function DriverOrdersPage() {
 
       // Update order status
       if (orderStatusMap[newStatus]) {
-        await supabase
+        const { error: orderUpdateError } = await supabase
           .from("orders")
           .update({ status: orderStatusMap[newStatus] })
           .eq("id", assignment.order_id);
 
-        // Log status history (cast to any to handle types before regeneration)
+        if (orderUpdateError) {
+          console.error("Failed to update order status:", orderUpdateError);
+          toast.error("Failed to update order status");
+          return;
+        }
+
+        // Log status history
         await supabase.from("order_status_history").insert({
           order_id: assignment.order_id,
-          previous_status: (assignment.order.status || "processing") as any,
-          new_status: orderStatusMap[newStatus] as any,
+          previous_status: (assignment.order.status || "processing") as OrderStatus,
+          new_status: orderStatusMap[newStatus] as OrderStatus,
           changed_by_type: "delivery_partner",
           delivery_partner_id: partnerId,
           notes: `Status updated to ${newStatus}`,
-        } as any);
+        });
       }
 
       // Handle COD collection on delivery
       if (newStatus === "delivered" && assignment.order.is_cod) {
-        await supabase
+        const { error: codUpdateError } = await supabase
           .from("orders")
-          .update({ 
+          .update({
             cod_collected: true,
             cod_collected_at: new Date().toISOString()
           })
           .eq("id", assignment.order_id);
+
+        if (codUpdateError) {
+          console.error("Failed to record COD collection:", codUpdateError);
+          toast.error("Status updated, but COD collection could not be recorded");
+        }
       }
 
       toast.success("Status updated");

@@ -122,6 +122,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
     if (isExpanding) {
       await fetchNodeDownline(nodeId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expandedNodes, nodeDownlines]);
 
   const handleSearch = async () => {

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Wallet, ArrowUpRight, ArrowDownLeft, Plus, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
 import { realEmailOrEmpty } from "@/lib/email";
 import { toast } from "sonner";
 
@@ -145,7 +145,11 @@ export default function CustomerWalletPage() {
         },
         onFailure: (err) => {
           setTopupSubmitting(false);
-          toast.error(err?.message || "Payment failed");
+          if (isPaymentCancelled(err)) {
+            toast.info("Payment cancelled");
+          } else {
+            toast.error(err?.message || "Payment failed");
+          }
         },
       });
     } catch (err) {

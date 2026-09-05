@@ -78,7 +78,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phone, full_name, referral_code, added_by_user_id } = body;
+    const { phone, full_name, referral_code } = body;
 
     if (!phone || !/^\d{10}$/.test(phone)) {
       return new Response(JSON.stringify({ error: "Invalid phone number" }), {
@@ -116,11 +116,16 @@ serve(async (req) => {
       });
     }
 
-    const actualReferrerId = added_by_user_id || caller.id;
+    // Referral credit always goes to whoever is actually authenticated — never
+    // a client-supplied id, which would let anyone redirect referral credit
+    // to an account they don't own.
+    const actualReferrerId = caller.id;
 
     const cleanPhone = `91${phone}`;
     const mockEmail = `${cleanPhone}@elabazar.local`;
-    const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
+    // Not used for sign-in: verify-otp-login rotates this to a fresh random
+    // secret on every login.
+    const tempPassword = crypto.randomUUID() + crypto.randomUUID();
 
     const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
       email: mockEmail,

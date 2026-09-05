@@ -36,6 +36,7 @@ export const DeliveryScheduler = ({
 
   useEffect(() => {
     fetchSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchSlots = async () => {

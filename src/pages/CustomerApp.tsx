@@ -31,47 +31,52 @@ export default function CustomerApp() {
     }
 
     const checkRegistration = async () => {
-      // Only member/founder accounts require onboarding. Operational roles bypass it.
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["super_admin", "admin", "mlm_admin", "delivery_partner"])
-        .limit(1)
-        .maybeSingle();
-
-      if (roleData) {
-        setCheckingRegistration(false);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("phone, accepted_agreement_at, registration_fee_paid")
-        .eq("id", user.id)
-        .single();
-
-      const isProfileComplete = !!profile?.phone && !!profile?.accepted_agreement_at;
-      const isPaymentComplete = (profile?.registration_fee_paid || 0) > 0;
-
-      let skippedPayment = false;
       try {
-        skippedPayment = sessionStorage.getItem("skip_registration_payment") === "1";
-      } catch {
-        /* ignore storage errors */
-      }
+        // Only member/founder accounts require onboarding. Operational roles bypass it.
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .in("role", ["super_admin", "admin", "mlm_admin", "delivery_partner"])
+          .limit(1)
+          .maybeSingle();
 
-      if (!isProfileComplete) {
-        navigate("/complete-registration", { replace: true });
-        return;
-      }
+        if (roleData) {
+          return;
+        }
 
-      if (isProfileComplete && !isPaymentComplete && !skippedPayment) {
-        navigate("/registration-payment", { replace: true });
-        return;
-      }
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("phone, accepted_agreement_at, registration_fee_paid")
+          .eq("id", user.id)
+          .single();
 
-      setCheckingRegistration(false);
+        const isProfileComplete = !!profile?.phone && !!profile?.accepted_agreement_at;
+        const isPaymentComplete = (profile?.registration_fee_paid || 0) > 0;
+
+        let skippedPayment = false;
+        try {
+          skippedPayment = sessionStorage.getItem("skip_registration_payment") === "1";
+        } catch {
+          /* ignore storage errors */
+        }
+
+        if (!isProfileComplete) {
+          navigate("/complete-registration", { replace: true });
+          return;
+        }
+
+        if (isProfileComplete && !isPaymentComplete && !skippedPayment) {
+          navigate("/registration-payment", { replace: true });
+          return;
+        }
+      } catch (err) {
+        // A network hiccup here must never leave the user stuck on the splash
+        // screen forever — fall through and let downstream pages re-check.
+        console.error("[CustomerApp] Registration check failed:", err);
+      } finally {
+        setCheckingRegistration(false);
+      }
     };
 
     checkRegistration();

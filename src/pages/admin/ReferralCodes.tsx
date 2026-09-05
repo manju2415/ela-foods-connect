@@ -70,6 +70,7 @@ const ReferralCodes = () => {
 
   useEffect(() => {
     fetchCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleCodeStatus = async (codeId: string, currentStatus: boolean) => {

@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { DeliveryScheduler } from "@/components/checkout/DeliveryScheduler";
@@ -16,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Package, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
-import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
@@ -89,7 +90,7 @@ const Checkout = () => {
   const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState<string | null>(null);
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
   const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
-  const [pickupStores, setPickupStores] = useState<any[]>([]);
+  const [pickupStores, setPickupStores] = useState<Tables<"stores">[]>([]);
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderPlaced, setOrderPlaced] = useState<{ orderNumber: string; amount: number } | null>(null);
@@ -116,6 +117,7 @@ const Checkout = () => {
       return;
     }
     if (!orderPlaced) fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, items.length, navigate, orderPlaced]);
 
   // Placing an order swaps in the confirmation view in-page (no route change),
@@ -337,7 +339,7 @@ const Checkout = () => {
     }
 
     const selectedAddress = fulfillmentType === "delivery" ? addresses.find((address) => address.id === selectedAddressId) : null;
-    const selectedStore = fulfillmentType === "store_pickup" ? pickupStores.find((store: any) => store.id === pickupStoreId) : null;
+    const selectedStore = fulfillmentType === "store_pickup" ? pickupStores.find((store) => store.id === pickupStoreId) : null;
     const shippingAddress = selectedStore ? {
       full_name: "Store Pickup", phone: selectedStore.phone || "", address_line1: selectedStore.address_line1,
       address_line2: selectedStore.address_line2, city: selectedStore.city, state: selectedStore.state,
@@ -346,7 +348,7 @@ const Checkout = () => {
 
     setPlacing(true);
     const idempotencyKey = crypto.randomUUID();
-    const { data, error } = await supabase.rpc("place_order_atomic" as any, {
+    const { data, error } = await supabase.rpc("place_order_atomic", {
       p_user_id: user.id,
       p_items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity })),
       p_shipping_address: shippingAddress,
@@ -358,8 +360,15 @@ const Checkout = () => {
       p_preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
       p_preferred_delivery_slot_id: selectedDeliverySlotId,
       p_idempotency_key: idempotencyKey,
-    } as any);
-    const result = data as any;
+    });
+    const result = data as {
+      success: boolean;
+      error?: string;
+      code?: string;
+      order_id?: string;
+      order_number?: string;
+      total_amount?: number;
+    } | null;
     if (error || !result?.success) {
       toast({ title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : "Order failed", description: result?.error || error?.message || "Please try again.", variant: "destructive" });
       await fetchData();
@@ -385,7 +394,11 @@ const Checkout = () => {
           onFailure: async (paymentError) => {
             console.error("Payment failed:", paymentError);
             await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id);
-            toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
+            if (isPaymentCancelled(paymentError)) {
+              toast({ title: "Payment cancelled", description: "The order was cancelled and reserved stock was restored." });
+            } else {
+              toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
+            }
             setPlacing(false);
           },
         });
@@ -502,7 +515,7 @@ const Checkout = () => {
                     <div className="mt-4 space-y-3">
                       <Label className="text-sm font-medium">Select Store</Label>
                       <RadioGroup value={pickupStoreId || ""} onValueChange={setPickupStoreId}>
-                        {pickupStores.map((s: any) => (
+                        {pickupStores.map((s) => (
                           <div
                             key={s.id}
                             className={`flex items-start gap-3 p-4 rounded-lg border transition-colors ${pickupStoreId === s.id ? "border-primary bg-primary/5" : "border-border"}`}
@@ -883,7 +896,7 @@ const Checkout = () => {
                   className="w-full"
                   size="lg"
                   onClick={handlePlaceOrder}
-                  disabled={placing || !selectedAddressId}
+                  disabled={placing || (fulfillmentType === "delivery" ? !selectedAddressId : !pickupStoreId)}
                 >
                   {placing ? "Placing Order..." : "Place Order"}
                 </Button>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +66,16 @@ export default function ProductDetail() {
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
   const [selectedOptionKey, setSelectedOptionKey] = useState<string | null>(null);
+
+  // Navigating between products (e.g. via "Related Products") reuses this
+  // component instance rather than remounting it, so image/option selection
+  // from the previous product must be reset explicitly or it carries over —
+  // including an index that no longer exists in the new product's images.
+  useEffect(() => {
+    setSelectedImageIndex(0);
+    setQuantity(1);
+    setSelectedOptionKey(null);
+  }, [slug]);
 
   const { data: product, isLoading: productLoading } = useQuery({
     queryKey: ["product", slug],

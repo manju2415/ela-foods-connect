@@ -26,18 +26,57 @@ Deno.serve(async (req) => {
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
   const admin = createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const results: any[] = [];
+  // This deletes and recreates real named accounts — only an existing super
+  // admin may trigger it.
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const callerClient = createClient(url, anonKey, {
+    global: { headers: { Authorization: authHeader } },
+  });
+  const { data: { user: caller } } = await callerClient.auth.getUser();
+  if (!caller) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const { data: isSuperAdmin } = await admin.rpc("is_super_admin", { _user_id: caller.id });
+  if (!isSuperAdmin) {
+    return new Response(JSON.stringify({ error: "Only super admins can seed founding members" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  interface SeedLog {
+    name: string;
+    phone: string;
+    email: string;
+    steps: Record<string, unknown>[];
+    user_id?: string;
+    ok?: boolean;
+  }
+
+  const results: SeedLog[] = [];
 
   for (const u of USERS) {
-    const log: any = { name: u.full_name, phone: u.phone10, email: u.email, steps: [] };
+    const log: SeedLog = { name: u.full_name, phone: u.phone10, email: u.email, steps: [] };
     try {
       const phoneE164 = `+91${u.phone10}`;
       const loginEmail = `91${u.phone10}@elabazar.local`;
-      const tempPassword = `elabazar_91${u.phone10}_temp_2026`;
+      // Not used for sign-in: verify-otp-login rotates this to a fresh random
+      // secret on every login.
+      const tempPassword = crypto.randomUUID() + crypto.randomUUID();
 
       // 1. Find any existing profile via phone variants and delete the auth user (cascades)
       const phoneVariants = [phoneE164, `91${u.phone10}`, u.phone10, `0${u.phone10}`];
@@ -121,8 +160,8 @@ Deno.serve(async (req) => {
         .upsert({ user_id: userId }, { onConflict: "user_id" });
 
       results.push({ ...log, ok: true });
-    } catch (e: any) {
-      log.steps.push({ exception: e.message });
+    } catch (e) {
+      log.steps.push({ exception: e instanceof Error ? e.message : String(e) });
       results.push({ ...log, ok: false });
     }
   }

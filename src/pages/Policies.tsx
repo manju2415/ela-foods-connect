@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,7 +17,9 @@ interface Policy {
 }
 
 export default function Policies() {
-  const { type } = useParams<{ type?: string }>();
+  // The route is /policies/:slug — not :type.
+  const { slug } = useParams<{ slug?: string }>();
+  const navigate = useNavigate();
 
   const { data: policies = [], isLoading } = useQuery({
     queryKey: ["public-policies"],
@@ -39,7 +42,21 @@ export default function Policies() {
     },
   });
 
-  const defaultTab = type || policies[0]?.policy_type || "return";
+  const [activeTab, setActiveTab] = useState<string | undefined>(slug);
+
+  // Tabs' `value` must be controlled — otherwise navigating between footer
+  // policy links reuses this same mounted component (same route pattern,
+  // different :slug) and the displayed tab never changes after the first load.
+  useEffect(() => {
+    if (slug) {
+      setActiveTab(slug);
+    } else if (!activeTab && policies.length > 0) {
+      setActiveTab(policies[0].policy_type);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, policies]);
+
+  const effectiveTab = activeTab || policies[0]?.policy_type || "return";
 
   const renderContent = (content: string) => {
     return content.split("\n").map((line, i) => {
@@ -108,7 +125,14 @@ export default function Policies() {
               </CardContent>
             </Card>
           ) : (
-            <Tabs defaultValue={defaultTab} className="w-full">
+            <Tabs
+              value={effectiveTab}
+              onValueChange={(v) => {
+                setActiveTab(v);
+                navigate(`/policies/${v}`, { replace: true });
+              }}
+              className="w-full"
+            >
               <TabsList className="w-full flex-wrap h-auto gap-2 bg-transparent justify-start">
                 {policies.map((policy) => (
                   <TabsTrigger

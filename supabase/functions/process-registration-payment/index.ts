@@ -37,14 +37,75 @@ serve(async (req) => {
       });
     }
 
-    const { razorpay_payment_id, referral_code } = await req.json();
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature, referral_code } = await req.json();
 
-    if (!razorpay_payment_id) {
-      return new Response(JSON.stringify({ error: "Missing payment ID" }), {
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return new Response(JSON.stringify({ error: "Missing payment details" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Verify the payment ourselves — never trust a bare payment id from the
+    // client. This mirrors razorpay-verify-payment but stays self-contained so
+    // registration activation never depends on another endpoint having run.
+    const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
+    const encoder = new TextEncoder();
+    const hmacKey = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(keySecret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signatureBytes = await crypto.subtle.sign(
+      "HMAC",
+      hmacKey,
+      encoder.encode(`${razorpay_order_id}|${razorpay_payment_id}`)
+    );
+    const expectedSignature = Array.from(new Uint8Array(signatureBytes))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+
+    if (expectedSignature !== razorpay_signature) {
+      return new Response(JSON.stringify({ error: "Payment verification failed" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Prevent the same real payment from being replayed against a different account.
+    const { data: priorUse } = await supabase
+      .from("founder_payment_logs")
+      .select("user_id")
+      .eq("payment_id", razorpay_payment_id)
+      .maybeSingle();
+    if (priorUse && priorUse.user_id !== user.id) {
+      return new Response(JSON.stringify({ error: "This payment has already been used" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const keyId = "rzp_live_T2arUsQZHfGFov";
+    const paymentLookup = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+      headers: { Authorization: "Basic " + btoa(`${keyId}:${keySecret}`) },
+    });
+    const paymentData = await paymentLookup.json().catch(() => null);
+    if (!paymentLookup.ok || !paymentData) {
+      return new Response(JSON.stringify({ error: "Could not confirm payment with Razorpay" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const isCaptured = paymentData.status === "captured" || paymentData.status === "authorized";
+    if (!isCaptured || paymentData.order_id !== razorpay_order_id) {
+      return new Response(JSON.stringify({ error: "Payment not captured" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const capturedAmount = Number(paymentData.amount || 0) / 100;
 
     // Load profile first (needed to decide founder vs regular fee)
     const { data: profile } = await supabase
@@ -78,6 +139,16 @@ serve(async (req) => {
     const settingsValue = settingsData?.value as { total?: number; amount?: number; wallet_credit?: number } | null;
     const registrationAmount = settingsValue?.total || settingsValue?.amount || (isFounder ? 4999 : 2499);
     const walletCredit = settingsValue?.wallet_credit || (isFounder ? 3001 : 1000);
+
+    // The amount actually captured by Razorpay must cover the real registration
+    // fee for this account (founder vs regular) — never trust a cheaper payment.
+    if (capturedAmount < registrationAmount) {
+      console.error("Registration underpayment detected:", { user_id: user.id, capturedAmount, registrationAmount });
+      return new Response(JSON.stringify({ error: "Paid amount does not match the registration fee" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check if already paid — self-heal the account status so paid users are auto-enabled
     if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {

@@ -49,6 +49,7 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
 
   useEffect(() => {
     fetchWalletData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchWalletData = async () => {

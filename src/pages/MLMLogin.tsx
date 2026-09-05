@@ -40,9 +40,9 @@ const sendOtpViaMsg91 = async (phone: string) => {
   const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
   console.log("[MLMLogin] msg91-send-otp response:", { data, error });
   if (error) {
-    const ctx: any = (error as any).context;
-    let body: any = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
+    let body: { error?: string } | null = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
     console.error("[MLMLogin] msg91-send-otp error body:", body);
     return { success: false as const, error: body?.error || error.message || "Failed to send OTP" };
   }
@@ -64,9 +64,9 @@ const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
   const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
   console.log("[MLMLogin] msg91-verify-otp response:", { data, error });
   if (error) {
-    const ctx: any = (error as any).context;
-    let body: any = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
+    let body: { error?: string } | null = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
     console.error("[MLMLogin] msg91-verify-otp error body:", body);
     return { success: false as const, error: body?.error || error.message || "Invalid OTP" };
   }
@@ -110,7 +110,7 @@ const MLMLogin = () => {
       } else {
         localStorage.removeItem(LAST_PHONE_STORAGE_KEY);
       }
-    } catch {}
+    } catch { /* storage may be unavailable (private mode / restricted webview) */ }
   }, [watchedPhone]);
 
   useEffect(() => {
@@ -184,40 +184,46 @@ const MLMLogin = () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
-    const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
+    try {
+      const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
 
-    if (!verify.success) {
-      setIsSubmitting(false);
-      toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
-      setOtpCode("");
-      return;
-    }
-
-    const { error } = await createSessionForPhone(phoneNumber);
-    setIsSubmitting(false);
-
-    if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      setHasAttemptedLogin(false);
-      return;
-    }
-
-    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-    if (verifiedUser) {
-      const { data: isMlmAdmin } = await supabase.rpc("is_mlm_admin", { _user_id: verifiedUser.id });
-
-      if (!isMlmAdmin) {
-        toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
-        await signOut();
-        setHasAttemptedLogin(false);
-        setStep("phone");
+      if (!verify.success) {
+        toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
         setOtpCode("");
         return;
       }
-    }
 
-    toast({ title: "Welcome!", description: "Logged in to Network Manager." });
-    navigate("/mlm-admin", { replace: true });
+      const { error } = await createSessionForPhone(phoneNumber, otpCode);
+
+      if (error) {
+        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        setHasAttemptedLogin(false);
+        return;
+      }
+
+      const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+      if (verifiedUser) {
+        const { data: isMlmAdmin } = await supabase.rpc("is_mlm_admin", { _user_id: verifiedUser.id });
+
+        if (!isMlmAdmin) {
+          toast({ title: "Access Denied", description: "This login is for Network Managers only.", variant: "destructive" });
+          await signOut();
+          setHasAttemptedLogin(false);
+          setStep("phone");
+          setOtpCode("");
+          return;
+        }
+      }
+
+      toast({ title: "Welcome!", description: "Logged in to Network Manager." });
+      navigate("/mlm-admin", { replace: true });
+    } catch (err) {
+      // A network hiccup here must never leave the verify button stuck spinning.
+      console.error("[MLMLogin] OTP verification failed unexpectedly:", err);
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (step === "otp") {

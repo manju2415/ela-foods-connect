@@ -28,6 +28,23 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await anonClient.auth.getUser();
     if (authError || !user) return json(401, { error: "Unauthorized" });
 
+    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+    // Rate limit: this endpoint lets a caller check whether arbitrary phone
+    // numbers are registered, which is a PII-enumeration vector if abused —
+    // cap how often any one user can call it.
+    const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+    const RATE_LIMIT_MAX_CALLS = 10;
+    const { count: recentCalls } = await admin
+      .from("phone_batch_check_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString());
+    if ((recentCalls || 0) >= RATE_LIMIT_MAX_CALLS) {
+      return json(429, { error: "Too many requests. Please try again in a few minutes." });
+    }
+    await admin.from("phone_batch_check_log").insert({ user_id: user.id });
+
     const { phones } = await req.json().catch(() => ({ phones: [] }));
     if (!Array.isArray(phones)) return json(400, { error: "phones must be an array" });
 
@@ -39,13 +56,16 @@ serve(async (req) => {
           .map((p: string) => p.replace(/\D/g, "").slice(-10))
           .filter((p: string) => p.length === 10)
       )
-    ).slice(0, 2000);
+    ).slice(0, 500);
 
     if (last10s.length === 0) return json(200, { registered: {} });
 
-    const admin = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    const registered: Record<string, { name: string | null; is_self: boolean }> = {};
+    // The registered name is only included for a single-number lookup (the
+    // "is this phone already registered?" check while filling in a form) —
+    // never for a bulk/contact-list scan, which would let anyone harvest
+    // real names for phone numbers they don't actually own as a contact.
+    const includeName = last10s.length === 1;
+    const registered: Record<string, { name?: string | null; is_self: boolean }> = {};
 
     // Query in chunks to keep the URL length sane
     const CHUNK = 200;
@@ -65,7 +85,10 @@ serve(async (req) => {
       for (const row of data ?? []) {
         const key = (row.phone ?? "").replace(/\D/g, "").slice(-10);
         if (key.length === 10) {
-          registered[key] = { name: row.full_name ?? null, is_self: row.id === user.id };
+          registered[key] = {
+            ...(includeName ? { name: row.full_name ?? null } : {}),
+            is_self: row.id === user.id,
+          };
         }
       }
     }

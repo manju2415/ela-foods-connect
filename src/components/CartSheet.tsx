@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useShippingSettings } from "@/hooks/useShippingSettings";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -23,7 +24,10 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
   const { user } = useAuth();
   const { isMember } = useUserRole();
   const navigate = useNavigate();
+  const { calculateShipping } = useShippingSettings();
   const displayTotalPrice = isMember ? memberTotalPrice : totalPrice;
+  const shippingAmount = calculateShipping(displayTotalPrice);
+  const cartTotal = displayTotalPrice + shippingAmount;
 
   const handleCheckout = () => {
     onOpenChange(false);
@@ -149,12 +153,16 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span className="text-green-600">Free</span>
+                  {shippingAmount === 0 ? (
+                    <span className="text-green-600">Free</span>
+                  ) : (
+                    <span>₹{shippingAmount.toFixed(2)}</span>
+                  )}
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span className="text-primary">₹{displayTotalPrice.toFixed(2)}</span>
+                  <span className="text-primary">₹{cartTotal.toFixed(2)}</span>
                 </div>
               </div>
 

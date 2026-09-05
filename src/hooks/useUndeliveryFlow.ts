@@ -2,6 +2,12 @@ import { useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { UndeliveryReason } from "@/components/delivery/UndeliveryDialog";
+import type { Database } from "@/integrations/supabase/types";
+
+type OrderStatus = Database["public"]["Enums"]["order_status"];
+
+const errorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error ? error.message : fallback;
 
 interface Assignment {
   id: string;
@@ -87,27 +93,27 @@ export function useUndeliveryFlow(
 
         if (assignmentError) throw assignmentError;
 
-        // Log status history (cast to any for type compatibility until types regenerate)
+        // Log status history
         await supabase.from("order_status_history").insert({
           order_id: assignment.order_id,
-          previous_status: (currentOrder?.status || "out_for_delivery") as any,
-          new_status: "undelivered" as any,
+          previous_status: (currentOrder?.status as OrderStatus) || "out_for_delivery",
+          new_status: "undelivered",
           changed_by_type: "delivery_partner",
           delivery_partner_id: partnerId,
           notes: `Reason: ${reason}${notes ? ` - ${notes}` : ""}`,
           metadata: { reason, notes, attempt_number: attemptNumber },
-        } as any);
+        });
 
         // Log return initiated
         await supabase.from("order_status_history").insert({
           order_id: assignment.order_id,
-          previous_status: "undelivered" as any,
-          new_status: "return_initiated" as any,
+          previous_status: "undelivered",
+          new_status: "return_initiated",
           changed_by_type: "system",
           delivery_partner_id: partnerId,
           notes: "Return process automatically initiated",
           metadata: { triggered_by: "undelivery_flow" },
-        } as any);
+        });
 
         // Create notification for customer
         const { data: order } = await supabase
@@ -130,9 +136,9 @@ export function useUndeliveryFlow(
         toast.success("Order marked as undelivered. Return process initiated.");
         onSuccess?.();
         return true;
-      } catch (error: any) {
+      } catch (error) {
         console.error("Failed to mark as undelivered:", error);
-        toast.error(error.message || "Failed to process undelivery");
+        toast.error(errorMessage(error, "Failed to process undelivery"));
         return false;
       }
     },
@@ -182,12 +188,12 @@ export function useUndeliveryFlow(
         // Log status history
         await supabase.from("order_status_history").insert({
           order_id: assignment.order_id,
-          previous_status: "return_initiated" as any,
-          new_status: "returned" as any,
+          previous_status: "return_initiated",
+          new_status: "returned",
           changed_by_type: "delivery_partner",
           delivery_partner_id: partnerId,
           notes: "Parcel returned to warehouse",
-        } as any);
+        });
 
         // Notify customer
         const { data: order } = await supabase
@@ -210,9 +216,9 @@ export function useUndeliveryFlow(
         toast.success("Return completed successfully!");
         onSuccess?.();
         return true;
-      } catch (error: any) {
+      } catch (error) {
         console.error("Failed to complete return:", error);
-        toast.error(error.message || "Failed to complete return");
+        toast.error(errorMessage(error, "Failed to complete return"));
         return false;
       }
     },

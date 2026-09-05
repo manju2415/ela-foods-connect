@@ -52,7 +52,11 @@ interface Category {
   parent_id: string | null;
 }
 
-const Products = () => {
+interface ProductsProps {
+  hideChrome?: boolean;
+}
+
+const Products = ({ hideChrome = false }: ProductsProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<GroupableVariant[]>([]);
@@ -89,6 +93,7 @@ const Products = () => {
   useEffect(() => {
     if (!categoriesLoaded) return;
     fetchProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, searchParams, categoriesLoaded]);
 
   const fetchCategories = async () => {
@@ -272,9 +277,9 @@ const Products = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
+      {!hideChrome && <Header />}
 
-      <main className="container mx-auto px-4 py-8">
+      <main className={`container mx-auto px-4 py-8 ${hideChrome ? "pb-20" : ""}`}>
         {/* Page Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -440,7 +445,7 @@ const Products = () => {
       </main>
 
       <AdvertisementBanner placement="products_bottom" />
-      <Footer />
+      {!hideChrome && <Footer />}
     </div>
   );
 };

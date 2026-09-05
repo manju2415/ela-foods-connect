@@ -12,6 +12,49 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+interface RecordedItem {
+  product_id: string;
+  quantity: number;
+}
+
+interface RecoveredProduct {
+  id: string;
+  name: string;
+  price: number;
+  stock_quantity: number;
+}
+
+interface RecoveredOrderItem {
+  product_id: string;
+  product_name: string;
+  product_price: number;
+  quantity: number;
+  total_price: number;
+}
+
+interface GuestDetails {
+  full_name?: string;
+  phone?: string;
+  email?: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+}
+
+interface ShippingAddress {
+  full_name: string;
+  phone: string;
+  email: string;
+  address_line1: string;
+  address_line2: string;
+  city: string;
+  state: string;
+  postal_code: string;
+  country: string;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -55,23 +98,23 @@ serve(async (req) => {
       return json({ success: true, dismissed: true });
     }
 
-    const items = Array.isArray(attempt.items) ? attempt.items : [];
+    const items: RecordedItem[] = Array.isArray(attempt.items) ? attempt.items : [];
     if (items.length === 0) {
       return json({ error: "No cart items recorded for this payment — create the order manually" }, 400);
     }
 
     // Price the order from the database, never from the client snapshot
-    const productIds = items.map((i: any) => i.product_id);
+    const productIds = items.map((i) => i.product_id);
     const { data: products } = await admin
       .from("products")
       .select("id, name, price, stock_quantity")
       .in("id", productIds);
 
-    const productMap = new Map((products || []).map((p: any) => [p.id, p]));
+    const productMap = new Map((products as RecoveredProduct[] || []).map((p) => [p.id, p]));
     let subtotal = 0;
-    const orderItems: any[] = [];
+    const orderItems: RecoveredOrderItem[] = [];
     for (const item of items) {
-      const product: any = productMap.get(item.product_id);
+      const product = productMap.get(item.product_id);
       if (!product) continue;
       const totalPrice = Number(product.price) * Number(item.quantity);
       subtotal += totalPrice;
@@ -91,7 +134,7 @@ serve(async (req) => {
     const shipping = Math.max(0, Number((paidAmount - (subtotal - discount)).toFixed(2)));
     const totalAmount = paidAmount > 0 ? paidAmount : subtotal - discount;
 
-    const guest = (attempt.guest_details || {}) as any;
+    const guest = (attempt.guest_details || {}) as GuestDetails;
     let userId = attempt.user_id as string | null;
 
     if (!userId) {
@@ -115,7 +158,7 @@ serve(async (req) => {
       );
     }
 
-    let shippingAddress: any = {
+    let shippingAddress: ShippingAddress = {
       full_name: attempt.customer_name || guest.full_name || "Customer",
       phone: attempt.customer_phone || guest.phone || "",
       email: attempt.customer_email || guest.email || "",

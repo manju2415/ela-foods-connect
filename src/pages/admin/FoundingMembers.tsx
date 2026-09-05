@@ -32,6 +32,7 @@ interface FoundingMember {
   profile: {
     full_name: string | null;
     email: string;
+    phone: string | null;
   } | null;
   referral_codes: {
     code: string;
@@ -83,6 +84,7 @@ const FoundingMembers = () => {
 
   useEffect(() => {
     fetchMembers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddFoundingMember = async () => {
@@ -241,7 +243,7 @@ const FoundingMembers = () => {
                       <TableCell className="font-medium">
                         {member.profile?.full_name || "N/A"}
                       </TableCell>
-                      <TableCell>{(member.profile as any)?.phone || "N/A"}</TableCell>
+                      <TableCell>{member.profile?.phone || "N/A"}</TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
                           {member.referral_codes.length === 0 ? (

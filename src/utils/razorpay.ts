@@ -5,9 +5,35 @@ import { supabase } from "@/integrations/supabase/client";
 import { realEmailOrEmpty } from "@/lib/email";
 
 
+// The exact message used everywhere below when the user closes the checkout
+// modal without paying — not an actual payment failure, so callers should
+// show a neutral notice rather than a "Payment Failed" error toast.
+export const PAYMENT_CANCELLED_MESSAGE = "Payment cancelled by user";
+export const isPaymentCancelled = (error: unknown): boolean =>
+  !!error && typeof error === "object" && "message" in error && (error as { message?: string }).message === PAYMENT_CANCELLED_MESSAGE;
+
+interface RazorpayCheckoutResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayPaymentFailedResponse {
+  error: { code?: string; description?: string; [key: string]: unknown };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: "payment.failed", handler: (response: RazorpayPaymentFailedResponse) => void) => void;
+}
+
+interface RazorpayConstructor {
+  new (options: Record<string, unknown>): RazorpayInstance;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: RazorpayConstructor;
   }
 }
 
@@ -23,7 +49,7 @@ export interface PaymentAttemptContext {
   discount_amount?: number;
 }
 
-interface RazorpayPaymentOptions {
+export interface RazorpayPaymentOptions {
   amount: number; // in INR (rupees, not paise)
   receipt?: string;
   notes?: Record<string, string>;
@@ -40,8 +66,8 @@ interface RazorpayPaymentOptions {
    * be reconciled into an order by an admin.
    */
   attemptContext?: PaymentAttemptContext;
-  onSuccess: (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
-  onFailure: (error: any) => void;
+  onSuccess: (response: RazorpayCheckoutResponse) => void;
+  onFailure: (error: { message?: string; description?: string }) => void;
 }
 
 // Live website URL, used only when running in the native app: Razorpay's UPI
@@ -128,7 +154,7 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
     theme: {
       color: "#f97316",
     },
-    handler: async (response: any) => {
+    handler: async (response: RazorpayCheckoutResponse) => {
       // Step 3: Verify payment
       try {
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
@@ -156,7 +182,7 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
 
         options.onSuccess(response);
       } catch (err) {
-        options.onFailure(err);
+        options.onFailure(err instanceof Error ? err : { message: String(err) });
       }
     },
     modal: {
@@ -167,7 +193,7 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   };
 
   const rzp = new window.Razorpay(rzpOptions);
-  rzp.on("payment.failed", (response: any) => {
+  rzp.on("payment.failed", (response) => {
     options.onFailure(response.error);
   });
   rzp.open();

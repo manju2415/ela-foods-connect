@@ -24,7 +24,7 @@ const getNavItems = (appType: AppType, isLoggedIn: boolean): NavItem[] => {
     case "member":
       return [
         { icon: Home, label: "Home", path: "/member-app" },
-        { icon: Store, label: "Shop", path: "/products" },
+        { icon: Store, label: "Shop", path: "/member-app/shop" },
         { icon: Users, label: "Network", path: "/member-app/network" },
         { icon: Wallet, label: "Wallet", path: "/member-app/wallet" },
         { icon: User, label: "Profile", path: "/member-app/profile" },

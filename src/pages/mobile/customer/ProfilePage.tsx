@@ -66,7 +66,6 @@ export default function CustomerProfilePage() {
       .from("profiles")
       .update({
         full_name: formData.full_name,
-        phone: formData.phone,
       })
       .eq("id", user.id);
 
@@ -156,11 +155,10 @@ export default function CustomerProfilePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    value={formData.phone}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  />
+                  <Input id="phone" value={formData.phone} disabled />
+                  <p className="text-xs text-muted-foreground">
+                    Your phone number is your login ID and can't be changed here. Contact support if it needs to change.
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setEditing(false)}>
@@ -211,7 +209,7 @@ export default function CustomerProfilePage() {
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
               <button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/dashboard?tab=wishlist")}
                 className="flex items-center gap-3 p-4 w-full text-left"
               >
                 <Heart className="h-5 w-5 text-muted-foreground" />
@@ -219,7 +217,7 @@ export default function CustomerProfilePage() {
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
               <button
-                onClick={() => navigate("/dashboard")}
+                onClick={() => navigate("/dashboard?tab=settings")}
                 className="flex items-center gap-3 p-4 w-full text-left"
               >
                 <Settings className="h-5 w-5 text-muted-foreground" />
@@ -263,11 +261,15 @@ export default function CustomerProfilePage() {
                   onClick={async () => {
                     if (!user) return;
                     try {
-                      await supabase.rpc("create_notification", {
-                        p_user_id: user.id,
+                      // Notify admin staff, not the requester's own feed —
+                      // otherwise the request is never seen by anyone who
+                      // can act on it.
+                      await supabase.rpc("notify_admins", {
                         p_title: "Account Deletion Requested",
                         p_message: `User ${profile?.full_name || profile?.email} (${profile?.phone || 'no phone'}) has requested account deletion.`,
                         p_type: "warning",
+                        p_reference_type: "account_deletion",
+                        p_reference_id: user.id,
                       });
                       toast.success("Account deletion request submitted. Our team will contact you shortly.");
                     } catch {

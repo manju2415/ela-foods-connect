@@ -35,6 +35,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const fetchData = async () => {

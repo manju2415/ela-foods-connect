@@ -27,10 +27,34 @@ serve(async (req) => {
       throw new Error("FCM_SERVER_KEY not configured");
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+
+    // Only admins may push notifications to arbitrary users.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: caller } } = await callerClient.auth.getUser();
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isAdmin } = await supabaseClient.rpc("is_admin", { _user_id: caller.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Only admins can send push notifications" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { userId, userIds, title, body, data, type }: NotificationRequest = await req.json();
 
@@ -52,8 +76,8 @@ serve(async (req) => {
     }
 
     const tokens = profiles
-      ?.filter((p: any) => p.push_token)
-      .map((p: any) => p.push_token) || [];
+      ?.filter((p) => p.push_token)
+      .map((p) => p.push_token) || [];
 
     if (tokens.length === 0) {
       return new Response(

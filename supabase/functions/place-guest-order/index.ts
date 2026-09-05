@@ -6,6 +6,43 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+interface GuestOrderItem {
+  product_id: string;
+  variant_id?: string | null;
+  quantity: number;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface ProductVariant {
+  id: string;
+  product_id: string;
+  label: string;
+  price: number;
+  stock_quantity: number;
+  is_active: boolean;
+}
+
+interface OrderItemInsert {
+  product_id: string;
+  variant_id: string | null;
+  variant_label: string | null;
+  product_name: string;
+  product_price: number;
+  quantity: number;
+  total_price: number;
+}
+
+interface ShippingSettings {
+  flat_rate?: number;
+  enable_free_shipping?: boolean;
+  free_shipping_threshold?: number;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -17,7 +54,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const body = await req.json();
-    const { guest_details, items, coupon_code, discount_amount, payment_method, payment_reference } = body;
+    const { guest_details, items, coupon_code, payment_method, payment_reference } = body;
 
     // A successful Razorpay payment reference is the source of truth. Older
     // published clients may omit payment_method or send "razorpay", so do not
@@ -59,6 +96,23 @@ serve(async (req) => {
       });
     }
 
+    // A payment reference is only trustworthy if it matches a payment that
+    // razorpay-verify-payment actually confirmed with Razorpay — a client
+    // could otherwise send any non-empty string as "proof" of payment.
+    const { data: verifiedPayment } = await supabase
+      .from("payment_attempts")
+      .select("id, amount, status, order_id")
+      .eq("payment_id", resolvedPaymentRef)
+      .maybeSingle();
+
+    if (!verifiedPayment || verifiedPayment.status !== "pending" || verifiedPayment.order_id) {
+      console.warn("Rejected guest order with unverified or already-used payment reference", { resolvedPaymentRef });
+      return new Response(JSON.stringify({ error: "Verified online payment is required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
 
     if (!guest_details || !Array.isArray(items) || items.length === 0) {
       console.warn("Rejected incomplete guest order request", {
@@ -72,8 +126,8 @@ serve(async (req) => {
     }
 
     // Calculate totals from DB prices to prevent price tampering
-    const productIds = items.map((i: any) => i.product_id);
-    const variantIds = items.map((i: any) => i.variant_id).filter(Boolean);
+    const productIds = (items as GuestOrderItem[]).map((i) => i.product_id);
+    const variantIds = (items as GuestOrderItem[]).map((i) => i.variant_id).filter(Boolean);
     const { data: products, error: prodErr } = await supabase
       .from("products")
       .select("id, name, price")
@@ -86,7 +140,7 @@ serve(async (req) => {
       });
     }
 
-    const productMap = new Map(products.map((p: any) => [p.id, p]));
+    const productMap = new Map((products as Product[]).map((p) => [p.id, p]));
     const { data: variants, error: variantErr } = variantIds.length
       ? await supabase
           .from("product_variants")
@@ -101,9 +155,9 @@ serve(async (req) => {
       });
     }
 
-    const variantMap = new Map((variants || []).map((variant: any) => [variant.id, variant]));
+    const variantMap = new Map((variants as ProductVariant[] || []).map((variant) => [variant.id, variant]));
     let subtotal = 0;
-    const orderItems: any[] = [];
+    const orderItems: OrderItemInsert[] = [];
 
     for (const item of items) {
       const product = productMap.get(item.product_id);
@@ -135,7 +189,40 @@ serve(async (req) => {
       });
     }
 
-    const finalDiscount = Math.min(discount_amount || 0, subtotal);
+    // Recompute the discount from the coupon's real rules server-side —
+    // never trust the client's `discount_amount`. A guest is never a member
+    // and first-order eligibility can't be verified without an account, so
+    // member-only/first-order-only coupons are rejected outright for guests.
+    let finalDiscount = 0;
+    if (coupon_code) {
+      const { data: coupon } = await supabase
+        .from("coupons")
+        .select("*")
+        .eq("code", String(coupon_code).toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+
+      const now = new Date();
+      const eligible =
+        coupon &&
+        coupon.audience !== "members" &&
+        !coupon.first_order_only &&
+        (!coupon.min_order_amount || subtotal >= coupon.min_order_amount) &&
+        (!coupon.usage_limit || coupon.usage_count < coupon.usage_limit) &&
+        (!coupon.valid_until || new Date(coupon.valid_until) >= now);
+
+      if (eligible) {
+        const raw =
+          coupon.discount_type === "percentage"
+            ? (subtotal * Number(coupon.discount_value)) / 100
+            : Number(coupon.discount_value);
+        finalDiscount = Math.min(
+          raw,
+          subtotal,
+          coupon.max_discount_amount ? Number(coupon.max_discount_amount) : raw
+        );
+      }
+    }
 
     // Fetch shipping settings
     let shippingAmount = 0;
@@ -146,7 +233,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (shippingSettingsRow?.value) {
-      const ss = shippingSettingsRow.value as any;
+      const ss = shippingSettingsRow.value as ShippingSettings;
       const flatRate = ss.flat_rate ?? 50;
       const enableFreeShipping = ss.enable_free_shipping ?? true;
       const freeThreshold = ss.free_shipping_threshold ?? 500;
@@ -158,6 +245,21 @@ serve(async (req) => {
     }
 
     const totalAmount = subtotal - finalDiscount + shippingAmount;
+
+    // The verified payment must actually cover what this order costs — recomputed
+    // from DB prices above, never trusted from the client.
+    if (Number(verifiedPayment.amount || 0) < totalAmount) {
+      console.warn("Rejected guest order: verified payment does not cover order total", {
+        resolvedPaymentRef,
+        paidAmount: verifiedPayment.amount,
+        totalAmount,
+      });
+      return new Response(JSON.stringify({ error: "Paid amount does not match order total" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const orderNumber = `ELA${Date.now().toString().slice(-8)}`;
 
     // Create a real guest user in auth.users
@@ -235,7 +337,7 @@ serve(async (req) => {
     }
 
     // Insert order items
-    const itemsWithOrderId = orderItems.map((i: any) => ({ ...i, order_id: order.id }));
+    const itemsWithOrderId = orderItems.map((i) => ({ ...i, order_id: order.id }));
     const { error: itemsErr } = await supabase.from("order_items").insert(itemsWithOrderId);
     if (itemsErr) {
       console.error("Order items insert error:", itemsErr);

@@ -78,7 +78,13 @@ serve(async (req) => {
     console.log('[msg91-send-otp] HTTP Status:', response.status);
     console.log('[msg91-send-otp] Response:', responseText);
 
-    let data: any = {};
+    interface Msg91Response {
+      type?: string;
+      message?: string;
+      request_id?: string;
+    }
+
+    let data: Msg91Response = {};
     try {
       data = JSON.parse(responseText);
     } catch {

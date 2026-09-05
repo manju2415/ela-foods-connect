@@ -10,7 +10,8 @@ export function EnableNotificationsButton() {
   return (
     <Button type="button" variant="outline" className="w-full justify-start" disabled={enabled} onClick={async () => {
       const granted = await requestPermission();
-      granted ? toast.success("Notifications enabled") : toast.error("Notification permission was not enabled");
+      if (granted) toast.success("Notifications enabled");
+      else toast.error("Notification permission was not enabled");
     }}>
       {enabled ? <BellRing className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />}
       {enabled ? "Notifications enabled" : "Enable notifications"}

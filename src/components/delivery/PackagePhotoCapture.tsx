@@ -74,9 +74,9 @@ export function PackagePhotoCapture({
       toast.success("Photo uploaded");
       reset();
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err?.message || "Failed to upload photo");
+      toast.error(err instanceof Error ? err.message : "Failed to upload photo");
       setUploading(false);
     }
   };

@@ -1,8 +1,20 @@
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Gift, Wallet, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const ReferralBanner = () => {
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
+      .in("role", ["member", "founding_member"])
+      .then(({ count }) => setMemberCount(count));
+  }, []);
+
   return (
     <section className="py-16 md:py-20 bg-gradient-to-br from-secondary/20 via-background to-primary/10">
       <div className="container mx-auto px-4">
@@ -46,7 +58,9 @@ const ReferralBanner = () => {
                   <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <p className="font-semibold text-foreground">5000+</p>
+                  <p className="font-semibold text-foreground">
+                    {memberCount === null ? "—" : `${memberCount.toLocaleString()}+`}
+                  </p>
                   <p className="text-xs text-muted-foreground">Members</p>
                 </div>
               </div>
@@ -60,11 +74,12 @@ const ReferralBanner = () => {
                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-secondary/30 mb-4">
                   <Gift className="h-10 w-10 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold text-foreground">Your Wallet</h3>
+                <h3 className="text-xl font-bold text-foreground">See What You Could Earn</h3>
+                <p className="text-xs text-muted-foreground mt-1">Example — not your actual wallet</p>
               </div>
-              
+
               <div className="bg-muted rounded-2xl p-6 mb-6">
-                <p className="text-sm text-muted-foreground mb-1">Available Balance</p>
+                <p className="text-sm text-muted-foreground mb-1">Example Balance</p>
                 <p className="text-4xl font-bold text-primary">₹500.00</p>
               </div>
 

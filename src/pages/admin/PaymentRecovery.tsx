@@ -12,6 +12,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertTriangle, PackagePlus, X } from "lucide-react";
 import { format } from "date-fns";
 
+interface PaymentAttemptItem {
+  quantity?: number;
+  [key: string]: unknown;
+}
+
 interface PaymentAttempt {
   id: string;
   payment_id: string;
@@ -20,7 +25,7 @@ interface PaymentAttempt {
   customer_phone: string | null;
   customer_email: string | null;
   amount: number;
-  items: any;
+  items: unknown;
   status: string;
   order_id: string | null;
   notes: string | null;
@@ -65,15 +70,18 @@ export default function PaymentRecovery() {
             : `Order ${data.order_number} was created and marked paid.`,
       });
       queryClient.invalidateQueries({ queryKey: ["payment-attempts-unmatched"] });
-    } catch (err: any) {
-      toast({ title: "Could not recover", description: err.message, variant: "destructive" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed";
+      toast({ title: "Could not recover", description: message, variant: "destructive" });
     } finally {
       setBusyId(null);
     }
   };
 
-  const itemCount = (items: any) =>
-    Array.isArray(items) ? items.reduce((s: number, i: any) => s + Number(i.quantity || 0), 0) : 0;
+  const itemCount = (items: unknown) =>
+    Array.isArray(items)
+      ? (items as PaymentAttemptItem[]).reduce((s: number, i) => s + Number(i.quantity || 0), 0)
+      : 0;
 
   return (
     <SuperAdminGuard>

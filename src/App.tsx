@@ -102,6 +102,7 @@ const DriverOrdersPage = lazy(() => import("./pages/mobile/driver/OrdersPage"));
 const DriverEarningsPage = lazy(() => import("./pages/mobile/driver/EarningsPage"));
 const DriverProfilePage = lazy(() => import("./pages/mobile/driver/ProfilePage"));
 const MemberNetworkPage = lazy(() => import("./pages/mobile/member/NetworkPage"));
+const MemberShopPage = lazy(() => import("./pages/mobile/member/ShopPage"));
 
 // PWA Install Pages
 const CustomerInstall = lazy(() => import("./pages/install/CustomerInstall"));
@@ -284,6 +285,7 @@ function App() {
                         <Route path="/customer-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app" element={<MemberApp />} />
+                        <Route path="/member-app/shop" element={<MemberShopPage />} />
                         <Route path="/member-app/network" element={<MemberNetworkPage />} />
                         <Route path="/member-app/wallet" element={<CustomerWalletPage />} />
                         <Route path="/member-app/profile" element={<AppErrorBoundary><CustomerProfilePage /></AppErrorBoundary>} />

@@ -40,7 +40,7 @@ export async function compressImage(
       maxSizeMB: mergedOptions.maxSizeMB!,
       maxWidthOrHeight: mergedOptions.maxWidthOrHeight!,
       useWebWorker: mergedOptions.useWebWorker!,
-      fileType: mergedOptions.fileType as any || 'image/webp',
+      fileType: mergedOptions.fileType || 'image/webp',
       initialQuality: 0.8,
     });
 

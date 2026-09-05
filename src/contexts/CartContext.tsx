@@ -4,26 +4,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
+interface CartItemVariant {
+  id: string;
+  label: string;
+  price: number;
+  member_price: number | null;
+  stock_quantity: number;
+}
+
+interface CartItemProduct {
+  id: string;
+  name: string;
+  price: number;
+  member_price: number | null;
+  images: string[];
+  stock_quantity?: number;
+}
+
 interface CartItem {
   id: string;
   product_id: string;
   quantity: number;
   variant_id?: string | null;
-  variant?: {
-    id: string;
-    label: string;
-    price: number;
-    member_price: number | null;
-    stock_quantity: number;
-  } | null;
-  product: {
-    id: string;
-    name: string;
-    price: number;
-    member_price: number | null;
-    images: string[];
-    stock_quantity?: number;
-  };
+  variant?: CartItemVariant | null;
+  product: CartItemProduct;
 }
 
 interface GuestCartItem {
@@ -72,6 +76,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // Load guest cart from localStorage
       loadGuestCart();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadGuestCart = async () => {
@@ -96,15 +101,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               .from("product_variants")
               .select("id, label, price, member_price, stock_quantity")
               .in("id", variantIds)
-          : Promise.resolve({ data: [] as any[] }),
+          : Promise.resolve({ data: [] as CartItemVariant[] }),
       ]);
 
-      const variants = (variantsRes as any)?.data || [];
+      const variants: CartItemVariant[] = variantsRes?.data || [];
 
       if (products) {
         const cartItems: CartItem[] = guestItems.map(gItem => {
           const product = products.find(p => p.id === gItem.product_id);
-          const variant = gItem.variant_id ? variants.find((v: any) => v.id === gItem.variant_id) || null : null;
+          const variant = gItem.variant_id ? variants.find((v) => v.id === gItem.variant_id) || null : null;
           return {
             id: gItem.id,
             product_id: gItem.product_id,
@@ -149,14 +154,14 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       try {
         // Add guest items to user's cart
         for (const gItem of guestItems) {
-          let existingQuery = supabase
+          const baseQuery = supabase
             .from("cart_items")
             .select("id, quantity")
             .eq("user_id", user.id)
             .eq("product_id", gItem.product_id);
-          existingQuery = gItem.variant_id
-            ? existingQuery.eq("variant_id", gItem.variant_id)
-            : (existingQuery as any).is("variant_id", null);
+          const existingQuery = gItem.variant_id
+            ? baseQuery.eq("variant_id", gItem.variant_id)
+            : baseQuery.is("variant_id", null);
           const { data: existing } = await existingQuery.maybeSingle();
 
           if (existing) {
@@ -170,7 +175,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               product_id: gItem.product_id,
               quantity: gItem.quantity,
               variant_id: gItem.variant_id ?? null,
-            } as any);
+            });
           }
         }
 
@@ -186,7 +191,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchCart = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     const { data, error } = await supabase
       .from("cart_items")
@@ -210,20 +215,32 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           member_price,
           stock_quantity
         )
-      ` as any)
-      .eq("user_id", user.id);
+      `)
+      .eq("user_id", user.id)
+      .returns<
+        {
+          id: string;
+          product_id: string;
+          quantity: number;
+          variant_id: string | null;
+          product: CartItemProduct | null;
+          variant: CartItemVariant | null;
+        }[]
+      >();
 
     if (error) {
       console.error("Error fetching cart:", error);
     } else {
-      const transformedItems = ((data as any[]) || []).map((item: any) => ({
-        id: item.id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        variant_id: item.variant_id,
-        variant: item.variant || null,
-        product: item.product,
-      }));
+      const transformedItems: CartItem[] = (data || [])
+        .filter((item): item is typeof item & { product: CartItemProduct } => item.product !== null)
+        .map((item) => ({
+          id: item.id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          variant_id: item.variant_id,
+          variant: item.variant || null,
+          product: item.product,
+        }));
       setItems(transformedItems);
     }
     setLoading(false);
@@ -247,7 +264,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           product_id: productId,
           quantity,
           variant_id: variantId,
-        } as any);
+        });
 
         if (error) {
           console.error("Error adding to cart:", error);
@@ -396,10 +413,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         .eq("user_id", user.id);
 
       if (error) {
+        // The cart must not keep showing items the customer already
+        // bought just because this cleanup delete failed — clear the
+        // visible state regardless and log the DB inconsistency.
         console.error("Error clearing cart:", error);
-      } else {
-        setItems([]);
       }
+      setItems([]);
     } else {
       localStorage.removeItem(GUEST_CART_KEY);
       setItems([]);

@@ -3,6 +3,15 @@ import { Capacitor } from '@capacitor/core';
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Database } from '@/integrations/supabase/types';
+
+// push_token / push_token_updated_at exist on the live `profiles` table but
+// aren't in the generated types yet — extend the real Update type rather
+// than disabling type-checking on the whole call.
+type ProfileUpdateWithPushToken = Database['public']['Tables']['profiles']['Update'] & {
+  push_token?: string | null;
+  push_token_updated_at?: string | null;
+};
 
 // FCM Server Key should be stored in Supabase secrets as FCM_SERVER_KEY
 // This is used by edge functions to send push notifications
@@ -29,8 +38,8 @@ export function useFCMPushNotifications() {
     const platform = Capacitor.getPlatform();
     const native = platform === 'ios' || platform === 'android';
     // Extra guard: plugin might not be available in some builds
-    const pluginAvailable = (Capacitor as any).isPluginAvailable
-      ? (Capacitor as any).isPluginAvailable('PushNotifications')
+    const pluginAvailable = typeof Capacitor.isPluginAvailable === 'function'
+      ? Capacitor.isPluginAvailable('PushNotifications')
       : true;
 
     setIsSupported(native && pluginAvailable);
@@ -57,7 +66,7 @@ export function useFCMPushNotifications() {
                 .update({
                   push_token: tokenData.value,
                   push_token_updated_at: new Date().toISOString(),
-                } as any)
+                } as ProfileUpdateWithPushToken)
                 .eq('id', user.id);
 
               console.log('[push] token saved');

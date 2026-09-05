@@ -62,6 +62,7 @@ const CategoryPage = () => {
     if (currentSlug) {
       fetchCategoryData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSlug, slug, subSlug]);
 
   const fetchCategoryData = async () => {

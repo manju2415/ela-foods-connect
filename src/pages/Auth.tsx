@@ -41,9 +41,9 @@ const sendOtpViaMsg91 = async (phone: string) => {
   console.log("[Auth] msg91-send-otp response:", { data, error });
   if (error) {
     // FunctionsHttpError has the body in error.context
-    const ctx: any = (error as any).context;
-    let body: any = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
+    let body: { error?: string } | null = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
     console.error("[Auth] msg91-send-otp error body:", body);
     return { success: false as const, error: body?.error || error.message || "Failed to send OTP" };
   }
@@ -67,9 +67,9 @@ const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
   const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
   console.log("[Auth] msg91-verify-otp response:", { data, error });
   if (error) {
-    const ctx: any = (error as any).context;
-    let body: any = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch {}
+    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
+    let body: { error?: string } | null = null;
+    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
     console.error("[Auth] msg91-verify-otp error body:", body);
     return { success: false as const, error: body?.error || error.message || "Invalid OTP" };
   }
@@ -130,7 +130,7 @@ const Auth = () => {
       } else {
         localStorage.removeItem(LAST_PHONE_STORAGE_KEY);
       }
-    } catch {}
+    } catch { /* storage may be unavailable (private mode / restricted webview) */ }
   }, [watchedLoginPhone]);
 
   const signupForm = useForm<SignupFormData>({
@@ -195,14 +195,25 @@ const Auth = () => {
       return;
     }
     setCheckingCode(true);
+    latestReferralCodeRef.current = code;
     const { data } = await supabase
       .from("referral_codes")
       .select("id")
       .eq("code", code.toUpperCase())
       .eq("is_active", true)
       .maybeSingle();
+    // A later keystroke may have started a newer check while this one was
+    // in flight — never let a stale response override the current result.
+    if (latestReferralCodeRef.current !== code) return;
     setReferralCodeValid(!!data);
     setCheckingCode(false);
+  };
+
+  const referralDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestReferralCodeRef = useRef("");
+  const debouncedValidateReferralCode = (code: string) => {
+    if (referralDebounceRef.current) clearTimeout(referralDebounceRef.current);
+    referralDebounceRef.current = setTimeout(() => validateReferralCode(code), 400);
   };
 
   const handlePostVerifyRedirect = async (isNewUser: boolean) => {
@@ -311,6 +322,10 @@ const Auth = () => {
 
   // ── Send OTP (Signup) ──
   const handleSendSignupOtp = async (data: SignupFormData) => {
+    if (data.referralCode?.trim() && checkingCode) {
+      toast({ title: "Still checking referral code", description: "Please wait a moment and try again." });
+      return;
+    }
     if (data.referralCode?.trim() && referralCodeValid === false) {
       toast({ title: "Invalid referral code", description: "Remove it or enter a valid code to continue.", variant: "destructive" });
       return;
@@ -357,30 +372,37 @@ const Auth = () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
-    const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
+    try {
+      const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
 
-    if (!verify.success) {
+      if (!verify.success) {
+        toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
+        setOtpCode("");
+        return;
+      }
+
+      const { error, isNewUser } = await createSessionForPhone(
+        phoneNumber,
+        otpCode,
+        pendingSignupRef.current || undefined
+      );
+      pendingSignupRef.current = null;
+
+      if (error) {
+        toast({ title: "Login failed", description: error.message, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
+      await handlePostVerifyRedirect(isNewUser || false);
+    } catch (err) {
+      // A network hiccup here must never leave the verify button stuck
+      // spinning forever.
+      console.error("[Auth] OTP verification failed unexpectedly:", err);
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
       setIsSubmitting(false);
-      toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
-      setOtpCode("");
-      return;
     }
-
-    const { error, isNewUser } = await createSessionForPhone(
-      phoneNumber,
-      pendingSignupRef.current || undefined
-    );
-
-    setIsSubmitting(false);
-    pendingSignupRef.current = null;
-
-    if (error) {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
-      return;
-    }
-
-    toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-    await handlePostVerifyRedirect(isNewUser || false);
   };
 
   const handleBackToPhone = () => {
@@ -526,7 +548,7 @@ const Auth = () => {
                   placeholder="Enter referral code if you have one"
                   className={referralCodeValid === true ? "border-green-500" : referralCodeValid === false ? "border-destructive" : ""}
                   {...signupForm.register("referralCode", {
-                    onChange: (e) => validateReferralCode(e.target.value)
+                    onChange: (e) => debouncedValidateReferralCode(e.target.value)
                   })}
                 />
                 {checkingCode && <p className="text-sm text-muted-foreground">Checking code...</p>}

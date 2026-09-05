@@ -203,65 +203,69 @@ export default function Signup() {
   const handleVerify = async () => {
     if (otp.length !== 6) return;
     setSubmitting(true);
+    try {
+      const v = await verifyOtp(phoneNumber, otp);
+      if (!v.success) {
+        toast({
+          title: "Verification failed",
+          description: v.error,
+          variant: "destructive",
+        });
+        setOtp("");
+        return;
+      }
 
-    const v = await verifyOtp(phoneNumber, otp);
-    if (!v.success) {
-      setSubmitting(false);
-      toast({
-        title: "Verification failed",
-        description: v.error,
-        variant: "destructive",
-      });
-      setOtp("");
-      return;
-    }
-
-    // Create the account server-side (idempotent)
-    const { data: created, error: createErr } = await supabase.functions.invoke(
-      "signup-create-user",
-      {
-        body: {
-          phone: phoneNumber,
-          fullName,
-          referralCode,
-          founder: isFounderSignup,
+      // Create the account server-side (idempotent)
+      const { data: created, error: createErr } = await supabase.functions.invoke(
+        "signup-create-user",
+        {
+          body: {
+            phone: phoneNumber,
+            fullName,
+            referralCode,
+            founder: isFounderSignup,
+          },
         },
-      },
-    );
+      );
 
-    if (createErr || !created?.success) {
+      if (createErr || !created?.success) {
+        toast({
+          title: "Signup failed",
+          description:
+            created?.error || createErr?.message || "Could not create account.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Sign in — the OTP is re-verified server-side atomically with session creation
+      const { error } = await createSessionForPhone(phoneNumber, otp);
+
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Welcome to Elabazar!",
+        description: "Complete your registration and payment.",
+      });
+      // Small delay so auth context settles, then continue onboarding + payment
+      setTimeout(
+        () => navigate("/complete-registration", { replace: true }),
+        600,
+      );
+    } catch (err) {
+      // A network hiccup here must never leave the verify button stuck spinning.
+      console.error("[Signup] OTP verification failed unexpectedly:", err);
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
       setSubmitting(false);
-      toast({
-        title: "Signup failed",
-        description:
-          created?.error || createErr?.message || "Could not create account.",
-        variant: "destructive",
-      });
-      return;
     }
-
-    // Sign in with the deterministic credentials created by the edge function
-    const { error } = await createSessionForPhone(phoneNumber);
-    setSubmitting(false);
-
-    if (error) {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Welcome to Elabazar!",
-      description: "Complete your registration and payment.",
-    });
-    // Small delay so auth context settles, then continue onboarding + payment
-    setTimeout(
-      () => navigate("/complete-registration", { replace: true }),
-      600,
-    );
   };
 
   if (step === "otp") {

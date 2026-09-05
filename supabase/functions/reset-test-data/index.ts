@@ -14,7 +14,35 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // This wipes every account and all business data — only an existing super
+    // admin may trigger it.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const callerClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user: caller } } = await callerClient.auth.getUser();
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data: isSuperAdmin } = await supabase.rpc("is_super_admin", { _user_id: caller.id });
+    if (!isSuperAdmin) {
+      return new Response(JSON.stringify({ error: "Only super admins can reset test data" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // 1. List all existing users
     const { data: listData, error: listError } = await supabase.auth.admin.listUsers({ perPage: 1000 });
@@ -55,12 +83,21 @@ serve(async (req) => {
       { phone: "9999000006", name: "Member User", description: "Member" },
     ];
 
-    const createdUsers: any[] = [];
+    interface CreatedTestUser {
+      phone: string;
+      name: string;
+      role: string;
+      user_id: string | undefined;
+    }
+
+    const createdUsers: CreatedTestUser[] = [];
 
     for (const acct of testAccounts) {
       const cleanPhone = `91${acct.phone}`;
       const mockEmail = `${cleanPhone}@elabazar.local`;
-      const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
+      // Not used for sign-in: verify-otp-login rotates this to a fresh random
+      // secret on every login.
+      const tempPassword = crypto.randomUUID() + crypto.randomUUID();
 
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email: mockEmail,

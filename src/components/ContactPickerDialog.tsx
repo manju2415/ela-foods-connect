@@ -27,7 +27,9 @@ interface ContactPickerDialogProps {
   onSelect: (contact: PickedContact) => void;
 }
 
-type RegisteredMap = Record<string, { name: string | null; is_self: boolean }>;
+// Bulk lookups (this dialog scans a whole contact list) never get names back
+// from check-phones-batch — only single-number lookups do.
+type RegisteredMap = Record<string, { is_self: boolean }>;
 
 export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPickerDialogProps) {
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,8 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
 
   const load = useCallback(
     async (mode: "initial" | "refresh") => {
-      mode === "refresh" ? setRefreshing(true) : setLoading(true);
+      if (mode === "refresh") setRefreshing(true);
+      else setLoading(true);
       setError(null);
       try {
         const list = await loadDeviceContacts();
@@ -237,7 +240,7 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
                           <UserRound className="h-4 w-4 mr-3 shrink-0 text-muted-foreground" />
                           <span className="text-left flex-1 min-w-0">
                             <span className="block font-medium truncate">
-                              {c.name || existing?.name || "Unnamed"}
+                              {c.name || "Unnamed"}
                             </span>
                             <span className="block text-xs text-muted-foreground">{c.phone}</span>
                           </span>

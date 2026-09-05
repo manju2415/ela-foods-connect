@@ -42,8 +42,9 @@ export default function EarningsSummary({ partnerId }: EarningsSummaryProps) {
         .eq("key", "delivery_commission")
         .maybeSingle();
       
-      const COMMISSION_RATE = commissionSetting?.value 
-        ? (commissionSetting.value as any).percentage / 100 
+      const commissionValue = commissionSetting?.value as { percentage?: number } | null;
+      const COMMISSION_RATE = commissionValue?.percentage
+        ? commissionValue.percentage / 100
         : 0.05;
       const now = new Date();
       const weekStart = startOfWeek(now);
@@ -62,7 +63,7 @@ export default function EarningsSummary({ partnerId }: EarningsSummaryProps) {
 
       const dailyMap = new Map<string, DailyEarnings>();
 
-      assignments?.forEach((assignment: any) => {
+      assignments?.forEach((assignment) => {
         const deliveredAt = new Date(assignment.delivered_at);
         const orderAmount = assignment.order?.total_amount || 0;
         const commission = orderAmount * COMMISSION_RATE;

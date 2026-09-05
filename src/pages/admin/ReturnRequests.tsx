@@ -81,22 +81,22 @@ export default function ReturnRequests() {
   const [refundAmount, setRefundAmount] = useState("");
   const queryClient = useQueryClient();
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError } = useQuery({
     queryKey: ["return-requests"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("return_requests" as any)
+        .from("return_requests")
         .select("*")
         .order("created_at", { ascending: false });
-      
+
       if (error) {
         console.error("Error fetching return requests:", error);
-        return [];
+        throw error;
       }
-      
+
       // Enrich with order, user data, and pickup slot
       const enrichedData = await Promise.all(
-        ((data || []) as any[]).map(async (request) => {
+        (data || []).map(async (request) => {
           const [orderRes, profileRes, itemRes, slotRes] = await Promise.all([
             supabase.from("orders").select("order_number").eq("id", request.order_id).maybeSingle(),
             supabase.from("profiles").select("email, full_name").eq("id", request.user_id).maybeSingle(),
@@ -108,6 +108,7 @@ export default function ReturnRequests() {
           
           return {
             ...request,
+            pickup_address: request.pickup_address as ReturnRequest["pickup_address"],
             order_number: orderRes.data?.order_number,
             customer_email: profileRes.data?.email,
             customer_name: profileRes.data?.full_name,
@@ -115,7 +116,7 @@ export default function ReturnRequests() {
             quantity: itemRes.data?.quantity,
             total_price: itemRes.data?.total_price,
             pickup_slot_name: slotRes.data?.name,
-          } as ReturnRequest;
+          } satisfies ReturnRequest;
         })
       );
       
@@ -131,7 +132,7 @@ export default function ReturnRequests() {
       refund?: number 
     }) => {
       const { error } = await supabase
-        .from("return_requests" as any)
+        .from("return_requests")
         .update({
           status,
           admin_notes: notes,
@@ -140,7 +141,7 @@ export default function ReturnRequests() {
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -241,6 +242,10 @@ export default function ReturnRequests() {
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            ) : isError ? (
+              <div className="text-center py-8 text-destructive">
+                Couldn't load return requests. Please try again.
               </div>
             ) : filteredRequests.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
@@ -411,6 +416,11 @@ export default function ReturnRequests() {
                     onChange={(e) => setRefundAmount(e.target.value)}
                     placeholder={selectedRequest.total_price?.toString()}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    This only records the refund amount — it does not credit the customer's wallet
+                    or process a payment refund. Issue the refund separately (wallet credit or original
+                    payment method) after saving.
+                  </p>
                 </div>
               )}
 

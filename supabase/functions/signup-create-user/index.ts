@@ -34,7 +34,9 @@ Deno.serve(async (req) => {
 
     const cleanPhone = phone.replace(/\+/g, "");
     const email = `${cleanPhone}@elabazar.local`;
-    const password = `elabazar_${cleanPhone}_temp_2026`;
+    // Not used for sign-in: verify-otp-login rotates this to a fresh random
+    // secret on every login, so nothing derivable from the phone can log in.
+    const password = crypto.randomUUID() + crypto.randomUUID();
 
     const pickWalkInFounder = async (excludeUserId?: string): Promise<string | null> => {
       const { data: roles, error: rolesError } = await supabase

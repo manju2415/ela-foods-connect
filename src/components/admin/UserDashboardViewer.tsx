@@ -70,6 +70,7 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
     if (userId && open) {
       fetchUserData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, open]);
 
   const fetchUserData = async () => {

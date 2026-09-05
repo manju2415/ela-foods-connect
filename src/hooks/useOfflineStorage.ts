@@ -6,7 +6,7 @@ const DB_VERSION = 1;
 interface OfflineData {
   id: string;
   type: string;
-  data: any;
+  data: unknown;
   timestamp: number;
   synced: boolean;
 }
@@ -85,7 +85,7 @@ export function useOfflineStorage() {
   };
 
   // Save data for offline use
-  const saveOffline = useCallback(async (type: string, data: any): Promise<string> => {
+  const saveOffline = useCallback(async (type: string, data: unknown): Promise<string> => {
     if (!db) return "";
 
     const id = `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -156,7 +156,7 @@ export function useOfflineStorage() {
   }, [db]);
 
   // Cache assignments for offline viewing
-  const cacheAssignments = useCallback(async (assignments: any[]): Promise<void> => {
+  const cacheAssignments = useCallback(async <T extends { id: string }>(assignments: T[]): Promise<void> => {
     if (!db) return;
 
     const transaction = db.transaction(["cached_assignments"], "readwrite");
@@ -170,7 +170,7 @@ export function useOfflineStorage() {
   }, [db]);
 
   // Get cached assignments
-  const getCachedAssignments = useCallback(async (): Promise<any[]> => {
+  const getCachedAssignments = useCallback(async <T>(): Promise<T[]> => {
     if (!db) return [];
 
     return new Promise((resolve, reject) => {

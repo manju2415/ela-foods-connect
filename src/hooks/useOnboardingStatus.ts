@@ -31,6 +31,7 @@ export function useOnboardingStatus(userId: string | undefined): OnboardingStatu
     }
 
     checkOnboardingStatus(userId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const checkOnboardingStatus = async (uid: string, retryCount = 0) => {

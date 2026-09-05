@@ -55,6 +55,15 @@ interface DeliveryPartner {
   profile?: { full_name: string | null };
 }
 
+interface AssignmentRow {
+  id: string;
+  order_id: string;
+  status: string;
+  delivery_partner_id: string;
+  pickup_photo_url: string | null;
+  delivery_photo_url: string | null;
+}
+
 export default function OrderAssignments() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [selectedPartner, setSelectedPartner] = useState<string>("");
@@ -75,11 +84,11 @@ export default function OrderAssignments() {
       const orderIds = ordersData.map(o => o.id);
       const { data: assignments } = await supabase
         .from("order_assignments")
-        .select("id, order_id, status, delivery_partner_id, pickup_photo_url, delivery_photo_url" as any)
+        .select("id, order_id, status, delivery_partner_id, pickup_photo_url, delivery_photo_url")
         .in("order_id", orderIds);
 
       // Get partner details
-      const partnerIds = [...new Set(assignments?.map((a: any) => a.delivery_partner_id) || [])];
+      const partnerIds = [...new Set(assignments?.map((a) => a.delivery_partner_id) || [])];
       const { data: partners } = partnerIds.length > 0 ? await supabase
         .from("delivery_partners")
         .select("id, user_id")
@@ -97,8 +106,8 @@ export default function OrderAssignments() {
       const partnersMap = new Map<string, string | null>();
       partners?.forEach(p => partnersMap.set(p.id, profilesMap.get(p.user_id) || null));
       
-      const assignmentsMap = new Map<string, any>();
-      (assignments as any[])?.forEach((a: any) => {
+      const assignmentsMap = new Map<string, AssignmentRow & { partner_name: string }>();
+      assignments?.forEach((a) => {
         assignmentsMap.set(a.order_id, {
           ...a,
           partner_name: partnersMap.get(a.delivery_partner_id) || "Unknown",
@@ -163,10 +172,11 @@ export default function OrderAssignments() {
       }
 
       // Update order status
-      await supabase
+      const { error: orderUpdateError } = await supabase
         .from("orders")
         .update({ status: "processing" })
         .eq("id", orderId);
+      if (orderUpdateError) throw orderUpdateError;
 
       // Get order details for notification
       const order = orders.find(o => o.id === orderId);

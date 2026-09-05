@@ -37,6 +37,7 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
     } else {
       setWishlistItems([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchWishlist = async () => {
@@ -83,6 +84,13 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
           title: "Removed from wishlist",
           description: "Product has been removed from your wishlist.",
         });
+      } else {
+        console.error("Failed to remove from wishlist:", error);
+        toast({
+          title: "Couldn't remove from wishlist",
+          description: "Please try again.",
+          variant: "destructive",
+        });
       }
     } else {
       // Add to wishlist
@@ -97,6 +105,13 @@ export const WishlistProvider = ({ children }: { children: ReactNode }) => {
         toast({
           title: "Added to wishlist",
           description: "Product has been added to your wishlist.",
+        });
+      } else {
+        console.error("Failed to add to wishlist:", error);
+        toast({
+          title: "Couldn't add to wishlist",
+          description: "Please try again.",
+          variant: "destructive",
         });
       }
     }

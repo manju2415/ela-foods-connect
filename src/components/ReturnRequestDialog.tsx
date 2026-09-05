@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import {
   Dialog,
   DialogContent,
@@ -154,7 +155,7 @@ export function ReturnRequestDialog({
       // Get the selected address details
       const selectedAddress = addresses.find(a => a.id === pickupAddressId);
       
-      const insertData: any = {
+      const insertData: TablesInsert<"return_requests"> = {
         order_id: orderId,
         order_item_id: selectedItem,
         user_id: user.id,
@@ -191,8 +192,8 @@ export function ReturnRequestDialog({
       
       // Reset form
       resetForm();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to submit request");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to submit request");
     } finally {
       setIsSubmitting(false);
     }

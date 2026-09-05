@@ -149,14 +149,26 @@ export default function Settings() {
   };
 
   const saveMutation = useMutation({
-    mutationFn: async (settingsToSave: { key: string; value: Json; description: string }[]) => {
-      for (const setting of settingsToSave) {
-        await saveSetting(setting.key, setting.value, setting.description);
-      }
+    mutationFn: async (settingsToSave: { key: string; value: Json; description: string; label: string }[]) => {
+      // Each group is saved independently — one group failing must not block
+      // (or hide the fact that it blocked) the others from saving, and the
+      // caller needs to know exactly which groups did and didn't save.
+      const results = await Promise.allSettled(
+        settingsToSave.map((setting) => saveSetting(setting.key, setting.value, setting.description))
+      );
+      const saved = settingsToSave.filter((_, i) => results[i].status === "fulfilled").map((s) => s.label);
+      const failed = settingsToSave.filter((_, i) => results[i].status === "rejected").map((s) => s.label);
+      return { saved, failed };
     },
-    onSuccess: () => {
+    onSuccess: ({ saved, failed }) => {
       queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
-      toast.success("Settings saved successfully");
+      if (failed.length === 0) {
+        toast.success("Settings saved successfully");
+      } else if (saved.length === 0) {
+        toast.error("Failed to save settings: " + failed.join(", "));
+      } else {
+        toast.warning(`Saved: ${saved.join(", ")}. Failed to save: ${failed.join(", ")}.`);
+      }
     },
     onError: (error) => {
       toast.error("Failed to save settings: " + error.message);
@@ -166,11 +178,11 @@ export default function Settings() {
   const handleSaveAll = async () => {
     setIsSaving(true);
     await saveMutation.mutateAsync([
-      { key: "store_settings", value: storeSettings as unknown as Json, description: "General store information" },
-      { key: "shipping_settings", value: shippingSettings as unknown as Json, description: "Shipping rates and zones" },
-      { key: "tax_settings", value: taxSettings as unknown as Json, description: "Tax configuration" },
-      { key: "referral_settings", value: referralSettings as unknown as Json, description: "Referral incentive settings" },
-      { key: "wallet_settings", value: walletSettings as unknown as Json, description: "Wallet configuration" },
+      { key: "store_settings", value: storeSettings as unknown as Json, description: "General store information", label: "Store" },
+      { key: "shipping_settings", value: shippingSettings as unknown as Json, description: "Shipping rates and zones", label: "Shipping" },
+      { key: "tax_settings", value: taxSettings as unknown as Json, description: "Tax configuration", label: "Tax" },
+      { key: "referral_settings", value: referralSettings as unknown as Json, description: "Referral incentive settings", label: "Referral" },
+      { key: "wallet_settings", value: walletSettings as unknown as Json, description: "Wallet configuration", label: "Wallet" },
     ]);
     setIsSaving(false);
   };

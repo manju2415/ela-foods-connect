@@ -253,16 +253,17 @@ export function AddUserDialog({
       if (error) {
         let errorMessage = "An error occurred. Please try again.";
         try {
+          const errWithContext = error as { context?: Response; message?: string };
           if (
             "context" in error &&
-            (error as any).context instanceof Response
+            errWithContext.context instanceof Response
           ) {
-            const body = await (error as any).context.json();
+            const body = await errWithContext.context.json();
             if (body?.error) errorMessage = body.error;
-          } else if ((error as any).message) {
-            errorMessage = (error as any).message;
+          } else if (errWithContext.message) {
+            errorMessage = errWithContext.message;
           }
-        } catch {}
+        } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
         toast({
           title: "Failed to Invite Friends & Family",
           description: errorMessage,

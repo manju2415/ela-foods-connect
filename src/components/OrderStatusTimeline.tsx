@@ -1,6 +1,6 @@
 import { CheckCircle2, Circle, Clock, Package, Truck, MapPin, XCircle, AlertTriangle, RotateCcw, Warehouse } from "lucide-react";
 
-type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "undelivered" | "return_initiated" | "return_in_transit" | "returned";
+export type OrderStatus = "pending" | "confirmed" | "processing" | "shipped" | "out_for_delivery" | "delivered" | "cancelled" | "undelivered" | "return_initiated" | "return_in_transit" | "returned";
 
 interface OrderStatusTimelineProps {
   currentStatus: OrderStatus;

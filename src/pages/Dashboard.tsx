@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
@@ -146,6 +146,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const DASHBOARD_TABS = ["overview", "orders", "network", "wishlist", "addresses", "wallet", "settings"];
+  const tabParam = searchParams.get("tab");
+  const activeDashboardTab = tabParam && DASHBOARD_TABS.includes(tabParam) ? tabParam : "overview";
   const {
     isSuperAdmin,
     isAdmin,
@@ -170,6 +174,12 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [totalOrdersCount, setTotalOrdersCount] = useState(0);
+  // Distinguishes "we couldn't load this" from a genuine zero/empty value —
+  // most important for wallet balance, where a silent fetch failure showing
+  // ₹0.00 would look identical to actually having no money.
+  const [walletFetchFailed, setWalletFetchFailed] = useState(false);
+  const [ordersFetchFailed, setOrdersFetchFailed] = useState(false);
   const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
   const [isFoundingMember, setIsFoundingMember] = useState(false);
   const [referralStats, setReferralStats] = useState<ReferralStats>({
@@ -181,6 +191,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
+  const [orderItemsFetchFailed, setOrderItemsFetchFailed] = useState(false);
   const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>(
     [],
   );
@@ -239,6 +250,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     }
 
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     user,
     authLoading,
@@ -259,6 +271,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     } else {
       setWishlistProducts([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wishlistItems]);
 
   const fetchWishlistProducts = async () => {
@@ -283,7 +296,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     setLoading(true);
 
     // Fetch profile, wallet, orders, referral codes, and founding member status in parallel
-    const [profileRes, walletRes, ordersRes, referralRes, foundingRes] =
+    const [profileRes, walletRes, ordersRes, ordersCountRes, referralRes, foundingRes] =
       await Promise.all([
         supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
         supabase
@@ -297,6 +310,12 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
           .limit(10),
+        // The "Total Orders" stat must reflect the real count, not just the
+        // 10 most recent orders fetched above for the list preview.
+        supabase
+          .from("orders")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
         supabase.from("referral_codes").select("*").eq("user_id", user.id),
         supabase.rpc("is_founding_member", { _user_id: user.id }),
       ]);
@@ -315,6 +334,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
     if (walletRes.data) {
       setWallet(walletRes.data);
+      setWalletFetchFailed(false);
+    } else if (walletRes.error) {
+      setWalletFetchFailed(true);
     }
 
     if (ordersRes.data) {
@@ -324,10 +346,26 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           shipping_address: order.shipping_address as Order["shipping_address"],
         })),
       );
+      setOrdersFetchFailed(false);
+    } else if (ordersRes.error) {
+      setOrdersFetchFailed(true);
+    }
+    if (ordersCountRes.error) {
+      setOrdersFetchFailed(true);
+    } else {
+      setTotalOrdersCount(ordersCountRes.count || 0);
     }
 
     if (referralRes.data) {
       setReferralCodes(referralRes.data);
+    }
+
+    if (walletRes.error || ordersRes.error || ordersCountRes.error) {
+      toast({
+        title: "Some data couldn't be loaded",
+        description: "Check your connection and pull to refresh.",
+        variant: "destructive",
+      });
     }
 
     setIsFoundingMember(!!foundingRes.data);
@@ -361,7 +399,6 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       .from("profiles")
       .update({
         full_name: formData.full_name,
-        phone: formData.phone,
         bank_name: formData.bank_name,
         bank_account_number: formData.bank_account_number,
         bank_ifsc: formData.bank_ifsc,
@@ -404,11 +441,20 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   const viewOrderDetails = async (order: Order) => {
     setSelectedOrder(order);
     setLoadingItems(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("order_items")
       .select("*")
       .eq("order_id", order.id);
     setOrderItems(data || []);
+    setOrderItemsFetchFailed(!!error);
+    if (error) {
+      console.error("Failed to load order items:", error);
+      toast({
+        title: "Couldn't load order items",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
     setLoadingItems(false);
   };
 
@@ -492,7 +538,17 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs
+          value={activeDashboardTab}
+          onValueChange={(v) => {
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              next.set("tab", v);
+              return next;
+            }, { replace: true });
+          }}
+          className="space-y-6"
+        >
           <div className="overflow-x-auto -mx-4 px-4 pb-2">
             <TabsList className="inline-flex w-max gap-1">
               <TabsTrigger value="overview" className="gap-2 px-3">
@@ -566,6 +622,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 <CardContent>
                   {loading ? (
                     <Skeleton className="h-8 w-24" />
+                  ) : walletFetchFailed ? (
+                    <div className="text-sm text-destructive">Couldn't load</div>
                   ) : (
                     <div className="text-2xl font-bold text-primary">
                       ₹{wallet?.balance?.toFixed(2) || "0.00"}
@@ -585,8 +643,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                 <CardContent>
                   {loading ? (
                     <Skeleton className="h-8 w-16" />
+                  ) : ordersFetchFailed ? (
+                    <div className="text-sm text-destructive">Couldn't load</div>
                   ) : (
-                    <div className="text-2xl font-bold">{orders.length}</div>
+                    <div className="text-2xl font-bold">{totalOrdersCount}</div>
                   )}
                 </CardContent>
               </Card>
@@ -742,7 +802,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">₹{order.total_amount}</p>
+                          <p className="font-semibold">₹{Number(order.total_amount).toFixed(2)}</p>
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
                           </Badge>
@@ -1108,14 +1168,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, phone: e.target.value })
-                        }
-                        placeholder="Enter your phone number"
-                      />
+                      <Input id="phone" value={formData.phone} disabled />
+                      <p className="text-xs text-muted-foreground">
+                        Your phone number is your login ID and can't be changed here. Contact support if it needs to change.
+                      </p>
                     </div>
                   </>
                 )}
@@ -1300,6 +1356,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                   </div>
+                ) : orderItemsFetchFailed ? (
+                  <p className="text-sm text-destructive py-4">
+                    Couldn't load order items. Please try again.
+                  </p>
                 ) : (
                   <Table>
                     <TableHeader>

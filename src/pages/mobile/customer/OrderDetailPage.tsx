@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { OrderStatusTimeline } from "@/components/OrderStatusTimeline";
+import { OrderStatusTimeline, type OrderStatus } from "@/components/OrderStatusTimeline";
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import { Package, MapPin, RotateCcw } from "lucide-react";
 import { InvoiceButton } from "@/components/InvoiceButton";
@@ -18,12 +18,14 @@ import { format } from "date-fns";
 interface Order {
   id: string;
   order_number: string;
-  status: string;
+  status: OrderStatus;
   payment_status: string;
   total_amount: number;
   subtotal: number;
   shipping_amount: number | null;
   discount_amount: number | null;
+  is_cod: boolean | null;
+  wallet_amount_used: number | null;
   created_at: string;
   shipping_address: {
     full_name?: string;
@@ -70,7 +72,7 @@ export default function CustomerOrderDetailPage() {
         .eq("order_id", orderId),
       supabase
         .from("order_assignments")
-        .select("pickup_photo_url, delivery_photo_url" as any)
+        .select("pickup_photo_url, delivery_photo_url")
         .eq("order_id", orderId)
         .maybeSingle(),
     ]);
@@ -87,7 +89,7 @@ export default function CustomerOrderDetailPage() {
     }
 
     if (assignmentRes.data) {
-      const a: any = assignmentRes.data;
+      const a = assignmentRes.data;
       setProofPhotos({ pickup: a.pickup_photo_url, delivery: a.delivery_photo_url });
     } else {
       setProofPhotos({});
@@ -173,11 +175,11 @@ export default function CustomerOrderDetailPage() {
                 </div>
 
                 {/* Order Timeline */}
-                <OrderStatusTimeline currentStatus={order.status as any} createdAt={order.created_at} />
+                <OrderStatusTimeline currentStatus={order.status} createdAt={order.created_at} />
               </CardContent>
             </Card>
 
-            {(order.payment_status === "completed" || (order as any).is_cod) && <InvoiceButton orderId={order.id} variant="default" size="default" />}
+            {(order.payment_status === "completed" || order.is_cod) && <InvoiceButton orderId={order.id} variant="default" size="default" />}
 
             {/* Order Items */}
             <Card>
@@ -215,10 +217,10 @@ export default function CustomerOrderDetailPage() {
                       <span>-₹{order.discount_amount.toFixed(2)}</span>
                     </div>
                   )}
-                  {(order as any).wallet_amount_used > 0 && (
+                  {order.wallet_amount_used && order.wallet_amount_used > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Paid from wallet</span>
-                      <span>-₹{Number((order as any).wallet_amount_used).toFixed(2)}</span>
+                      <span>-₹{Number(order.wallet_amount_used).toFixed(2)}</span>
                     </div>
                   )}
 

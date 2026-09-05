@@ -21,7 +21,8 @@ export function usePWAInstall() {
     // Check if already installed
     const checkInstalled = () => {
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
-      const isInWebAppiOS = (window.navigator as any).standalone === true;
+      // `standalone` is a non-standard iOS Safari-only Navigator property.
+      const isInWebAppiOS = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
       setIsInstalled(isStandalone || isInWebAppiOS);
     };
 

@@ -200,7 +200,7 @@ export default function Products() {
 
   const saveVariants = async (productId: string) => {
     // Delete existing then insert current drafts (simple approach)
-    await (supabase as any).from("product_variants").delete().eq("product_id", productId);
+    await supabase.from("product_variants").delete().eq("product_id", productId);
     const rows = variantDrafts
       .filter((v) => v.label.trim() && v.price)
       .map((v, i) => ({
@@ -217,7 +217,7 @@ export default function Products() {
         display_order: i,
       }));
     if (rows.length > 0) {
-      const { error } = await (supabase as any).from("product_variants").insert(rows);
+      const { error } = await supabase.from("product_variants").insert(rows);
       if (error) throw error;
     }
   };
@@ -379,13 +379,13 @@ export default function Products() {
     setExistingImages(product.images || []);
     setImageFiles([]);
     // Load variants
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("product_variants")
       .select("*")
       .eq("product_id", product.id)
       .order("display_order", { ascending: true });
     setVariantDrafts(
-      (data || []).map((v: any) => ({
+      (data || []).map((v) => ({
         id: v.id,
         label: v.label || "",
         unit_value: v.unit_value?.toString() || "",

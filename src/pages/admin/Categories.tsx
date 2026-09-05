@@ -130,7 +130,7 @@ export default function Categories() {
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      const { error } = await (supabase.from("categories") as any).insert({
+      const { error } = await supabase.from("categories").insert({
         name: data.name,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),
         description: data.description || null,
@@ -162,8 +162,8 @@ export default function Categories() {
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      const { error } = await (supabase
-        .from("categories") as any)
+      const { error } = await supabase
+        .from("categories")
         .update({
           name: data.name,
           slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),

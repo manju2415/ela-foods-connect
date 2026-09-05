@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose, attempt, amount } =
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, order_id, purpose, attempt } =
       await req.json();
 
 
@@ -49,10 +49,58 @@ serve(async (req) => {
       });
     }
 
+    // The signature only proves this payment_id/order_id pair is authentic — it
+    // says nothing about the amount actually paid. Pull the real captured amount
+    // straight from Razorpay so nothing downstream has to trust a client-supplied
+    // number.
+    const keyId = "rzp_live_T2arUsQZHfGFov";
+    const paymentLookup = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+      headers: { Authorization: "Basic " + btoa(`${keyId}:${keySecret}`) },
+    });
+    const paymentData = await paymentLookup.json().catch(() => null);
+
+    if (!paymentLookup.ok || !paymentData) {
+      console.error("Failed to fetch payment from Razorpay:", paymentData);
+      return new Response(JSON.stringify({ verified: false, error: "Could not confirm payment with Razorpay" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const capturedAmountPaise = Number(paymentData.amount || 0);
+    const isCaptured = paymentData.status === "captured" || paymentData.status === "authorized";
+    const orderMatches = paymentData.order_id === razorpay_order_id;
+
+    if (!isCaptured || !orderMatches) {
+      console.error("Payment not captured or order mismatch:", { status: paymentData.status, paymentOrderId: paymentData.order_id, razorpay_order_id });
+      return new Response(JSON.stringify({ verified: false, error: "Payment not captured" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Payment verified - update records
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // For an existing order, the actual amount paid must match what the order
+    // really costs (fetched fresh from the DB — never trust the client's `amount`).
+    if (order_id && purpose !== "registration" && purpose !== "wallet_topup") {
+      const { data: orderRow } = await supabase.from("orders").select("total_amount").eq("id", order_id).maybeSingle();
+      const expectedPaise = Math.round(Number(orderRow?.total_amount ?? 0) * 100);
+      if (!orderRow || capturedAmountPaise < expectedPaise) {
+        console.error("Underpayment detected for order:", { order_id, capturedAmountPaise, expectedPaise });
+        return new Response(JSON.stringify({ verified: false, error: "Paid amount does not match order total" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // The real captured amount (in rupees) — authoritative for wallet credit and
+    // for the record kept below, never the client-claimed `amount`.
+    const capturedAmount = capturedAmountPaise / 100;
 
     // Record the payment BEFORE any order is created, so a failure further down
     // the line can never leave a paid customer without a traceable record.
@@ -65,7 +113,7 @@ serve(async (req) => {
       customer_name: attempt?.customer_name ?? null,
       customer_phone: attempt?.customer_phone ?? null,
       customer_email: attempt?.customer_email ?? null,
-      amount: Number(attempt?.amount ?? amount ?? 0),
+      amount: capturedAmount,
       items: attempt?.items ?? [],
       coupon_code: attempt?.coupon_code ?? null,
       discount_amount: Number(attempt?.discount_amount ?? 0),
@@ -85,29 +133,41 @@ serve(async (req) => {
       // order_id here is user_id for registration payments
       // Already handled client-side after verification
     } else if (purpose === "wallet_topup" && attempt?.user_id) {
-      const topupAmount = Number(attempt?.amount ?? amount ?? 0);
+      const topupAmount = capturedAmount;
       if (topupAmount > 0) {
-        // Idempotent: a retried/duplicate verify call for the same payment
-        // must not credit the wallet twice.
-        const { data: existingTxn } = await supabase
-          .from("wallet_transactions")
-          .select("id")
-          .eq("reference_id", razorpay_payment_id)
+        const { data: walletRow, error: walletFetchErr } = await supabase
+          .from("wallets")
+          .select("id, balance, withdrawable_balance")
+          .eq("user_id", attempt.user_id)
           .maybeSingle();
 
-        if (!existingTxn) {
-          const { data: walletRow, error: walletFetchErr } = await supabase
-            .from("wallets")
-            .select("id, balance, withdrawable_balance")
-            .eq("user_id", attempt.user_id)
-            .maybeSingle();
+        if (walletFetchErr) {
+          console.error("Wallet lookup error:", walletFetchErr);
+        } else if (walletRow) {
+          const newBalance = Number(walletRow.balance || 0) + topupAmount;
+          const newWithdrawable = Number(walletRow.withdrawable_balance || 0) + topupAmount;
 
-          if (walletFetchErr) {
-            console.error("Wallet lookup error:", walletFetchErr);
-          } else if (walletRow) {
-            const newBalance = Number(walletRow.balance || 0) + topupAmount;
-            const newWithdrawable = Number(walletRow.withdrawable_balance || 0) + topupAmount;
+          // Insert the ledger row FIRST — a unique constraint on
+          // (reference_id) for type='add_money' rejects a second insert for
+          // the same payment outright, so a retried/duplicate verify call
+          // can never credit the wallet twice. Only proceed to update the
+          // balance if this call actually won that race.
+          const { error: txnErr } = await supabase.from("wallet_transactions").insert({
+            wallet_id: walletRow.id,
+            amount: topupAmount,
+            type: "add_money",
+            description: "Added money to wallet",
+            is_withdrawable: true,
+            reference_id: razorpay_payment_id,
+            balance_after: newBalance,
+          });
 
+          if (txnErr) {
+            if (txnErr.code !== "23505") {
+              console.error("Wallet transaction insert error:", txnErr);
+            }
+            // 23505 = already credited by a concurrent/earlier call — nothing more to do.
+          } else {
             const { error: walletUpdateErr } = await supabase
               .from("wallets")
               .update({
@@ -117,23 +177,10 @@ serve(async (req) => {
               })
               .eq("id", walletRow.id);
 
-            if (walletUpdateErr) {
-              console.error("Wallet credit error:", walletUpdateErr);
-            } else {
-              const { error: txnErr } = await supabase.from("wallet_transactions").insert({
-                wallet_id: walletRow.id,
-                amount: topupAmount,
-                type: "add_money",
-                description: "Added money to wallet",
-                is_withdrawable: true,
-                reference_id: razorpay_payment_id,
-                balance_after: newBalance,
-              });
-              if (txnErr) console.error("Wallet transaction insert error:", txnErr);
-            }
-          } else {
-            console.error("Wallet top-up: no wallet row for user", attempt.user_id);
+            if (walletUpdateErr) console.error("Wallet credit error:", walletUpdateErr);
           }
+        } else {
+          console.error("Wallet top-up: no wallet row for user", attempt.user_id);
         }
       }
     } else if (order_id) {

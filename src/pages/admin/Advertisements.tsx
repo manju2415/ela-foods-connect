@@ -85,13 +85,15 @@ const initialFormData: AdFormData = {
   ends_at: "",
 };
 
+// Must match exactly the placement values rendered by <AdvertisementBanner>
+// in the app (see src/pages/Index.tsx, Products.tsx, CategoryPage.tsx) — any
+// value listed here with no matching <AdvertisementBanner placement="..."/>
+// in the app is a dead option that can never actually display.
 const placementOptions = [
-  { value: "home_sidebar", label: "Home Page Sidebar" },
-  { value: "home_banner", label: "Home Page Banner" },
-  { value: "products_sidebar", label: "Products Page Sidebar" },
-  { value: "products_banner", label: "Products Page Banner" },
-  { value: "checkout_banner", label: "Checkout Page Banner" },
-  { value: "footer", label: "Footer Section" },
+  { value: "home_top", label: "Home Page — Top" },
+  { value: "home_sidebar", label: "Home Page — Sidebar" },
+  { value: "home_bottom", label: "Home Page — Bottom" },
+  { value: "products_bottom", label: "Products / Category Page — Bottom" },
 ];
 
 export default function Advertisements() {

@@ -14,7 +14,7 @@ import {
   MapPin, CreditCard, Ticket, X, Check,
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2, Crown,
 } from "lucide-react";
-import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
@@ -128,6 +128,18 @@ const GuestCheckout = () => {
       setCouponLoading(false);
       return;
     }
+    // A guest is never a member, and first-order eligibility can't be
+    // verified without an account — never silently apply either.
+    if (data.audience === "members") {
+      setCouponError("This coupon is only for members. Sign in to a member account to use it.");
+      setCouponLoading(false);
+      return;
+    }
+    if (data.first_order_only) {
+      setCouponError("This coupon is for first orders on a registered account. Sign in to use it.");
+      setCouponLoading(false);
+      return;
+    }
 
     setAppliedCoupon(data);
     setCouponLoading(false);
@@ -228,11 +240,15 @@ const GuestCheckout = () => {
         },
         onFailure: (error) => {
           console.error("Payment failed:", error);
-          toast({
-            title: "Payment not completed",
-            description: "No order was created. Please complete the payment to confirm your order.",
-            variant: "destructive",
-          });
+          if (isPaymentCancelled(error)) {
+            toast({ title: "Payment cancelled", description: "No order was created. You can try again whenever you're ready." });
+          } else {
+            toast({
+              title: "Payment not completed",
+              description: "No order was created. Please complete the payment to confirm your order.",
+              variant: "destructive",
+            });
+          }
           setPlacing(false);
         },
       });

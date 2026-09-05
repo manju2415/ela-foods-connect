@@ -190,8 +190,9 @@ export default function UsersPage() {
       setSelectedUser(null);
       setNewRole("");
     },
-    onError: (error: any) => {
-      if (error.code === "23505") {
+    onError: (error: unknown) => {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      if (code === "23505") {
         toast.error("User already has this role");
       } else {
         toast.error("Failed to add role");
@@ -213,7 +214,7 @@ export default function UsersPage() {
       toast.success("User removed successfully");
       setUserToDelete(null);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast.error(error.message || "Failed to remove user");
     },
   });

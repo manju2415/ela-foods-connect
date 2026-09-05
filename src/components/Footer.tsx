@@ -3,10 +3,28 @@ import { Link } from "react-router-dom";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
+import { supabase } from "@/integrations/supabase/client";
+
+interface FooterCategory {
+  name: string;
+  slug: string;
+}
 
 const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   ({ className, ...props }, ref) => {
     const { storeSettings } = useStoreSettings();
+    const [categories, setCategories] = React.useState<FooterCategory[]>([]);
+
+    React.useEffect(() => {
+      supabase
+        .from("categories")
+        .select("name, slug")
+        .eq("is_active", true)
+        .is("parent_id", null)
+        .order("display_order")
+        .limit(6)
+        .then(({ data }) => setCategories(data || []));
+    }, []);
 
     return (
       <footer ref={ref} className={`bg-foreground text-card ${className || ""}`} {...props}>
@@ -56,10 +74,10 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             <div>
               <h4 className="font-semibold text-lg mb-4 text-secondary">Categories</h4>
               <ul className="space-y-2">
-                {["Electronics", "Fashion", "Home & Kitchen", "Beauty", "Sports", "Groceries"].map((cat) => (
-                  <li key={cat}>
-                    <Link to="#" className="text-card/70 hover:text-secondary text-sm transition-colors">
-                      {cat}
+                {categories.map((cat) => (
+                  <li key={cat.slug}>
+                    <Link to={`/category/${cat.slug}`} className="text-card/70 hover:text-secondary text-sm transition-colors">
+                      {cat.name}
                     </Link>
                   </li>
                 ))}

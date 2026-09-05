@@ -113,6 +113,7 @@ const CompleteRegistration = () => {
     }
 
     checkProfileStatus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, navigate]);
 
   const checkProfileStatus = async () => {

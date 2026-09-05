@@ -31,8 +31,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  /** Create a Supabase session for a phone-verified user (call AFTER MSG91 OTP is verified) */
-  createSessionForPhone: (phone: string, signupData?: { fullName: string; referralCode: string }) => Promise<{ error: Error | null; isNewUser?: boolean }>;
+  /** Create a Supabase session for a phone, re-verifying the OTP server-side atomically with session creation. */
+  createSessionForPhone: (phone: string, otp: string, signupData?: { fullName: string; referralCode: string }) => Promise<{ error: Error | null; isNewUser?: boolean }>;
   signOut: () => Promise<void>;
   suppressAuthChanges: (suppress: boolean) => void;
 }
@@ -119,19 +119,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   /**
-   * After MSG91 OTP verification succeeds, sign in the user.
+   * Verifies the OTP server-side and mints a session for the phone's account in one
+   * atomic call — the client never computes or knows the account's Supabase Auth
+   * password, so a session can only be obtained by actually passing OTP verification.
    * Existing users sign in directly; walk-ins are created server-side first.
    * No client-side signUp — all onboarding goes through server-side admin.createUser flows.
    * Supplying `signupData` activates the open-registration flow.
    */
   const createSessionForPhone = async (
     phone: string,
+    otp: string,
     signupData?: { fullName: string; referralCode: string }
   ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
-    const cleanPhone = phone.replace(/\+/g, '');
-    const mockEmail = `${cleanPhone}@elabazar.local`;
-    const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
-
     let isNewUser = false;
     if (signupData) {
       const { data: created, error: createError } = await supabase.functions.invoke("signup-create-user", {
@@ -148,20 +147,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isNewUser = created.isNewUser === true;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: mockEmail,
-      password: tempPassword,
+    const { data, error } = await supabase.functions.invoke("verify-otp-login", {
+      body: { phone, otp },
     });
 
-    if (error) {
-      return { error: new Error("Account not found. Please contact admin to be added.") };
+    if (error || !data?.success || !data?.access_token || !data?.refresh_token) {
+      const ctx = (error as { context?: { text?: () => Promise<string> } } | undefined)?.context;
+      let body: { error?: string } | null = null;
+      try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
+      return { error: new Error(body?.error || data?.error || error?.message || "Account not found. Please contact admin to be added.") };
     }
 
-    if (data.user) {
+    const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+
+    if (setSessionError) {
+      return { error: new Error("Could not sign in. Please try again.") };
+    }
+
+    if (sessionData.user) {
       await supabase
         .from("profiles")
         .update({ phone })
-        .eq("id", data.user.id);
+        .eq("id", sessionData.user.id);
     }
 
     return { error: null, isNewUser };

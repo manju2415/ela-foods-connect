@@ -1,6 +1,5 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Truck, ShoppingBag, Users, Download } from "lucide-react";
 
 /**
@@ -8,6 +7,38 @@ import { Truck, ShoppingBag, Users, Download } from "lucide-react";
  * Allows users to choose which app experience they want to use
  */
 export default function MobileApps() {
+  const navigate = useNavigate();
+
+  const apps = [
+    {
+      openPath: "/customer-app",
+      installPath: "/install/customer",
+      title: "Customer App",
+      description: "Browse products, place orders, and track your deliveries",
+      icon: ShoppingBag,
+      iconWrapClass: "bg-primary/10",
+      iconClass: "text-primary",
+    },
+    {
+      openPath: "/driver-app",
+      installPath: "/install/driver",
+      title: "Driver App",
+      description: "Manage deliveries, track earnings, and navigate to customers",
+      icon: Truck,
+      iconWrapClass: "bg-blue-100",
+      iconClass: "text-blue-600",
+    },
+    {
+      openPath: "/member-app",
+      installPath: "/install/member",
+      title: "Member App",
+      description: "View your network, referrals, wallet, and earnings",
+      icon: Users,
+      iconWrapClass: "bg-green-100",
+      iconClass: "text-green-600",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-6">
@@ -16,68 +47,40 @@ export default function MobileApps() {
           <p className="text-muted-foreground">Choose your app experience</p>
         </div>
 
-        <Link to="/customer-app">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow mb-4">
+        {apps.map((app) => (
+          // Not an <a>/<Link> — it contains its own "Install App" link below,
+          // and nesting an <a> inside an <a> is invalid HTML that made the
+          // inner link's clicks unreliable.
+          <Card
+            key={app.openPath}
+            role="link"
+            tabIndex={0}
+            onClick={() => navigate(app.openPath)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") navigate(app.openPath);
+            }}
+            className="cursor-pointer hover:shadow-lg transition-shadow mb-4"
+          >
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-3">
-                <div className="p-3 bg-primary/10 rounded-full">
-                  <ShoppingBag className="h-6 w-6 text-primary" />
+                <div className={`p-3 rounded-full ${app.iconWrapClass}`}>
+                  <app.icon className={`h-6 w-6 ${app.iconClass}`} />
                 </div>
-                Customer App
+                {app.title}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <CardDescription>
-                Browse products, place orders, and track your deliveries
-              </CardDescription>
-              <Link to="/install/customer" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
+              <CardDescription>{app.description}</CardDescription>
+              <Link
+                to={app.installPath}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline"
+              >
                 <Download className="h-3 w-3" /> Install App
               </Link>
             </CardContent>
           </Card>
-        </Link>
-
-        <Link to="/driver-app">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow mb-4">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-full">
-                  <Truck className="h-6 w-6 text-blue-600" />
-                </div>
-                Driver App
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>
-                Manage deliveries, track earnings, and navigate to customers
-              </CardDescription>
-              <Link to="/install/driver" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
-                <Download className="h-3 w-3" /> Install App
-              </Link>
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link to="/member-app">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-3">
-                <div className="p-3 bg-green-100 rounded-full">
-                  <Users className="h-6 w-6 text-green-600" />
-                </div>
-                Member App
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CardDescription>
-                View your network, referrals, wallet, and earnings
-              </CardDescription>
-              <Link to="/install/member" className="inline-flex items-center gap-1 text-sm text-primary mt-2 hover:underline">
-                <Download className="h-3 w-3" /> Install App
-              </Link>
-            </CardContent>
-          </Card>
-        </Link>
+        ))}
 
         <div className="text-center mt-8">
           <Link to="/" className="text-sm text-muted-foreground hover:text-primary">

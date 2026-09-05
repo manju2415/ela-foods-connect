@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
-import { initiateRazorpayPayment } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 
 
@@ -45,6 +45,7 @@ const RegistrationPayment = () => {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   const fetchData = async () => {
@@ -181,6 +182,8 @@ const RegistrationPayment = () => {
             {
               body: {
                 razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
                 referral_code: !hasReferrer && referralCodeValid ? referralCode : undefined,
               },
             }
@@ -224,11 +227,15 @@ const RegistrationPayment = () => {
         },
         onFailure: (error) => {
           console.error("Payment error:", error);
-          toast({
-            title: "Payment Failed",
-            description: getFriendlyPaymentErrorMessage(error),
-            variant: "destructive",
-          });
+          if (isPaymentCancelled(error)) {
+            toast({ title: "Payment cancelled", description: "You can try again whenever you're ready." });
+          } else {
+            toast({
+              title: "Payment Failed",
+              description: getFriendlyPaymentErrorMessage(error),
+              variant: "destructive",
+            });
+          }
           setProcessing(false);
         },
       });

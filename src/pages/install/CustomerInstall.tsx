@@ -81,15 +81,21 @@ export default function CustomerInstall() {
                   </ol>
                 </div>
               ) : null}
-              
-              <Button 
+
+              {!isInstallable && !isIOS && (
+                <p className="text-sm text-muted-foreground mb-4">
+                  One-tap install isn't available in this browser. Try Chrome or Edge, or continue below in your browser.
+                </p>
+              )}
+
+              <Button
                 className="w-full bg-[#f97316] hover:bg-[#ea580c]"
                 onClick={handleInstall}
                 disabled={!isInstallable && !isIOS}
               >
                 {isIOS ? "View Instructions" : "Install App"}
               </Button>
-              
+
               <Link to="/customer-app" className="block mt-4">
                 <Button variant="outline" className="w-full">
                   Continue in Browser

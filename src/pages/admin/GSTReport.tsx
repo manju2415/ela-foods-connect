@@ -44,9 +44,13 @@ export default function GSTReport() {
         .select(
           "quantity, total_price, product_name, variant_label, products(hsn_code, gst_percentage, gst_inclusive), orders!inner(created_at, payment_status)"
         )
-        .gte("orders.created_at", `${from}T00:00:00`)
-        .lte("orders.created_at", `${to}T23:59:59`)
-        .eq("orders.payment_status", "completed");
+        // GST filing periods are IST calendar days — an unqualified
+        // timestamp would be interpreted in the DB's timezone (UTC),
+        // shifting orders near midnight IST into the wrong filing day.
+        .gte("orders.created_at", `${from}T00:00:00+05:30`)
+        .lte("orders.created_at", `${to}T23:59:59+05:30`)
+        .eq("orders.payment_status", "completed")
+        .neq("orders.status", "cancelled");
       if (error) throw error;
       return (data || []) as unknown as {
         quantity: number;

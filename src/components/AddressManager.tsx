@@ -71,6 +71,7 @@ export default function AddressManager() {
 
   useEffect(() => {
     if (user) fetchAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchAddresses = async () => {

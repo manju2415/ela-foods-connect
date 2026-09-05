@@ -38,9 +38,16 @@ export default function Analytics() {
       // Get orders for last 30 days
       const { data: orders } = await supabase
         .from("orders")
-        .select("id, total_amount, status, created_at")
+        .select("id, total_amount, status, payment_status, is_cod, created_at")
         .gte("created_at", last90Days.toISOString())
         .order("created_at", { ascending: true });
+
+      // Revenue must only reflect orders that are actually paid (online
+      // payment completed, or COD which is booked at placement) and not
+      // cancelled — otherwise cancelled/unpaid orders inflate the number.
+      const paidOrders = (orders || []).filter(
+        (o) => (o.is_cod || o.payment_status === "completed") && o.status !== "cancelled"
+      );
 
       // Get user count
       const { count: totalUsers } = await supabase
@@ -67,7 +74,7 @@ export default function Analytics() {
 
       // Calculate daily revenue
       const dailyRevenue = new Map<string, number>();
-      orders?.forEach(order => {
+      paidOrders.forEach(order => {
         const date = format(new Date(order.created_at), "MMM d");
         dailyRevenue.set(date, (dailyRevenue.get(date) || 0) + Number(order.total_amount));
       });
@@ -89,10 +96,10 @@ export default function Analytics() {
       }));
 
       // Calculate totals
-      const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.total_amount), 0) || 0;
+      const totalRevenue = paidOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
       const totalOrders = orders?.length || 0;
       const completedOrders = orders?.filter(o => o.status === "delivered").length || 0;
-      const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0;
 
       return {
         totalRevenue,

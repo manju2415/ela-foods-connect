@@ -80,15 +80,21 @@ export default function MemberInstall() {
                   </ol>
                 </div>
               ) : null}
-              
-              <Button 
+
+              {!isInstallable && !isIOS && (
+                <p className="text-sm text-muted-foreground mb-4">
+                  One-tap install isn't available in this browser. Try Chrome or Edge, or continue below in your browser.
+                </p>
+              )}
+
+              <Button
                 className="w-full bg-[#7c3aed] hover:bg-[#6d28d9]"
                 onClick={handleInstall}
                 disabled={!isInstallable && !isIOS}
               >
                 {isIOS ? "View Instructions" : "Install App"}
               </Button>
-              
+
               <Link to="/member-app" className="block mt-4">
                 <Button variant="outline" className="w-full">
                   Continue in Browser

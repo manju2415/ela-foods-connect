@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { openRazorpayCheckout } from "@/utils/razorpay";
+import { openRazorpayCheckout, type RazorpayPaymentOptions } from "@/utils/razorpay";
 
 const CALLBACK_SCHEME = "elabazarpay://payment-callback";
 
-const decodeBridgePayload = (value: string): any =>
+type BridgePayload = Omit<RazorpayPaymentOptions, "onSuccess" | "onFailure">;
+
+const decodeBridgePayload = (value: string): BridgePayload =>
   JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(value)))));
 
 const redirectToApp = (params: Record<string, string>) => {
@@ -24,7 +26,7 @@ const PaymentBridge = () => {
         return;
       }
 
-      let payload: any;
+      let payload: BridgePayload;
       try {
         payload = decodeBridgePayload(encoded);
       } catch {
@@ -38,8 +40,9 @@ const PaymentBridge = () => {
           onSuccess: (response) => redirectToApp({ status: "success", ...response }),
           onFailure: (err) => redirectToApp({ status: "failed", error: err?.message || "Payment failed" }),
         });
-      } catch (err: any) {
-        redirectToApp({ status: "failed", error: err?.message || "Payment failed" });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Payment failed";
+        redirectToApp({ status: "failed", error: message });
       }
     };
 

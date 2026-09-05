@@ -124,9 +124,9 @@ Each app uses branded colors for its splash screen and icons:
 npm install -D @capacitor/assets
 ```
 
-2. Create base assets in `resources/`:
+1. Create base assets in `resources/`:
 
-```
+```text
 resources/
 ├── icon.png          # 1024x1024 app icon
 ├── icon-foreground.png  # For adaptive icons (Android)
@@ -134,7 +134,7 @@ resources/
 └── splash-dark.png   # Optional dark mode splash
 ```
 
-3. Generate all sizes:
+1. Generate all sizes:
 
 ```bash
 npx capacitor-assets generate

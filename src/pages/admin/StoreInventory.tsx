@@ -60,12 +60,19 @@ const StoreInventory = () => {
       if (entries.length === 0) return;
 
       for (const [productId, qty] of entries) {
-        const { error } = await supabase
-          .from("store_inventory")
-          .upsert(
-            { store_id: storeId!, product_id: productId, stock_quantity: qty },
-            { onConflict: "store_id,product_id" }
-          );
+        // Apply the admin's intended adjustment as a delta against whatever the
+        // current stock actually is, rather than overwriting with the value
+        // from this page's (possibly stale) snapshot — a concurrent checkout
+        // may have decremented stock since the page loaded.
+        const original = products.find((p) => p.id === productId)?.store_stock ?? 0;
+        const delta = qty - original;
+        if (delta === 0) continue;
+
+        const { error } = await supabase.rpc("adjust_store_inventory_delta", {
+          p_store_id: storeId!,
+          p_product_id: productId,
+          p_delta: delta,
+        });
         if (error) throw error;
       }
     },
@@ -74,7 +81,7 @@ const StoreInventory = () => {
       setChanges({});
       toast.success("Inventory updated");
     },
-    onError: (err: any) => toast.error(err.message),
+    onError: (err: Error) => toast.error(err.message),
   });
 
   const filtered = products.filter(p =>

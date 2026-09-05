@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 import { useAuth } from "@/contexts/AuthContext";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -35,6 +36,7 @@ import EarningsSummary from "@/components/delivery/EarningsSummary";
 import { UndeliveryDialog, type UndeliveryReason } from "@/components/delivery/UndeliveryDialog";
 import { ReturnConfirmDialog } from "@/components/delivery/ReturnConfirmDialog";
 import { useUndeliveryFlow } from "@/hooks/useUndeliveryFlow";
+import { PackagePhotoCapture } from "@/components/delivery/PackagePhotoCapture";
 
 interface Assignment {
   id: string;
@@ -86,6 +88,9 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
   const [undeliveryDialogOpen, setUndeliveryDialogOpen] = useState(false);
   const [returnConfirmOpen, setReturnConfirmOpen] = useState(false);
   const [processingReturn, setProcessingReturn] = useState(false);
+
+  // Pickup/delivery both require a package photo, same as the mobile driver app
+  const [photoDialog, setPhotoDialog] = useState<null | { kind: "pickup" | "delivery"; nextStatus: string }>(null);
   
   // Undelivery flow hook
   const { markAsUndelivered, markReturnCompleted } = useUndeliveryFlow(partnerId, () => {
@@ -185,7 +190,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload: any) => {
+        (payload: { new: { type?: string; title?: string; message?: string } }) => {
           const notif = payload.new;
           if (notif?.type === 'order') {
             toast.info(notif.title, { description: notif.message, duration: 8000 });
@@ -230,7 +235,7 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
 
         // Fetch store details for pickup location
         const storeIds = Array.from(new Set(orders?.map(o => o.pickup_store_id).filter(Boolean) || []));
-        let storesMap = new Map();
+        const storesMap = new Map();
         
         // Also get default store for non-pickup orders
         const { data: defaultStore } = await supabase
@@ -289,17 +294,20 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
   });
 
   const updateAssignmentStatus = useMutation({
-    mutationFn: async ({ assignmentId, status, orderId }: { 
-      assignmentId: string; 
+    mutationFn: async ({ assignmentId, status, orderId, photoUrl }: {
+      assignmentId: string;
       status: string;
       orderId: string;
+      photoUrl?: string;
     }) => {
-      const updates: any = { status };
-      
+      const updates: Partial<Tables<"order_assignments">> = { status };
+
       if (status === "picked_up") {
         updates.picked_up_at = new Date().toISOString();
+        if (photoUrl) updates.pickup_photo_url = photoUrl;
       } else if (status === "delivered") {
         updates.delivered_at = new Date().toISOString();
+        if (photoUrl) updates.delivery_photo_url = photoUrl;
       }
 
       const { error } = await supabase
@@ -838,13 +846,19 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
                       className="flex-1"
                       onClick={() => {
                         const action = getNextAction(selectedAssignment.status);
-                        if (action) {
-                          updateAssignmentStatus.mutate({
-                            assignmentId: selectedAssignment.id,
-                            status: action.nextStatus,
-                            orderId: selectedAssignment.order_id,
+                        if (!action) return;
+                        if (action.nextStatus === "picked_up" || action.nextStatus === "delivered") {
+                          setPhotoDialog({
+                            kind: action.nextStatus === "picked_up" ? "pickup" : "delivery",
+                            nextStatus: action.nextStatus,
                           });
+                          return;
                         }
+                        updateAssignmentStatus.mutate({
+                          assignmentId: selectedAssignment.id,
+                          status: action.nextStatus,
+                          orderId: selectedAssignment.order_id,
+                        });
                       }}
                       disabled={updateAssignmentStatus.isPending}
                     >
@@ -877,6 +891,32 @@ export default function DeliveryDashboard({ hideChrome = false }: DeliveryDashbo
           orderNumber={selectedAssignment.order.order_number}
           onConfirm={handleReturnConfirm}
           isProcessing={processingReturn}
+        />
+      )}
+
+      {/* Package Photo Capture — required before picked_up/delivered, same as the mobile driver app */}
+      {photoDialog && selectedAssignment && (
+        <PackagePhotoCapture
+          open={!!photoDialog}
+          onOpenChange={(open) => { if (!open) setPhotoDialog(null); }}
+          orderId={selectedAssignment.order_id}
+          kind={photoDialog.kind}
+          title={photoDialog.kind === "pickup" ? "Photo before pickup" : "Photo at delivery"}
+          description={
+            photoDialog.kind === "pickup"
+              ? "Capture a clear photo of the package before you leave the warehouse."
+              : "Capture a photo of the delivered package as proof of delivery."
+          }
+          onUploaded={async (photoUrl) => {
+            const { nextStatus } = photoDialog;
+            setPhotoDialog(null);
+            updateAssignmentStatus.mutate({
+              assignmentId: selectedAssignment.id,
+              status: nextStatus,
+              orderId: selectedAssignment.order_id,
+              photoUrl,
+            });
+          }}
         />
       )}
     </div>

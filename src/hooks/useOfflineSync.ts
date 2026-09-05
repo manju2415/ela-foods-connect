@@ -2,6 +2,20 @@ import { useEffect, useCallback } from "react";
 import { useOfflineStorage } from "./useOfflineStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+interface AssignmentStatusUpdateData {
+  assignmentId: string;
+  status: string;
+  updates: Record<string, unknown>;
+  orderId: string;
+  orderStatus: Database["public"]["Enums"]["order_status"];
+}
+
+interface AvailabilityUpdateData {
+  partnerId: string;
+  isAvailable: boolean;
+}
 
 export function useOfflineSync() {
   const { 
@@ -24,15 +38,15 @@ export function useOfflineSync() {
     for (const item of pendingItems) {
       try {
         switch (item.type) {
-          case "assignment_status_update":
-            const { assignmentId, status, updates, orderId, orderStatus } = item.data;
-            
+          case "assignment_status_update": {
+            const { assignmentId, updates, orderId, orderStatus } = item.data as AssignmentStatusUpdateData;
+
             // Update assignment status
             const { error: assignmentError } = await supabase
               .from("order_assignments")
               .update(updates)
               .eq("id", assignmentId);
-            
+
             if (assignmentError) throw assignmentError;
 
             // Update order status
@@ -42,24 +56,26 @@ export function useOfflineSync() {
               .eq("id", orderId);
 
             if (orderError) throw orderError;
-            
+
             await markSynced(item.id);
             successCount++;
             break;
+          }
 
-          case "availability_update":
-            const { partnerId, isAvailable } = item.data;
-            
+          case "availability_update": {
+            const { partnerId, isAvailable } = item.data as AvailabilityUpdateData;
+
             const { error: availError } = await supabase
               .from("delivery_partners")
               .update({ is_available: isAvailable })
               .eq("id", partnerId);
-            
+
             if (availError) throw availError;
-            
+
             await markSynced(item.id);
             successCount++;
             break;
+          }
 
           default:
             console.warn(`Unknown sync type: ${item.type}`);

@@ -217,6 +217,15 @@ export default function Coupons() {
       toast.error("Code and discount value are required");
       return;
     }
+    const discountValue = parseFloat(formData.discount_value);
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      toast.error("Discount value must be a positive number");
+      return;
+    }
+    if (formData.discount_type === "percentage" && discountValue > 100) {
+      toast.error("Percentage discount can't exceed 100%");
+      return;
+    }
     if (editingCoupon) {
       updateMutation.mutate({ id: editingCoupon.id, data: formData });
     } else {
@@ -409,6 +418,8 @@ export default function Coupons() {
                   <Label>Discount Value *</Label>
                   <Input
                     type="number"
+                    min={0}
+                    max={formData.discount_type === "percentage" ? 100 : undefined}
                     value={formData.discount_value}
                     onChange={(e) => setFormData({ ...formData, discount_value: e.target.value })}
                     placeholder={formData.discount_type === "percentage" ? "20" : "100"}
