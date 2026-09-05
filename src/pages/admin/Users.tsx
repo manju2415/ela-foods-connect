@@ -47,6 +47,7 @@ import {
   IndianRupee,
   Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
 import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
