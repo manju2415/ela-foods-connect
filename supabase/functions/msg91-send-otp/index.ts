@@ -62,6 +62,20 @@ serve(async (req) => {
       mobile = '91' + mobile;
     }
 
+    const now = Date.now();
+    for (const [key, entry] of recentSends) {
+      if (now - entry.at > DEDUPE_WINDOW_MS) recentSends.delete(key);
+    }
+    const recent = recentSends.get(mobile);
+    if (recent && now - recent.at < DEDUPE_WINDOW_MS) {
+      console.log('[msg91-send-otp] Duplicate request within window — replaying previous send for', mobile);
+      return new Response(
+        JSON.stringify({ success: true, requestId: recent.requestId, deduped: true, mobile }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    recentSends.set(mobile, { at: now });
+
     const requestBody = {
       mobile,
       template_id: templateId,
