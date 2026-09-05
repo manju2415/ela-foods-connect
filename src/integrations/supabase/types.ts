@@ -2074,6 +2074,10 @@ export type Database = {
         }
         Returns: string
       }
+      adjust_store_inventory_delta: {
+        Args: { p_delta: number; p_product_id: string; p_store_id: string }
+        Returns: number
+      }
       admin_adjust_wallet: {
         Args: {
           p_amount: number
