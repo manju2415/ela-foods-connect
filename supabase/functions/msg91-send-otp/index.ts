@@ -17,10 +17,17 @@ const sanitizeSecret = (raw: string | undefined): string => {
   return trimmed;
 };
 
+// MSG91 rejects the exact same request twice within 10 seconds with error 311.
+// Double taps / duplicate client invokes were triggering that, so we de-duplicate
+// here and simply replay the previous success instead of hitting the provider.
+const recentSends = new Map<string, { at: number; requestId?: string }>();
+const DEDUPE_WINDOW_MS = 20_000;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const authKey = sanitizeSecret(Deno.env.get('MSG91_AUTH_TOKEN'));
