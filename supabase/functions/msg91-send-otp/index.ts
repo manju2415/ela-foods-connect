@@ -17,10 +17,17 @@ const sanitizeSecret = (raw: string | undefined): string => {
   return trimmed;
 };
 
+// MSG91 rejects the exact same request twice within 10 seconds with error 311.
+// Double taps / duplicate client invokes were triggering that, so we de-duplicate
+// here and simply replay the previous success instead of hitting the provider.
+const recentSends = new Map<string, { at: number; requestId?: string }>();
+const DEDUPE_WINDOW_MS = 20_000;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const authKey = sanitizeSecret(Deno.env.get('MSG91_AUTH_TOKEN'));
@@ -54,6 +61,20 @@ serve(async (req) => {
     if (mobile.length === 10) {
       mobile = '91' + mobile;
     }
+
+    const now = Date.now();
+    for (const [key, entry] of recentSends) {
+      if (now - entry.at > DEDUPE_WINDOW_MS) recentSends.delete(key);
+    }
+    const recent = recentSends.get(mobile);
+    if (recent && now - recent.at < DEDUPE_WINDOW_MS) {
+      console.log('[msg91-send-otp] Duplicate request within window — replaying previous send for', mobile);
+      return new Response(
+        JSON.stringify({ success: true, requestId: recent.requestId, deduped: true, mobile }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    recentSends.set(mobile, { at: now });
 
     const requestBody = {
       mobile,
@@ -105,10 +126,17 @@ serve(async (req) => {
       data.type === 'OTP sent successfully' ||
       data.message === 'OTP sent successfully';
 
-    if (isSuccess) {
+    // 311 = "same request generated twice within 10 seconds". The first OTP is
+    // already on its way, so treat it as a success rather than an error.
+    const isDuplicate = String((data as { code?: string | number }).code ?? '') === '311' ||
+      /within 10 sec|same request/i.test(data.message ?? '');
+
+    if (isSuccess || isDuplicate) {
+      recentSends.set(mobile, { at: Date.now(), requestId: data.request_id });
       return new Response(
         JSON.stringify({
           success: true,
+          deduped: !isSuccess,
           requestId: data.request_id,
           providerStatus: response.status,
           providerResponse: data,
@@ -118,6 +146,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Genuine failure — allow an immediate retry.
+    recentSends.delete(mobile);
 
     return new Response(
       JSON.stringify({
