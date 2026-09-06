@@ -275,6 +275,62 @@ export default function PaymentRecovery() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                {incompleteRegistrations.length} registration payment
+                {incompleteRegistrations.length === 1 ? "" : "s"} not finished
+              </CardTitle>
+              <CardDescription>
+                Registration fees that were paid and verified, but where the welcome credit and referral
+                payouts never ran. Complete them in one click.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingRegs ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : incompleteRegistrations.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  All registration payments are fully processed.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {incompleteRegistrations.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{r.customer_name || "Unknown member"}</div>
+                        <div className="text-xs text-muted-foreground truncate">
+                          {r.customer_phone || r.customer_email || r.payment_id} · ₹{Number(r.amount).toFixed(2)} ·{" "}
+                          {format(new Date(r.created_at), "dd MMM yyyy, hh:mm a")}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={busyId === r.id}
+                        onClick={() => completeRegistration(r)}
+                        className="sm:w-auto"
+                      >
+                        {busyId === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <PackagePlus className="h-4 w-4 mr-1" />
+                        )}
+                        Complete registration
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
       </AdminLayout>
     </SuperAdminGuard>
