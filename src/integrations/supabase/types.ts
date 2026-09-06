@@ -2067,10 +2067,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_delete_order: {
-        Args: { p_order_id: string }
-        Returns: boolean
-      }
       add_wallet_transaction: {
         Args: {
           p_amount: number
@@ -2095,6 +2091,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       admin_record_registration_payment: {
         Args: {
           p_amount: number
