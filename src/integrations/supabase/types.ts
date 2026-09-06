@@ -868,6 +868,7 @@ export type Database = {
           cod_collected_at: string | null
           cod_settled: boolean | null
           cod_settled_at: string | null
+          confirmation_email_sent_at: string | null
           coupon_code: string | null
           created_at: string
           discount_amount: number | null
@@ -886,6 +887,7 @@ export type Database = {
           shipping_address: Json
           shipping_amount: number | null
           status: Database["public"]["Enums"]["order_status"]
+          stock_committed_at: string | null
           stock_restored_at: string | null
           subtotal: number
           total_amount: number
@@ -900,6 +902,7 @@ export type Database = {
           cod_collected_at?: string | null
           cod_settled?: boolean | null
           cod_settled_at?: string | null
+          confirmation_email_sent_at?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
@@ -918,6 +921,7 @@ export type Database = {
           shipping_address: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_committed_at?: string | null
           stock_restored_at?: string | null
           subtotal: number
           total_amount: number
@@ -932,6 +936,7 @@ export type Database = {
           cod_collected_at?: string | null
           cod_settled?: boolean | null
           cod_settled_at?: string | null
+          confirmation_email_sent_at?: string | null
           coupon_code?: string | null
           created_at?: string
           discount_amount?: number | null
@@ -950,6 +955,7 @@ export type Database = {
           shipping_address?: Json
           shipping_amount?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_committed_at?: string | null
           stock_restored_at?: string | null
           subtotal?: number
           total_amount?: number
@@ -973,6 +979,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      otp_send_log: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          outcome: string
+          phone: string
+          provider_request_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          outcome: string
+          phone: string
+          provider_request_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          outcome?: string
+          phone?: string
+          provider_request_id?: string | null
+        }
+        Relationships: []
       }
       payment_attempts: {
         Row: {
@@ -2067,10 +2100,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_delete_order: {
-        Args: { p_order_id: string }
-        Returns: boolean
-      }
       add_wallet_transaction: {
         Args: {
           p_amount: number
@@ -2095,6 +2124,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       admin_record_registration_payment: {
         Args: {
           p_amount: number
@@ -2127,6 +2157,10 @@ export type Database = {
       }
       credit_purchase_commission: {
         Args: { p_order_total: number; p_user_id: string }
+        Returns: boolean
+      }
+      deduct_paid_order_stock: {
+        Args: { p_order_id: string }
         Returns: boolean
       }
       ensure_user_wallet: { Args: { p_user_id: string }; Returns: string }
@@ -2231,28 +2265,18 @@ export type Database = {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean
       }
-      process_withdrawal:
-        | {
-            Args: {
-              p_admin_id?: string
-              p_notes?: string
-              p_request_id: string
-              p_status: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_admin_id?: string
-              p_notes?: string
-              p_paid_at?: string
-              p_payment_method?: string
-              p_payment_reference?: string
-              p_request_id: string
-              p_status: string
-            }
-            Returns: Json
-          }
+      process_withdrawal: {
+        Args: {
+          p_admin_id?: string
+          p_notes?: string
+          p_paid_at?: string
+          p_payment_method?: string
+          p_payment_reference?: string
+          p_request_id: string
+          p_status: string
+        }
+        Returns: Json
+      }
       request_withdrawal: {
         Args: { p_amount: number; p_user_id: string }
         Returns: Json
