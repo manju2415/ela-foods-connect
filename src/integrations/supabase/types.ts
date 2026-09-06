@@ -2071,20 +2071,6 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: boolean
       }
-      adjust_store_inventory_delta: {
-        Args: { p_delta: number; p_product_id: string; p_store_id: string }
-        Returns: number
-      }
-      notify_admins: {
-        Args: {
-          p_message: string
-          p_reference_id?: string
-          p_reference_type?: string
-          p_title: string
-          p_type?: string
-        }
-        Returns: undefined
-      }
       add_wallet_transaction: {
         Args: {
           p_amount: number
