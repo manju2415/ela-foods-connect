@@ -28,7 +28,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Eye, Package } from "lucide-react";
+import { Search, Eye, Package, Trash2, Loader2 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
@@ -100,6 +104,7 @@ export default function Orders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const queryClient = useQueryClient();
 
@@ -110,6 +115,7 @@ export default function Orders() {
       const { data: ordersData, error: ordersError } = await supabase
         .from("orders")
         .select("*")
+        .is("admin_deleted_at", null)
         .order("created_at", { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -172,6 +178,33 @@ export default function Orders() {
       toast.error("Failed to update payment status");
     },
   });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: async (order: Order) => {
+      const { data, error } = await supabase.rpc("admin_delete_order", { p_order_id: order.id });
+      if (error) throw error;
+      if (!data) throw new Error("Order not found or already deleted. Refresh the list and try again.");
+      return order;
+    },
+    onSuccess: (order) => {
+      queryClient.setQueryData<Order[]>(["admin-orders"], (current) =>
+        current?.filter((item) => item.id !== order.id));
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
+      if (selectedOrder?.id === order.id) setSelectedOrder(null);
+      setOrderToDelete(null);
+      toast.success(`Order ${order.order_number} removed from the admin list`);
+    },
+    onError: (error: Error) => toast.error(`Could not delete order: ${error.message}`),
+  });
+
+  const deleteButton = (order: Order) => (
+    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"
+      aria-label={`Delete order ${order.order_number}`}
+      disabled={deleteOrderMutation.isPending}
+      onClick={() => setOrderToDelete(order)}>
+      <Trash2 className="h-4 w-4 mr-1" /> Delete
+    </Button>
+  );
 
   const fetchOrderItems = async (orderId: string) => {
     const { data, error } = await supabase
@@ -332,6 +365,7 @@ export default function Orders() {
                           <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          {deleteButton(order)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -341,6 +375,7 @@ export default function Orders() {
               <div className="space-y-3 md:hidden">
                 {filteredOrders.map((order) => (
                   <AdminMobileCard key={order.id}>
+                    <div className="flex justify-end">{deleteButton(order)}</div>
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-medium break-all">{order.order_number}</div>
@@ -374,6 +409,29 @@ export default function Orders() {
             )}
           </CardContent>
         </Card>
+
+        <AlertDialog open={!!orderToDelete} onOpenChange={(open) => {
+          if (!open && !deleteOrderMutation.isPending) setOrderToDelete(null);
+        }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete order {orderToDelete?.order_number}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This removes the order from the admin orders list. Customer order history,
+                invoices, and payment records are retained. This does not cancel delivery,
+                refund payments, or restore stock. There is no restore option on this page.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteOrderMutation.isPending}>Keep order</AlertDialogCancel>
+              <Button variant="destructive" disabled={deleteOrderMutation.isPending}
+                onClick={() => orderToDelete && deleteOrderMutation.mutate(orderToDelete)}>
+                {deleteOrderMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {deleteOrderMutation.isPending ? "Deleting..." : "Delete order"}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
           <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
