@@ -881,6 +881,7 @@ export type Database = {
           pickup_store_id: string | null
           preferred_delivery_date: string | null
           preferred_delivery_slot_id: string | null
+          purchase_commission_credited: boolean
           sales_counted_at: string | null
           shipping_address: Json
           shipping_amount: number | null
@@ -912,6 +913,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          purchase_commission_credited?: boolean
           sales_counted_at?: string | null
           shipping_address: Json
           shipping_amount?: number | null
@@ -943,6 +945,7 @@ export type Database = {
           pickup_store_id?: string | null
           preferred_delivery_date?: string | null
           preferred_delivery_slot_id?: string | null
+          purchase_commission_credited?: boolean
           sales_counted_at?: string | null
           shipping_address?: Json
           shipping_amount?: number | null
@@ -1041,6 +1044,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      phone_batch_check_log: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       platform_settings: {
         Row: {
@@ -2074,6 +2095,10 @@ export type Database = {
         }
         Returns: string
       }
+      adjust_store_inventory_delta: {
+        Args: { p_delta: number; p_product_id: string; p_store_id: string }
+        Returns: number
+      }
       admin_adjust_wallet: {
         Args: {
           p_amount: number
@@ -2174,6 +2199,16 @@ export type Database = {
         Returns: string
       }
       next_invoice_number: { Args: { p_type: string }; Returns: string }
+      notify_admins: {
+        Args: {
+          p_message: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_title: string
+          p_type?: string
+        }
+        Returns: undefined
+      }
       owns_order: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean

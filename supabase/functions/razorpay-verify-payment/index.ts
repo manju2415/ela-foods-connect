@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { completeRegistration } from "../_shared/completeRegistration.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -129,10 +130,22 @@ serve(async (req) => {
       console.error("Failed to record payment attempt:", attemptErr);
     }
 
-    if (purpose === "registration" && order_id) {
-      // order_id here is user_id for registration payments
-      // Already handled client-side after verification
+    if (purpose === "registration" && (attempt?.user_id || order_id)) {
+      // order_id here carries the user_id for registration payments.
+      // Complete the registration server-side so it never depends on the app
+      // regaining control after the payment (native builds pay in a separate
+      // browser tab, which sometimes fails to hand back).
+      const regUserId = attempt?.user_id ?? order_id;
+      try {
+        const regResult = await completeRegistration(supabase, regUserId, razorpay_payment_id, capturedAmount, null);
+        if (!regResult.success) {
+          console.error("Registration completion failed:", regResult.error);
+        }
+      } catch (regErr) {
+        console.error("Registration completion threw:", regErr);
+      }
     } else if (purpose === "wallet_topup" && attempt?.user_id) {
+
       const topupAmount = capturedAmount;
       if (topupAmount > 0) {
         const { data: walletRow, error: walletFetchErr } = await supabase

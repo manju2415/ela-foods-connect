@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { completeRegistration } from "../_shared/completeRegistration.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,6 +83,55 @@ serve(async (req) => {
     if (!isAdmin) return json({ error: "Admin access required" }, 403);
 
     const { attempt_id, action } = await req.json();
+
+    // Registration payments that were verified but never finished (welcome
+    // bonus missing) — usually because the app never regained control after
+    // paying in an external browser tab.
+    if (action === "list_incomplete_registrations") {
+      const { data: regAttempts } = await admin
+        .from("payment_attempts")
+        .select("id, payment_id, user_id, amount, created_at, customer_name, customer_phone, customer_email")
+        .eq("purpose", "registration")
+        .not("user_id", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(100);
+
+      const incomplete: unknown[] = [];
+      for (const row of regAttempts || []) {
+        const { data: wallet } = await admin
+          .from("wallets")
+          .select("id")
+          .eq("user_id", row.user_id)
+          .maybeSingle();
+
+        let hasBonus = false;
+        if (wallet?.id) {
+          const { data: bonus } = await admin
+            .from("wallet_transactions")
+            .select("id")
+            .eq("wallet_id", wallet.id)
+            .eq("description", "Registration welcome bonus")
+            .maybeSingle();
+          hasBonus = !!bonus;
+        }
+
+        if (!hasBonus) {
+          const { data: prof } = await admin
+            .from("profiles")
+            .select("full_name, phone")
+            .eq("id", row.user_id)
+            .maybeSingle();
+          incomplete.push({
+            ...row,
+            customer_name: row.customer_name || prof?.full_name || null,
+            customer_phone: row.customer_phone || prof?.phone || null,
+          });
+        }
+      }
+
+      return json({ success: true, incomplete });
+    }
+
     if (!attempt_id) return json({ error: "attempt_id is required" }, 400);
 
     const { data: attempt, error: attemptErr } = await admin
@@ -91,12 +141,27 @@ serve(async (req) => {
       .maybeSingle();
 
     if (attemptErr || !attempt) return json({ error: "Payment record not found" }, 404);
+
+    if (action === "complete_registration") {
+      if (!attempt.user_id) return json({ error: "This payment is not linked to an account" }, 400);
+      const result = await completeRegistration(
+        admin,
+        attempt.user_id,
+        attempt.payment_id,
+        null,
+        null,
+      );
+      if (!result.success) return json({ error: result.error || "Could not complete registration" }, 400);
+      return json({ success: true, ...result });
+    }
+
     if (attempt.order_id) return json({ error: "This payment already has an order" }, 400);
 
     if (action === "dismiss") {
       await admin.from("payment_attempts").update({ status: "dismissed" }).eq("id", attempt_id);
       return json({ success: true, dismissed: true });
     }
+
 
     const items: RecordedItem[] = Array.isArray(attempt.items) ? attempt.items : [];
     if (items.length === 0) {

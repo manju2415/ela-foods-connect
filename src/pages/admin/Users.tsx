@@ -47,6 +47,7 @@ import {
   IndianRupee,
   Download,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { WalletAdjustDialog } from "@/components/admin/WalletAdjustDialog";
 import { RecordPaymentDialog } from "@/components/admin/RecordPaymentDialog";
@@ -246,23 +247,50 @@ export default function UsersPage() {
       user.phone?.includes(search),
   );
 
-  const exportUserReport = () => {
-    const escapeCsv = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const header = ["User Name", "Mobile Number", "Email"];
-    const rows = users.map((user) =>
-      [user.full_name || "N/A", user.phone || "N/A", user.email]
-        .map(escapeCsv)
-        .join(","),
-    );
-    const csv = [header.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const downloadUsersSheet = (list: User[], fileName: string) => {
+    const data = list.map((user) => ({
+      "User Name": user.full_name || "N/A",
+      "Mobile Number": user.phone || "N/A",
+      "Email": user.email,
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `user-report-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.download = fileName;
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const exportUserReport = () => {
+    downloadUsersSheet(
+      users,
+      `user-report-${format(new Date(), "yyyy-MM-dd")}.xlsx`,
+    );
+    toast.success("User report downloaded");
+  };
+
+  const exportSingleUser = (user: User) => {
+    const slug = (user.full_name || user.phone || user.email)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+    downloadUsersSheet(
+      [user],
+      `user-${slug || "record"}-${format(new Date(), "yyyy-MM-dd")}.xlsx`,
+    );
+    toast.success(`Report downloaded for ${user.full_name || user.email}`);
+  };
+
 
   const getRoleIcon = (role: AppRole) => {
     switch (role) {
@@ -435,6 +463,17 @@ export default function UsersPage() {
                             >
                               Manage Roles
                             </Button>
+                            {isSuperAdmin && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                title="Download this user's report"
+                                onClick={() => exportSingleUser(user)}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+
                             <Button
                               variant="destructive"
                               size="sm"
@@ -532,6 +571,17 @@ export default function UsersPage() {
                         >
                           Manage Roles
                         </Button>
+                        {isSuperAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            title="Download this user's report"
+                            onClick={() => exportSingleUser(user)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        )}
+
                         <Button
                           variant="destructive"
                           size="sm"
