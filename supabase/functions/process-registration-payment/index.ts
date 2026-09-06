@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { completeRegistration } from "../_shared/completeRegistration.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,9 +47,7 @@ serve(async (req) => {
       });
     }
 
-    // Verify the payment ourselves — never trust a bare payment id from the
-    // client. This mirrors razorpay-verify-payment but stays self-contained so
-    // registration activation never depends on another endpoint having run.
+    // Verify the payment ourselves — never trust a bare payment id from the client.
     const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
     const encoder = new TextEncoder();
     const hmacKey = await crypto.subtle.importKey(
@@ -107,278 +106,18 @@ serve(async (req) => {
     }
     const capturedAmount = Number(paymentData.amount || 0) / 100;
 
-    // Load profile first (needed to decide founder vs regular fee)
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("registration_fee_paid, user_level, is_designated_founder, founder_status, mlm_settings_version_id")
-      .eq("id", user.id)
-      .single();
-
-    // A user with the founding_member role is always treated as a founder,
-    // even if their profile level was never promoted.
-    const { data: founderRole } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "founding_member")
-      .maybeSingle();
-
-    const isFounder =
-      profile?.user_level === "founder" ||
-      profile?.is_designated_founder === true ||
-      !!founderRole;
-
-
-    // Get registration fee settings (founders pay their own, higher fee)
-    const { data: settingsData } = await supabase
-      .from("mlm_settings")
-      .select("value")
-      .eq("key", isFounder ? "founder_registration_fee" : "registration_fee")
-      .maybeSingle();
-
-    const settingsValue = settingsData?.value as { total?: number; amount?: number; wallet_credit?: number } | null;
-    const registrationAmount = settingsValue?.total || settingsValue?.amount || (isFounder ? 4999 : 2499);
-    const walletCredit = settingsValue?.wallet_credit || (isFounder ? 3001 : 1000);
-
-    // The amount actually captured by Razorpay must cover the real registration
-    // fee for this account (founder vs regular) — never trust a cheaper payment.
-    if (capturedAmount < registrationAmount) {
-      console.error("Registration underpayment detected:", { user_id: user.id, capturedAmount, registrationAmount });
-      return new Response(JSON.stringify({ error: "Paid amount does not match the registration fee" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Check if already paid — self-heal the account status so paid users are auto-enabled
-    if (profile?.registration_fee_paid && profile.registration_fee_paid > 0) {
-      if (isFounder && (profile.founder_status !== "active" || profile.user_level !== "founder")) {
-        await supabase
-          .from("profiles")
-          .update({ founder_status: "active", user_level: "founder", is_designated_founder: true })
-          .eq("id", user.id);
-      }
-
-      return new Response(JSON.stringify({ success: true, already_paid: true, wallet_credit: walletCredit, registration_amount: registrationAmount }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-
-    // Founders must be approved by a Super Admin before paying
-    if (isFounder && profile?.founder_status !== "approved_pending_payment" && profile?.founder_status !== "active") {
-      return new Response(
-        JSON.stringify({ error: "Your founding member application is pending Super Admin approval." }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Pin the MLM settings version active at registration time (never re-tag)
-    let versionId: string | null = profile?.mlm_settings_version_id ?? null;
-    if (!versionId) {
-      const { data: latestVersion } = await supabase
-        .from("mlm_settings_versions")
-        .select("id")
-        .order("effective_from", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      versionId = latestVersion?.id ?? null;
-    }
-
-    // Update profile with registration fee paid
-    const profileUpdate: Record<string, unknown> = { registration_fee_paid: registrationAmount };
-    if (versionId) profileUpdate.mlm_settings_version_id = versionId;
-    if (isFounder) {
-      profileUpdate.founder_status = "active";
-      profileUpdate.user_level = "founder";
-      profileUpdate.is_designated_founder = true;
-    }
-
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .update(profileUpdate)
-      .eq("id", user.id);
-
-    if (profileError) {
-      console.error("Profile update error:", profileError);
-      return new Response(JSON.stringify({ error: "Failed to update profile" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Log the founder registration payment for Super Admin
-    if (isFounder) {
-      const { error: logError } = await supabase.from("founder_payment_logs").insert({
-        user_id: user.id,
-        amount: registrationAmount,
-        payment_id: razorpay_payment_id,
-        status: "success",
-        notes: "Founding member registration fee",
-      });
-      if (logError) console.error("Founder payment log error:", logError);
-    }
-
-    // Ensure wallet exists
-    await supabase.from("wallets").upsert(
-      { user_id: user.id, balance: 0, purchase_only_balance: 0, withdrawable_balance: 0 },
-      { onConflict: "user_id" }
+    const result = await completeRegistration(
+      supabase,
+      user.id,
+      razorpay_payment_id,
+      capturedAmount,
+      typeof referral_code === "string" ? referral_code : null
     );
 
-    // Credit wallet with welcome bonus (increment, never overwrite existing balances)
-    const { data: existingWallet } = await supabase
-      .from("wallets")
-      .select("id, balance, purchase_only_balance")
-      .eq("user_id", user.id)
-      .single();
-
-    const { error: walletError } = await supabase
-      .from("wallets")
-      .update({
-        balance: Number(existingWallet?.balance || 0) + walletCredit,
-        purchase_only_balance: Number(existingWallet?.purchase_only_balance || 0) + walletCredit,
-      })
-      .eq("user_id", user.id);
-
-    if (walletError) {
-      console.error("Wallet update error:", walletError);
-    }
-
-    // Add wallet transaction record
-    const { data: wallet } = await supabase
-      .from("wallets")
-      .select("id, balance")
-      .eq("user_id", user.id)
-      .single();
-
-    if (wallet) {
-      await supabase.from("wallet_transactions").insert({
-        wallet_id: wallet.id,
-        type: "credit",
-        amount: walletCredit,
-        balance_after: wallet.balance,
-        description: "Registration welcome bonus",
-        is_withdrawable: false,
-      });
-    }
-
-    // Create notification
-    await supabase.from("notifications").insert({
-      user_id: user.id,
-      title: "Registration Complete!",
-      message: `Welcome to Ela Bazar! ₹${walletCredit} has been credited to your wallet.`,
-      type: "success",
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
-    // Process MLM referral commissions if user was referred
-    const { data: userProfile } = await supabase
-      .from("profiles")
-      .select("referred_by")
-      .eq("id", user.id)
-      .single();
-
-    // A referral code entered on the payment page is used only when the user
-    // has no referrer yet. Otherwise the existing referrer's code wins.
-    let referralCodeToUse: string | null = null;
-
-    if (userProfile?.referred_by) {
-      const { data: referralData } = await supabase
-        .from("referral_codes")
-        .select("code")
-        .eq("user_id", userProfile.referred_by)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
-      referralCodeToUse = referralData?.code ?? null;
-    } else if (typeof referral_code === "string" && referral_code.trim().length >= 3) {
-      const { data: enteredCode } = await supabase
-        .from("referral_codes")
-        .select("code, user_id")
-        .eq("code", referral_code.trim().toUpperCase())
-        .eq("is_active", true)
-        .maybeSingle();
-      if (enteredCode && enteredCode.user_id !== user.id) {
-        referralCodeToUse = enteredCode.code;
-      }
-    }
-
-    // Walk-in registration: if no invitation was supplied and signup did not
-    // already place the user, distribute them randomly under a founder.
-    if (!referralCodeToUse && !isFounder) {
-      const { data: founderRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "founding_member");
-      const founderIds = (founderRoles || []).map((role) => role.user_id).filter((id) => id !== user.id);
-      if (founderIds.length > 0) {
-        const randomBytes = new Uint32Array(1);
-        crypto.getRandomValues(randomBytes);
-        const founderId = founderIds[randomBytes[0] % founderIds.length];
-        let { data: founderCode } = await supabase
-          .from("referral_codes")
-          .select("code")
-          .eq("user_id", founderId)
-          .eq("is_active", true)
-          .limit(1)
-          .maybeSingle();
-        if (!founderCode) {
-          await supabase.rpc("generate_user_referral_code", { p_user_id: founderId });
-          const result = await supabase
-            .from("referral_codes")
-            .select("code")
-            .eq("user_id", founderId)
-            .eq("is_active", true)
-            .limit(1)
-            .maybeSingle();
-          founderCode = result.data;
-        }
-        referralCodeToUse = founderCode?.code ?? null;
-      }
-    }
-
-    if (referralCodeToUse) {
-      // Call process_mlm_referral which handles:
-      // - Referral bonus to direct referrer
-      // - Multi-level upward commissions (credit_founder_commission)
-      // - Welcome bonus for new user
-      // - Auto-generate referral code for new user
-      const { error: mlmError } = await supabase.rpc("process_mlm_referral", {
-        p_referral_code: referralCodeToUse,
-        p_referred_user_id: user.id,
-        p_registration_fee: registrationAmount,
-      });
-
-      if (mlmError) {
-        console.error("MLM referral processing error:", mlmError);
-      } else {
-        console.log("MLM referral processed successfully for user:", user.id);
-      }
-    } else {
-      // Even without referrer, generate a referral code for the new member
-      const { error: codeError } = await supabase.rpc("generate_user_referral_code", {
-        p_user_id: user.id,
-      });
-      if (codeError) {
-        console.error("Referral code generation error:", codeError);
-      }
-    }
-
-    // Assign member role
-    await supabase.from("user_roles").upsert(
-      { user_id: user.id, role: "member" },
-      { onConflict: "user_id,role" }
-    );
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        wallet_credit: walletCredit,
-        registration_amount: registrationAmount,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (err) {
     console.error("Registration payment error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
