@@ -1,0 +1,11 @@
+-- wallet_transactions.reference_id was declared UUID from the original
+-- schema, but razorpay-verify-payment writes the Razorpay payment id (a
+-- string like "pay_Abc123", never a UUID) into this column for wallet
+-- top-ups. Confirmed directly against the live database: any insert with a
+-- non-UUID reference_id is rejected outright ("invalid input syntax for type
+-- uuid"), so every wallet top-up has been failing at the ledger-insert step
+-- — the customer is charged by Razorpay, verification still reports
+-- success, but the wallet is never credited. reference_id is not a foreign
+-- key to anything, so widening it to text is safe: existing UUID values
+-- (order ids, withdrawal request ids) keep their same text representation.
+ALTER TABLE public.wallet_transactions ALTER COLUMN reference_id TYPE text USING reference_id::text;

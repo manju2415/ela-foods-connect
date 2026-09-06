@@ -32,6 +32,31 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // This loaded and emailed any order id handed to it, with no check that
+    // the caller owned that order — a logged-in customer could request the
+    // confirmation email/order details for someone else's order just by
+    // guessing/enumerating an order id.
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (!token) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+    const callerClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: callerData } = await callerClient.auth.getUser();
+    if (!callerData?.user) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     // Fetch order details
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -41,6 +66,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (orderError || !order) {
       throw new Error("Order not found");
+    }
+
+    if (order.user_id !== callerData.user.id) {
+      const { data: isAdmin } = await supabase.rpc("is_any_admin", { _user_id: callerData.user.id });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ success: false, error: "Not authorized for this order" }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    }
+
+    // Never send the same confirmation twice for one order.
+    if (order.confirmation_email_sent_at) {
+      return new Response(JSON.stringify({ success: true, skipped: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
     }
 
     // Fetch user profile
@@ -60,6 +103,14 @@ const handler = async (req: Request): Promise<Response> => {
       .select("*")
       .eq("order_id", order_id);
 
+    // Names, addresses, and product names are customer-controlled and were
+    // being interpolated into this HTML unescaped — a name or address
+    // containing HTML could inject markup/links into the email.
+    const escapeHtml = (value: unknown): string =>
+      String(value ?? "").replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
+      );
+
     const shippingAddress = order.shipping_address as {
       full_name?: string;
       address_line1?: string;
@@ -74,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       .map(
         (item: { product_name: string; quantity: number; product_price: number; total_price: number }) => `
         <tr>
-          <td style="padding: 12px; border-bottom: 1px solid #eee;">${item.product_name}</td>
+          <td style="padding: 12px; border-bottom: 1px solid #eee;">${escapeHtml(item.product_name)}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">₹${Number(item.product_price).toFixed(2)}</td>
           <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">₹${Number(item.total_price).toFixed(2)}</td>
@@ -99,15 +150,15 @@ const handler = async (req: Request): Promise<Response> => {
         
         <!-- Content -->
         <div style="padding: 30px;">
-          <p style="font-size: 16px; color: #333;">Dear ${profile.full_name || "Customer"},</p>
+          <p style="font-size: 16px; color: #333;">Dear ${escapeHtml(profile.full_name || "Customer")},</p>
           <p style="font-size: 16px; color: #333;">Thank you for your order! We're excited to prepare your delicious snacks.</p>
-          
+
           <!-- Order Info -->
           <div style="background-color: #f8f8f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h2 style="margin: 0 0 15px 0; color: #D97706; font-size: 18px;">Order Details</h2>
-            <p style="margin: 5px 0; color: #666;"><strong>Order Number:</strong> ${order.order_number}</p>
+            <p style="margin: 5px 0; color: #666;"><strong>Order Number:</strong> ${escapeHtml(order.order_number)}</p>
             <p style="margin: 5px 0; color: #666;"><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
-            <p style="margin: 5px 0; color: #666;"><strong>Payment Method:</strong> Cash on Delivery</p>
+            <p style="margin: 5px 0; color: #666;"><strong>Payment Method:</strong> ${Number(order.wallet_amount_used) > 0 && Number(order.total_amount) <= 0 ? "Wallet" : "Online"}</p>
           </div>
           
           <!-- Items Table -->
@@ -139,10 +190,10 @@ const handler = async (req: Request): Promise<Response> => {
           <div style="background-color: #f8f8f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin: 0 0 10px 0; color: #333;">Shipping Address</h3>
             <p style="margin: 0; color: #666;">
-              ${shippingAddress?.full_name || ""}<br>
-              ${shippingAddress?.address_line1 || ""}<br>
-              ${shippingAddress?.city || ""}, ${shippingAddress?.state || ""} - ${shippingAddress?.postal_code || ""}<br>
-              Phone: ${shippingAddress?.phone || ""}
+              ${escapeHtml(shippingAddress?.full_name)}<br>
+              ${escapeHtml(shippingAddress?.address_line1)}<br>
+              ${escapeHtml(shippingAddress?.city)}, ${escapeHtml(shippingAddress?.state)} - ${escapeHtml(shippingAddress?.postal_code)}<br>
+              Phone: ${escapeHtml(shippingAddress?.phone)}
             </p>
           </div>
           
@@ -172,7 +223,27 @@ const handler = async (req: Request): Promise<Response> => {
       html: emailHtml,
     });
 
+    // The Resend SDK does not throw on a provider-side rejection (e.g. an
+    // invalid API key) — it returns { error } in the response body, which
+    // was previously logged and returned as "sent successfully" regardless.
+    if (emailResponse.error) {
+      console.error("[send-order-confirmation] Resend rejected the email:", emailResponse.error);
+      return new Response(
+        JSON.stringify({ success: false, error: emailResponse.error.message || "Email provider rejected the request", provider: emailResponse.error }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     console.log("Email sent successfully:", emailResponse);
+
+    // Best-effort: the email is already sent at this point, so a failure to
+    // record that (e.g. this migration hasn't been applied yet) must not
+    // turn a successful send into a reported failure.
+    try {
+      await supabase.from("orders").update({ confirmation_email_sent_at: new Date().toISOString() }).eq("id", order_id);
+    } catch (markErr) {
+      console.error("[send-order-confirmation] Failed to record confirmation_email_sent_at:", markErr);
+    }
 
     return new Response(JSON.stringify({ success: true, data: emailResponse }), {
       status: 200,

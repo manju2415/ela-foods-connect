@@ -55,6 +55,28 @@ export default function HomepageProductSections() {
     },
   });
 
+  const sectionsHaveProducts = sections.some((s) => s.products.length > 0);
+
+  // If every enabled section resolves empty (or none are enabled), still
+  // show something rather than leaving the homepage looking broken.
+  const { data: fallbackProducts = [] } = useQuery({
+    queryKey: ["homepage-fallback-products"],
+    staleTime: 5 * 60 * 1000,
+    enabled: !isLoading && !sectionsHaveProducts,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          "id, name, slug, price, compare_at_price, member_price, images, is_featured, is_fast_selling, sales_count, stock_quantity, unit_type, unit_value, created_at",
+        )
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(8);
+      if (error) throw error;
+      return (data ?? []) as unknown as HomepageProduct[];
+    },
+  });
+
   if (isLoading) {
     return (
       <section className="bg-background py-12 sm:py-16 md:py-20">
@@ -63,6 +85,51 @@ export default function HomepageProductSections() {
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
               <Skeleton key={index} className="aspect-[3/4] w-full rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (!sectionsHaveProducts && fallbackProducts.length > 0) {
+    return (
+      <section className="bg-background py-12 sm:py-16 md:py-20">
+        <div className="container mx-auto px-4">
+          <div className="mb-7 flex items-end justify-between gap-4 sm:mb-10">
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-foreground sm:text-3xl md:text-4xl">
+                Our Products
+              </h2>
+              <p className="mt-2 max-w-xl text-sm text-muted-foreground sm:text-base">
+                Take a look at what we have in store.
+              </p>
+            </div>
+            <Link
+              to="/products"
+              className="hidden shrink-0 items-center gap-1 font-semibold text-primary hover:text-primary/80 sm:flex"
+            >
+              View all <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {fallbackProducts.map((product, productIndex) => (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                slug={product.slug}
+                price={Number(product.price)}
+                memberPrice={product.member_price == null ? null : Number(product.member_price)}
+                originalPrice={product.compare_at_price == null ? undefined : Number(product.compare_at_price)}
+                image={product.images?.[0] || "/placeholder.svg"}
+                category="General"
+                isFastSelling={product.is_fast_selling}
+                stockQuantity={product.stock_quantity}
+                unitType={product.unit_type}
+                unitValue={product.unit_value}
+                imagePriority={productIndex < 2}
+              />
             ))}
           </div>
         </div>

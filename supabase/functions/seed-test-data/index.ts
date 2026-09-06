@@ -63,12 +63,44 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // This (re)creates accounts with super_admin/admin roles, so it must
+    // never be callable by an arbitrary caller — this endpoint previously had
+    // no authorization check at all, and its config disables Supabase's own
+    // JWT verification, so this check is the only gate.
+    const authHeader = req.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '').trim();
+    if (!token) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const callerClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: `Bearer ${token}` } } },
+    );
+    const { data: callerData } = await callerClient.auth.getUser();
+    if (!callerData?.user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { data: isAdmin } = await supabaseAdmin.rpc('is_any_admin', { _user_id: callerData.user.id });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: 'Admin access required' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const results: { phone: string; email: string; roles: string[]; status: string; referralCode?: string }[] = [];
 
     for (const testUser of TEST_USERS) {
       // Match the mock auth email format used by AuthContext
       const mockEmail = `91${testUser.phone}@elabazar.local`;
-      const tempPassword = `elabazar_91${testUser.phone}_temp_2026`;
+      // Random — the OTP bypass for these numbers lives entirely in
+      // verify-otp-login's TEST_PHONES/TEST_OTP check and never touches this
+      // password; it only needs to be unguessable, not memorable.
+      const tempPassword = crypto.randomUUID() + crypto.randomUUID();
 
       // Check if user already exists by email
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();

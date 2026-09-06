@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,18 +66,27 @@ serve(async (req) => {
     console.log('[msg91-send-otp] Template ID (sanitized):', templateId);
     console.log('[msg91-send-otp] Request body:', JSON.stringify(requestBody));
 
-    const response = await fetch('https://control.msg91.com/api/v5/otp', {
-      method: 'POST',
-      headers: {
-        'authkey': authKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    const responseText = await response.text();
-    console.log('[msg91-send-otp] HTTP Status:', response.status);
-    console.log('[msg91-send-otp] Response:', responseText);
+    let supabaseLogger: ReturnType<typeof createClient> | null = null;
+    try {
+      supabaseLogger = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+    } catch {
+      // Logging is best-effort; never let it block sending the OTP.
+    }
+    const logAttempt = async (outcome: string, providerRequestId?: string, error?: string) => {
+      try {
+        await supabaseLogger?.from('otp_send_log').insert({
+          phone: mobile,
+          outcome,
+          provider_request_id: providerRequestId ?? null,
+          error: error ?? null,
+        });
+      } catch (logErr) {
+        console.error('[msg91-send-otp] Failed to write otp_send_log:', logErr);
+      }
+    };
 
     interface Msg91Response {
       type?: string;
@@ -84,11 +94,46 @@ serve(async (req) => {
       request_id?: string;
     }
 
+    // Intermittent network/server errors happen occasionally before MSG91 is
+    // even reached — retry once, immediately, rather than failing the whole
+    // login flow on a single hiccup.
+    let response: Response | null = null;
+    let fetchError: unknown = null;
+    for (let attempt = 0; attempt < 2 && !response; attempt++) {
+      try {
+        response = await fetch('https://control.msg91.com/api/v5/otp', {
+          method: 'POST',
+          headers: {
+            'authkey': authKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      } catch (err) {
+        fetchError = err;
+        console.error(`[msg91-send-otp] Fetch attempt ${attempt + 1} failed:`, err);
+      }
+    }
+
+    if (!response) {
+      const message = fetchError instanceof Error ? fetchError.message : 'Could not reach SMS provider';
+      await logAttempt('internal_error', undefined, message);
+      return new Response(
+        JSON.stringify({ success: false, error: message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const responseText = await response.text();
+    console.log('[msg91-send-otp] HTTP Status:', response.status);
+    console.log('[msg91-send-otp] Response:', responseText);
+
     let data: Msg91Response = {};
     try {
       data = JSON.parse(responseText);
     } catch {
       console.error('[msg91-send-otp] Failed to parse response:', responseText);
+      await logAttempt('invalid_response', undefined, responseText.slice(0, 500));
       return new Response(
         JSON.stringify({
           success: false,
@@ -106,6 +151,7 @@ serve(async (req) => {
       data.message === 'OTP sent successfully';
 
     if (isSuccess) {
+      await logAttempt('success', data.request_id);
       return new Response(
         JSON.stringify({
           success: true,
@@ -119,6 +165,7 @@ serve(async (req) => {
       );
     }
 
+    await logAttempt('provider_error', data.request_id, data.message || data.type || 'Failed to send OTP');
     return new Response(
       JSON.stringify({
         success: false,

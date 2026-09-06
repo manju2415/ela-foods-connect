@@ -73,7 +73,12 @@ Deno.serve(async (req) => {
     // Use the same email/password pattern as the login flow (createSessionForPhone)
     const cleanPhone = phone.replace(/\+/g, '');
     const mockEmail = `${cleanPhone}@elabazar.local`;
-    const tempPassword = `elabazar_${cleanPhone}_temp_2026`;
+    // Random — verify-otp-login is the only place a session is minted for
+    // phone login and rotates this again before signing in, so it only needs
+    // to be unguessable. A fixed phone-derived formula let anyone who knew a
+    // delivery partner's phone number sign in directly against Supabase's
+    // auth API before that partner's first OTP login.
+    const tempPassword = crypto.randomUUID() + crypto.randomUUID();
 
     // Create user with email/password matching the OTP login flow
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({

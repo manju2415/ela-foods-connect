@@ -616,6 +616,24 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -844,6 +862,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          admin_deleted_at: string | null
           cod_amount: number | null
           cod_collected: boolean | null
           cod_collected_at: string | null
@@ -874,6 +893,7 @@ export type Database = {
           wallet_amount_used: number | null
         }
         Insert: {
+          admin_deleted_at?: string | null
           cod_amount?: number | null
           cod_collected?: boolean | null
           cod_collected_at?: string | null
@@ -904,6 +924,7 @@ export type Database = {
           wallet_amount_used?: number | null
         }
         Update: {
+          admin_deleted_at?: string | null
           cod_amount?: number | null
           cod_collected?: boolean | null
           cod_collected_at?: string | null
@@ -2025,6 +2046,24 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_order: {
+        Args: { p_order_id: string }
+        Returns: boolean
+      }
+      adjust_store_inventory_delta: {
+        Args: { p_delta: number; p_product_id: string; p_store_id: string }
+        Returns: number
+      }
+      notify_admins: {
+        Args: {
+          p_message: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_title: string
+          p_type?: string
+        }
+        Returns: undefined
+      }
       add_wallet_transaction: {
         Args: {
           p_amount: number

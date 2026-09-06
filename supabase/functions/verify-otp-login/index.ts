@@ -88,10 +88,47 @@ Deno.serve(async (req) => {
     const cleanPhone = phone.replace(/\+/g, "");
     const mockEmail = `${cleanPhone}@elabazar.local`;
 
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    let { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: mockEmail,
     });
+
+    if (linkError || !linkData?.user) {
+      // The account may exist but not under the deterministic phone email —
+      // e.g. it was created during guest checkout with a random guest_*
+      // address. Find it by phone on `profiles` and re-point it, the same
+      // repair link-phone-login performs, folded in here so there is one
+      // code path instead of a second function callers can forget to call.
+      const last10 = cleanPhone.replace(/\D/g, "").slice(-10);
+      if (last10.length === 10) {
+        const { data: profile } = await admin
+          .from("profiles")
+          .select("id, phone")
+          .or(`phone.eq.+91${last10},phone.eq.91${last10},phone.eq.${last10}`)
+          .limit(1)
+          .maybeSingle();
+
+        if (profile) {
+          const { data: userRes } = await admin.auth.admin.getUserById(profile.id);
+          if (userRes?.user && userRes.user.email !== mockEmail) {
+            const { error: repairError } = await admin.auth.admin.updateUserById(profile.id, {
+              email: mockEmail,
+              email_confirm: true,
+            });
+            if (!repairError) {
+              await admin.from("profiles").update({ email: mockEmail, phone: `+91${last10}` }).eq("id", profile.id);
+              ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+                type: "magiclink",
+                email: mockEmail,
+              }));
+            } else {
+              console.error("[verify-otp-login] guest-account repair failed:", repairError);
+            }
+          }
+        }
+      }
+    }
+
     if (linkError || !linkData?.user) {
       return json(404, { success: false, error: "Account not found. Please contact admin to be added." });
     }
