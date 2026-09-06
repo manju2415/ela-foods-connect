@@ -32,6 +32,17 @@ interface PaymentAttempt {
   created_at: string;
 }
 
+interface IncompleteRegistration {
+  id: string;
+  payment_id: string;
+  user_id: string;
+  amount: number;
+  created_at: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  customer_email: string | null;
+}
+
 export default function PaymentRecovery() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -51,6 +62,39 @@ export default function PaymentRecovery() {
     },
     refetchInterval: 60000,
   });
+
+  const { data: incompleteRegistrations = [], isLoading: loadingRegs } = useQuery({
+    queryKey: ["incomplete-registrations"],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("reconcile-payment-attempt", {
+        body: { action: "list_incomplete_registrations" },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Failed");
+      return (data?.incomplete || []) as IncompleteRegistration[];
+    },
+    refetchInterval: 120000,
+  });
+
+  const completeRegistration = async (row: IncompleteRegistration) => {
+    setBusyId(row.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-payment-attempt", {
+        body: { attempt_id: row.id, action: "complete_registration" },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Failed");
+      toast({
+        title: "Registration completed",
+        description: `Welcome credit of ₹${Number(data?.wallet_credit || 0)} and referral payouts applied.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["incomplete-registrations"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed";
+      toast({ title: "Could not complete", description: message, variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
 
   const pending = attempts.filter((a) => a.status === "pending");
 
