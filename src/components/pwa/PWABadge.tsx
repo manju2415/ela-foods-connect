@@ -25,16 +25,50 @@ const SENSITIVE_PATH_PREFIXES = ["/checkout", "/guest-checkout", "/registration-
 const isOnSensitivePage = () =>
   SENSITIVE_PATH_PREFIXES.some((p) => window.location.pathname.startsWith(p));
 
+// How often to ask the browser to check for a new service worker while the
+// tab is open. Without this, the check only happens on the browser's own
+// schedule (mainly full navigations), which in an SPA can mean a returning
+// visitor who never does a hard reload stays on a stale cached build
+// indefinitely — this is what left real customers unable to log in after a
+// deploy, since their cached bundle was calling an auth path that no longer
+// matched the backend.
+const UPDATE_CHECK_INTERVAL_MS = 60_000;
+
 export function PWABadge() {
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     offlineReady: [offlineReady, setOfflineReady],
     updateServiceWorker,
   } = useRegisterSW({
+    onRegisteredSW(_swUrl, registration) {
+      registrationRef.current = registration ?? null;
+    },
     onRegisterError(error) {
       console.error("[pwa] service worker registration error:", error);
     },
   });
+
+  useEffect(() => {
+    const checkForUpdate = () => {
+      if (document.visibilityState === "visible") {
+        registrationRef.current?.update().catch(() => {
+          // Best-effort — a failed check just means we try again next tick.
+        });
+      }
+    };
+
+    const intervalId = setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
+    // Also check immediately whenever the tab regains focus, so switching
+    // back to a long-idle tab doesn't wait for the next interval tick.
+    document.addEventListener("visibilitychange", checkForUpdate);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", checkForUpdate);
+    };
+  }, []);
 
   const autoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
