@@ -1,0 +1,125 @@
+[
+  {
+    "name": "public bundle test credentials",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/assets/index-Bm2pZ3Or.js",
+      "containsPrivilegedTestPhones": true,
+      "containsFixedTestOtp": true
+    }
+  },
+  {
+    "name": "public bundle test credentials",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/~flock.js",
+      "containsPrivilegedTestPhones": false,
+      "containsFixedTestOtp": true
+    }
+  },
+  {
+    "name": "public bundle test credentials",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://cdn.razorpay.com/static/cx/razorpay-risk-detection/bundle.js",
+      "containsPrivilegedTestPhones": false,
+      "containsFixedTestOtp": false
+    }
+  },
+  {
+    "name": "public bundle test credentials",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://checkout.razorpay.com/v1/checkout.js",
+      "containsPrivilegedTestPhones": false,
+      "containsFixedTestOtp": true
+    }
+  },
+  {
+    "name": "submitted search",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/products?search=banana",
+      "text": "Our Products\n\nDiscover our wide range of quality products\n\nSearch\nFilters\nActive filters:\nSearch: banana\nClear all\n\nShowing 5 products\n\nBanana Chips\nBest Seller\nGET PRICE\n₹105\n\n175g\n\nMRP: ₹130\nAdd\nBanana\nFRESH ARRIVAL AWAITED\nOut of Stock\nMRP: ₹45Sold Out\nSweet Banana Chips\nFRESH ARRIVAL AWAITED\nOut of Stock\n\n175g\n\nMRP: ₹130Sold Out\nPepper Banana Chips\nGET PRICE\n₹75\n\n150g\n\nMRP: ₹90\nAdd\nMasala Banana Chips\nGET PRICE\n₹85\n\n150g\n\nMRP: ₹90\nAdd"
+    }
+  },
+  {
+    "name": "no search results",
+    "status": "PASS",
+    "detail": "Our Products\n\nDiscover our wide range of quality products\n\nSearch\nFilters\nActive filters:\nSearch: zzzznonexistentqa\nClear all\n🔍\nNo products found\n\nTry adjusting your search or filters\n\nClear Filters"
+  },
+  {
+    "name": "clear search",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/products",
+      "text": "Our Products\n\nDiscover our wide range of quality products\n\nSearch\nFilters\n\nShowing 92 products\n\nCelebration Kit\nNew Arrival\nBest Seller\nGET PRICE\n₹1501\nMRP: ₹1835\nAdd\nToor / Sambar Dhal\nNew Arrival\nBest Seller\nGET PRICE\n₹55\n\n500g\n\nMRP: ₹70\nAdd\nDouble Horse Instant Palada\nBest Seller\nGET PRICE\n₹85\n\n3"
+    }
+  },
+  {
+    "name": "mobile category filter",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/products?category=dairy-products",
+      "text": "Our Products\n\nDiscover our wide range of quality products\n\nSearch\nFilters\nActive filters:\nCategory: Dairy Products\nClear all\n🔍\nNo products found\n\nTry adjusting your search or filters\n\nClear Filters"
+    }
+  },
+  {
+    "name": "guest cart and checkout",
+    "status": "TEST_ERROR",
+    "detail": "locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  \u001b[2m- waiting for getByRole('button', { name: /12 Inch/i }) to be visible\u001b[22m\n"
+  },
+  {
+    "name": "anonymous /mlm-admin",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/mlm-admin",
+      "headings": [
+        "Ela Bazar Network Manager",
+        "Network Admin",
+        "Total Members",
+        "Founders",
+        "Masters",
+        "Associates",
+        "Total Referrals",
+        "Referral Codes",
+        "Total Wallet Balance",
+        "Pending Withdrawals"
+      ],
+      "text": "Toggle Sidebar\nEla Bazar Network Manager\nVisit Site\nLogout\nNetwork Admin\n\nMLM network overview and performance\n\nTotal Members\n0\nFounders\n0\nMasters\n0\nAssociates\n0\nTotal Referrals\n0\nReferral Codes\n91\nTotal Wallet Balance\n₹0.00\nPending Withdrawals\n0"
+    }
+  },
+  {
+    "name": "anonymous /mlm-admin/users",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/mlm-login",
+      "headings": [
+        "Network Manager"
+      ],
+      "text": "Network Manager\n\nSign in with your mobile number\n\nMobile Number\n+91\nSend OTP\nCustomer / Member Login →"
+    }
+  },
+  {
+    "name": "anonymous /mlm-admin/referral-codes",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/mlm-login",
+      "headings": [
+        "Network Manager"
+      ],
+      "text": "Network Manager\n\nSign in with your mobile number\n\nMobile Number\n+91\nSend OTP\nCustomer / Member Login →"
+    }
+  },
+  {
+    "name": "anonymous /mlm-admin/mlm-settings",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/mlm-login",
+      "headings": [
+        "Network Manager"
+      ],
+      "text": "Network Manager\n\nSign in with your mobile number\n\nMobile Number\n+91\nSend OTP\nCustomer / Member Login →"
+    }
+  }
+]

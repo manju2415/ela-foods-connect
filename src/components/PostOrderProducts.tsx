@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "./ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isNewArrival } from "@/utils/isNewArrival";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 
 interface Product {
   id: string;
@@ -47,6 +48,8 @@ const PRODUCT_COLUMNS = `
 export function PostOrderProducts() {
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
+  const allProductIds = sections.flatMap((s) => s.products.map((p) => p.id));
+  const { data: storePickupStockMap } = useStorePickupStockMap(allProductIds);
 
   useEffect(() => {
     let cancelled = false;

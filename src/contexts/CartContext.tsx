@@ -246,13 +246,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     setLoading(false);
   };
 
+  // Store-pickup inventory (store_inventory) is a pool kept separate from a
+  // product's central stock_quantity, and is only checked authoritatively at
+  // checkout (place_order_atomic). This mirrors that check here so the cart's
+  // central-stock guard doesn't block a quantity a pickup store can actually
+  // fulfill — returns the largest stock held by any single store, since a
+  // customer can only collect from one store.
+  const fetchMaxStorePickupStock = async (productId: string): Promise<number> => {
+    const { data } = await supabase
+      .from("store_inventory")
+      .select("stock_quantity")
+      .eq("product_id", productId);
+    return (data || []).reduce((max, row) => Math.max(max, row.stock_quantity ?? 0), 0);
+  };
+
   const addToCart = async (productId: string, quantity = 1, variantId: string | null = null): Promise<boolean> => {
     const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
     const requestedQuantity = (existingItem?.quantity || 0) + quantity;
     const stock = variantId ? existingItem?.variant?.stock_quantity : existingItem?.product.stock_quantity;
     if (stock !== undefined && requestedQuantity > stock) {
-      toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
-      return false;
+      // Central stock alone says no, but store-pickup inventory is tracked as
+      // a separate pool (see admin Store Inventory) and can still cover this
+      // — only block if no single pickup store has enough either. The final
+      // fulfillment-specific check still happens server-side at checkout.
+      const maxStorePickupStock = await fetchMaxStorePickupStock(productId);
+      if (requestedQuantity > maxStorePickupStock) {
+        toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
+        return false;
+      }
     }
     if (user) {
       // Logged in user - use database
@@ -333,8 +354,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     const current = items.find((item) => item.id === itemId);
     const stock = current?.variant?.stock_quantity ?? current?.product.stock_quantity;
     if (stock !== undefined && quantity > stock) {
-      toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
-      return false;
+      const maxStorePickupStock = await fetchMaxStorePickupStock(current!.product_id);
+      if (quantity > maxStorePickupStock) {
+        toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
+        return false;
+      }
     }
 
     if (user) {

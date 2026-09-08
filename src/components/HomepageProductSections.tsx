@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "@/components/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 import {
   Carousel,
   CarouselContent,
@@ -56,6 +57,8 @@ export default function HomepageProductSections() {
   });
 
   const sectionsHaveProducts = sections.some((s) => s.products.length > 0);
+  const allProductIds = sections.flatMap((s) => s.products.map((p) => p.id));
+  const { data: storePickupStockMap } = useStorePickupStockMap(allProductIds);
 
   // If every enabled section resolves empty (or none are enabled), still
   // show something rather than leaving the homepage looking broken.
@@ -76,6 +79,7 @@ export default function HomepageProductSections() {
       return (data ?? []) as unknown as HomepageProduct[];
     },
   });
+  const { data: fallbackStorePickupStockMap } = useStorePickupStockMap(fallbackProducts.map((p) => p.id));
 
   if (isLoading) {
     return (
@@ -126,6 +130,7 @@ export default function HomepageProductSections() {
                 category="General"
                 isFastSelling={product.is_fast_selling}
                 stockQuantity={product.stock_quantity}
+                storePickupStock={fallbackStorePickupStockMap?.get(product.id) ?? 0}
                 unitType={product.unit_type}
                 unitValue={product.unit_value}
                 imagePriority={productIndex < 2}
@@ -187,6 +192,7 @@ export default function HomepageProductSections() {
                         isBestSeller={section.sectionKey === "bestSellers"}
                         isFastSelling={product.is_fast_selling}
                         stockQuantity={product.stock_quantity}
+                        storePickupStock={storePickupStockMap?.get(product.id) ?? 0}
                         unitType={product.unit_type}
                         unitValue={product.unit_value}
                         imagePriority={sectionIndex === 0 && productIndex < 2}

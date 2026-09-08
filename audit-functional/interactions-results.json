@@ -1,0 +1,299 @@
+[
+  {
+    "name": "floor wiper live controls",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/product/floor-wiper-",
+      "body": "Home\nProducts\nHouse Hold and Lifestyles\nFloor Wiper\nHouse Hold and Lifestyles\nFloor Wiper\nNew Arrival\nMRP: ₹230.00\nMember Price: ₹190.00\n17% OFF\nBecome a member to save!\n\nFloor wiper\n\nChoose pack size:\n\n16 Inch(10 available)\n12 Inch(10 available)\n1\nAdd to Cart\nBuy Now\n\nOnly 10 left in stock!\n\nDescription\n\nPrecision Design & Excellent Finish, Long Lasting & Flexible TPE Blade,Long handle for convenience\n\nRelated Products\nRoll and Fit Mop Micro Fibre with 4 Ft Rod\nMRP: ₹399.00\nKharata Broom - 60 Cactus Stick\nMRP: ₹140.00\nToilet Cleaner Brush double Hockey- Antibacterial\nMRP: ₹180.00\nSink Cleaning Brush-Antibacterial\nMRP: ₹110.00\nCustomer Testimonials\nCustomer Reviews\nNo reviews yet\n\nBe the first to review this product!\n\nSign in to leave a review\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account",
+      "buttons": [
+        "",
+        "",
+        "Login",
+        "",
+        "16 Inch(10 available)",
+        "12 Inch(10 available)",
+        "",
+        "",
+        "",
+        "Add to Cart",
+        "Buy Now"
+      ],
+      "selects": 0
+    }
+  },
+  {
+    "name": "guest cart sheet",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (1)\nBanana Chips\n\n₹130\n\n1\nSubtotal\n₹130.00\nShipping\n₹75.00\nTotal\n₹205.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "guest checkout navigation",
+    "status": "OBSERVED",
+    "detail": "https://elabazar.com/guest-checkout"
+  },
+  {
+    "name": "blank address validation",
+    "status": "PASS",
+    "detail": "Empty fields"
+  },
+  {
+    "name": "invalid email validation",
+    "status": "FAIL",
+    "detail": "Malformed optional email accepted into summary"
+  },
+  {
+    "name": "guest initial totals",
+    "status": "OBSERVED",
+    "detail": "1\nGuest Checkout\n\nSign in for member prices & order tracking!\n\n2\n3\n4\nDelivery Address\nEdit\n\nQA Test Only\n\nQA test address - do not dispatch\n\nBangalore, Karnataka - 560090\n\nPhone: [phone]\n\nItems (1)\n\nBanana Chips\n\n-\n1\n+\n\nMRP: ₹130.00\n\nMember Price: ₹105.00\n\nBecome a member and save ₹25.00 on this cart\n\nMRP total ₹130.00 · Member-price total ₹105.00\n\nGet Membership\nPromo Code\nApply\nSubtotal (MRP)\n₹130.00\nDelivery\n₹75.00\nGrand Total\n₹205.00\nBack\nConfirm & Proceed to Payment\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+  },
+  {
+    "name": "guest quantity increase",
+    "status": "OBSERVED",
+    "detail": "2\nGuest Checkout\n\nSign in for member prices & order tracking!\n\n2\n3\n4\nDelivery Address\nEdit\n\nQA Test Only\n\nQA test address - do not dispatch\n\nBangalore, Karnataka - 560090\n\nPhone: [phone]\n\nItems (1)\n\nBanana Chips\n\n-\n2\n+\n\nMRP: ₹260.00\n\nMember Price: ₹210.00\n\nBecome a member and save ₹50.00 on this cart\n\nMRP total ₹260.00 · Member-price total ₹210.00\n\nGet Membership\nPromo Code\nApply\nSubtotal (MRP)\n₹260.00\nDelivery\n₹75.00\nGrand Total\n₹335.00\nBack\nConfirm & Proceed to Payment\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+  },
+  {
+    "name": "stock cap",
+    "status": "OBSERVED",
+    "detail": "3\nGuest Checkout\n\nSign in for member prices & order tracking!\n\n2\n3\n4\nDelivery Address\nEdit\n\nQA Test Only\n\nQA test address - do not dispatch\n\nBangalore, Karnataka - 560090\n\nPhone: [phone]\n\nItems (1)\n\nBanana Chips\n\n-\n3\n+\n\nMRP: ₹390.00\n\nMember Price: ₹315.00\n\nBecome a member and save ₹75.00 on this cart\n\nMRP total ₹390.00 · Member-price total ₹315.00\n\nGet Membership\nPromo Code\nApply\nSubtotal (MRP)\n₹390.00\nDelivery\n₹75.00\nGrand Total\n₹465.00\nBack\nConfirm & Proceed to Payment\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+  },
+  {
+    "name": "invalid coupon",
+    "status": "PASS",
+    "detail": "Rejected"
+  },
+  {
+    "name": "payment step",
+    "status": "OBSERVED",
+    "detail": "4\nGuest Checkout\n\nSign in for member prices & order tracking!\n\n3\n4\nPayment Options\n\nUPI\n\nGoogle Pay, PhonePe, Paytm\n\nCredit / Debit Card\n\nVisa, Mastercard, RuPay\n\nYou'll be redirected to Razorpay for secure payment. Your order is confirmed only after payment succeeds.\n\nAmount to Pay\n₹520.00\nBack\nPay ₹520.00\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+  },
+  {
+    "name": "remove last guest item",
+    "status": "OBSERVED",
+    "detail": "2\nGuest Checkout\n\nSign in for member prices & order tracking!\n\n2\n3\n4\nDelivery Address\nEdit\n\nQA Test Only\n\nQA test address - do not dispatch\n\nBangalore, Karnataka - 560090\n\nPhone: [phone]\n\nItems (1)\n\nBanana Chips\n\n-\n2\n+\n\nMRP: ₹260.00\n\nMember Price: ₹210.00\n\nBecome a member and save ₹50.00 on this cart\n\nMRP total ₹260.00 · Member-price total ₹210.00\n"
+  },
+  {
+    "name": "store admin login retry",
+    "status": "PASS",
+    "detail": {
+      "url": "https://elabazar.com/admin/products",
+      "headings": [
+        "Ela Bazar Admin",
+        "Products",
+        "All Products (92)"
+      ]
+    }
+  },
+  {
+    "name": "store admin /admin",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/products",
+      "headings": [
+        "Ela Bazar Admin",
+        "Products",
+        "All Products (92)"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/orders",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/orders",
+      "headings": [
+        "Ela Bazar Admin",
+        "Orders",
+        "All Orders (39)"
+      ],
+      "alerts": [],
+      "errors": [
+        "failed",
+        "failed"
+      ],
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/products",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/products",
+      "headings": [
+        "Ela Bazar Admin",
+        "Products",
+        "All Products (92)"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "admin product search",
+    "status": "OBSERVED",
+    "detail": {
+      "rows": 0,
+      "empty": 1
+    }
+  },
+  {
+    "name": "store admin /admin/inventory",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/inventory",
+      "headings": [
+        "Ela Bazar Admin",
+        "Inventory Management",
+        "Total Products",
+        "Low Stock",
+        "Out of Stock",
+        "Product Inventory"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/stores",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/stores",
+      "headings": [
+        "Ela Bazar Admin",
+        "Stores"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/coupons",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/coupons",
+      "headings": [
+        "Ela Bazar Admin",
+        "Coupons",
+        "All Coupons (2)"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/analytics",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/analytics",
+      "headings": [
+        "Ela Bazar Admin",
+        "Analytics",
+        "Total Revenue",
+        "Total Orders",
+        "Total Users",
+        "Avg Order Value",
+        "Revenue Trend",
+        "Order Status Distribution",
+        "Inventory Status"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/return-requests",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/return-requests",
+      "headings": [
+        "Ela Bazar Admin",
+        "Return Requests",
+        "All Requests (0)"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "store admin /admin/founding-members",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/admin/products",
+      "headings": [
+        "Ela Bazar Admin",
+        "Products",
+        "All Products (92)"
+      ],
+      "alerts": [],
+      "errors": null,
+      "overflow": false
+    }
+  },
+  {
+    "name": "customer login retry",
+    "status": "PASS",
+    "detail": {
+      "url": "https://elabazar.com/registration-payment",
+      "headings": [
+        "Complete Your Registration",
+        "Registration Fee",
+        "What you get:"
+      ]
+    }
+  },
+  {
+    "name": "existing customer cart",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (1)\nToor / Sambar Dhal\n\n₹70\n\n1\nSubtotal\n₹70.00\nShipping\n₹75.00\nTotal\n₹145.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "customer checkout via cart",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/checkout",
+      "body": "4\n1\nCheckout\nFulfillment Type\n\nHome Delivery\n\nDelivered to your address\n\nStore Pickup\n\nPick up from a store\n\nDelivery Address\nRegular Customer\nHome\n\nTest adress\n\nDavangere, Karnataka 560016\n\nPhone: [phone]\n\nAdd New Address\nSchedule Delivery\nSelect Delivery Date\nWed\n9\nSep\nThu\n10\nSep\nFri\n11\nSep\nSat\n12\nSep\nSun\n13\nSep\nMon\n14\nSep\nTue\n15\nSep\nSelect Time Slot\nMorning (9 AM - 12 PM)\nAfternoon (12 PM - 3 PM)\nEvening (3 PM - 6 PM)\nNight (6 PM - 9 PM)\n\nScheduled for: Wednesday, September 9, 2026 - Morning (9 AM - 12 PM)\n\nPayment Method\n\nPay Online (Razorpay)\n\nUPI, Credit/Debit Card, Net Banking, Wallets\n\nEmail Address\n\nYour payment receipt will be sent to this email.\n\nPromo Code\nApply\nOrder Summary\n\nToor / Sambar Dhal\n\nQty: 1\n\n₹70.00\n\nSubtotal\n₹70.00\nDelivery\n₹75.00\nTotal\n₹145.00\nPlace Order\n\nBy placing this order, you agree to our Terms & Conditions\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nDairy Products\nFruits & Vegitables\nAtta,Flours & Sooji\nReady to Cook\nChicken,Fish & Egg\nDaily Essentials\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+    }
+  },
+  {
+    "name": "customer checkout refresh",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/products",
+      "body": "4\n1\nOur Products\n\nDiscover our wide range of quality products\n\nSearch\nFilters\n\nShowing 92 products\n\nCelebration Kit\nNew Arrival\nBest Seller\nGET PRICE\n₹1501\nMRP: ₹1835\nAdd\nToor / Sambar Dhal\nNew Arrival\nBest Seller\nGET PRICE\n₹55\n\n500g\n\nMRP: ₹70\nAdd\nDouble Horse Instant Palada\nBest Seller\nGET PRICE\n₹85\n\n300g\n\nMRP: ₹96\nAdd\nPrawns / Chemmen Chutney Powder\nBest Seller\nGET PRICE\n₹80\n\n100g\n\nMRP: ₹90\nAdd\nWheat Puttu Podi\nBest Seller\nGET PRICE\n₹60\n\n500g\n\nMRP: ₹70\nAdd\nPathiri Podi\nBest Seller\nGET PRICE\n₹4"
+    }
+  },
+  {
+    "name": "profile wishlist link",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/registration-payment",
+      "body": "4\n1\nComplete Your Registration\n\nUnlock exclusive member benefits with a one-time registration fee\n\nRegistration Fee\n\nOne-time payment to become an Ela Bazar member\n\nRegistration Fee\n\n₹3999\n\nFEE BREAKDOWN\nWallet Credit (Purchase Only)\n₹3000\nPlatform Fee (Non-refundable)\n₹999\nTotal\n₹3999\nWhat you get:\n\n₹3000 Wallet Credit\n\nUse for your first purchases\n\nMember Pricing\n\nGet products at discounted member prices\n\nReferral Earnings\n\nEarn ₹200+ for each "
+    }
+  },
+  {
+    "name": "profile settings link",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/registration-payment",
+      "body": "4\n1\nComplete Your Registration\n\nUnlock exclusive member benefits with a one-time registration fee\n\nRegistration Fee\n\nOne-time payment to become an Ela Bazar member\n\nRegistration Fee\n\n₹3999\n\nFEE BREAKDOWN\nWallet Credit (Purchase Only)\n₹3000\nPlatform Fee (Non-refundable)\n₹999\nTotal\n₹3999\nWhat you get:\n\n₹3000 Wallet Credit\n\nUse for your first purchases\n\nMember Pricing\n\nGet products at discounted member prices\n\nReferral Earnings\n\nEarn ₹200+ for each "
+    }
+  },
+  {
+    "name": "zero balance withdrawal UI",
+    "status": "OBSERVED",
+    "detail": "1\n\nYour one-stop destination for quality products across categories. Shop from a wide range of products delivered to your doorstep.\n\nQuick Links\nHome\nProducts\nCategories\nAbout Us\nContact\nCategories\nContact Us\nNo 195 And 196, 1st Cross, Singapura Garden, Abbigere, Bangalore Karnataka 560090\n+[phone]\n[email]\n\n© 2026 ELABAZAR. All rights reserved.\n\nReturn Policy\nCancellation Policy\nRefund Policy\nTerms & Conditions\nUser Agreement\nDelete Account"
+  },
+  {
+    "name": "sign out",
+    "status": "PASS",
+    "detail": "https://elabazar.com/auth?redirect=/customer-app"
+  }
+]

@@ -23,6 +23,7 @@ import {
   type GroupableVariant,
 } from "@/lib/variantOptions";
 import { isNewArrival } from "@/utils/isNewArrival";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 
 
 interface Product {
@@ -191,6 +192,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
 
   // Group same-named products so pack variants share one card
   const productGroups = groupProductsByName(products);
+  const { data: storePickupStockMap } = useStorePickupStockMap(products.map((p) => p.id));
 
   useEffect(() => {
     if (restoredRef.current || loading) return;
@@ -432,6 +434,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
                         unitValue={product.unit_value}
                         variantOptions={options.length > 1 ? options : undefined}
                         stockQuantity={product.stock_quantity}
+                        storePickupStock={storePickupStockMap?.get(product.id) ?? 0}
                         isNewArrival={isNewArrival(product.created_at)}
                       />
                     );

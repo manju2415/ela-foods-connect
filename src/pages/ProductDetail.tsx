@@ -26,6 +26,7 @@ import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Z
 import { toast } from "sonner";
 import { buildVariantOptions, type GroupableProduct, type GroupableVariant } from "@/lib/variantOptions";
 import { isNewArrival } from "@/utils/isNewArrival";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 
 
 interface Product {
@@ -188,7 +189,11 @@ export default function ProductDetail() {
     null;
   const activeOption = options.find((o) => o.key === selectedOptionKey) || defaultOption;
   const effectivePrice = activeOption?.price ?? product?.price ?? 0;
-  const effectiveStock = activeOption?.stock ?? product?.stock_quantity ?? 0;
+  const relevantProductIds = product ? [product.id, ...siblings.map((s) => s.id)] : [];
+  const { data: storePickupStockMap } = useStorePickupStockMap(relevantProductIds);
+  const centralStock = activeOption?.stock ?? product?.stock_quantity ?? 0;
+  const storePickupStock = storePickupStockMap?.get(activeOption?.productId ?? product?.id ?? "") ?? 0;
+  const effectiveStock = Math.max(centralStock, storePickupStock);
 
 
   const handleAddToCart = async () => {

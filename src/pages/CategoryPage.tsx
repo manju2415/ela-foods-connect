@@ -8,6 +8,7 @@ import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Home } from "lucide-react";
 import { isNewArrival } from "@/utils/isNewArrival";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -57,6 +58,7 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   const currentSlug = subSlug || slug;
+  const { data: storePickupStockMap } = useStorePickupStockMap(products.map((p) => p.id));
 
   useEffect(() => {
     if (currentSlug) {
@@ -318,6 +320,7 @@ const CategoryPage = () => {
                     gstPercentage={product.gst_percentage}
                     gstInclusive={product.gst_inclusive}
                     stockQuantity={product.stock_quantity}
+                    storePickupStock={storePickupStockMap?.get(product.id) ?? 0}
                     isNewArrival={isNewArrival(product.created_at)}
                   />
                 ))}

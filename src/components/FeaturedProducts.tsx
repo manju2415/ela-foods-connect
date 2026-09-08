@@ -10,6 +10,7 @@ import {
   CarouselPrevious,
 } from "@/components/ui/carousel";
 import { isNewArrival } from "@/utils/isNewArrival";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 
 interface Product {
   id: string;
@@ -88,6 +89,8 @@ const FeaturedProducts = () => {
     fetchProducts();
   }, []);
 
+  const { data: storePickupStockMap } = useStorePickupStockMap(products.map((p) => p.id));
+
 
   return (
     <section className="py-16 md:py-24 bg-background">
@@ -136,6 +139,7 @@ const FeaturedProducts = () => {
                     isBestSeller={product.is_featured}
                     isFastSelling={product.is_fast_selling}
                     stockQuantity={product.stock_quantity}
+                    storePickupStock={storePickupStockMap?.get(product.id) ?? 0}
                     isNewArrival={isNewArrival(product.created_at)}
                     unitType={product.unit_type}
                     unitValue={product.unit_value}

@@ -1,0 +1,68 @@
+[
+  {
+    "name": "initial variant page",
+    "status": "OBSERVED",
+    "detail": {
+      "url": "https://elabazar.com/product/floor-wiper-",
+      "text": "Home\nProducts\nHouse Hold and Lifestyles\nFloor Wiper\nHouse Hold and Lifestyles\nFloor Wiper\nNew Arrival\nMRP: ₹230.00\nMember Price: ₹190.00\n17% OFF\nBecome a member to save!\n\nFloor wiper\n\nChoose pack size:\n\n16 Inch(10 available)\n12 Inch(10 available)\n1\nAdd to Cart\nBuy Now\n\nOnly 10 left in stock!\n\nDescription\n\nPrecision Design & Excellent Finish, Long Lasting & Flexible TPE Blade,Long handle for convenience\n\nRelated Products\nRoll and Fit Mop Micro Fibre with 4 Ft Rod\nMRP: ₹399.00\nKharata Broom - 60 Cactus Stick\nMRP: ₹140.00\nToilet Cleaner Brush double Hockey- Antibacterial\nMRP: ₹180.00\nSink Cleaning Brush-Antibacterial\nMRP: ₹110.00\nCustomer Testimonials\nCustomer Reviews\nNo reviews yet\n\nBe the fir",
+      "buttons": [
+        "",
+        "",
+        "Login",
+        "",
+        "16 Inch(10 available)",
+        "12 Inch(10 available)",
+        "",
+        "",
+        "",
+        "Add to Cart",
+        "Buy Now"
+      ]
+    }
+  },
+  {
+    "name": "12 inch price",
+    "status": "OBSERVED",
+    "detail": "Home\nProducts\nHouse Hold and Lifestyles\nFloor Wiper\nHouse Hold and Lifestyles\nFloor Wiper\nNew Arrival\nMRP: ₹195.00\nMember Price: ₹165.00\n15% OFF\nBecome a member to save!\n\nFloor wiper\n\nChoose pack size:\n\n16 Inch(10 available)\n12 Inch(10 available)\n1\nAdd to Cart\nBuy Now\n\nOnly 10 left in stock!\n\nDescription\n\nPrecision Design & Excellent Finish, Long Lasting & Flexible TPE Blade,Long handle for convenience\n\nRelated Products\nRoll and Fit Mop Micro Fibre with 4 Ft Rod\nMRP: ₹399.00\nKharata Broom - 60 Cactus Stick\nMRP: ₹140.00\nToilet Cleaner Brush doub"
+  },
+  {
+    "name": "two variants cart",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (2)\nFloor Wiper\n\n12 Inch\n\n₹195\n\n1\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹425.00\nShipping\n₹75.00\nTotal\n₹500.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "single increment settled",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (3)\nFloor Wiper\n\n12 Inch\n\n₹195\n\n2\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹620.00\nShipping\nFree\nTotal\n₹620.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "single decrement settled",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (2)\nFloor Wiper\n\n12 Inch\n\n₹195\n\n1\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹425.00\nShipping\n₹75.00\nTotal\n₹500.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "five rapid increments settled",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (4)\nFloor Wiper\n\n12 Inch\n\n₹195\n\n3\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹815.00\nShipping\nFree\nTotal\n₹815.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "stock boundary settled",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (11)\nFloor Wiper\n\n12 Inch\n\n₹195\n\n10\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹2180.00\nShipping\nFree\nTotal\n₹2180.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "stock feedback",
+    "status": "OBSERVED",
+    "detail": "Not enough stock\nOnly 10 available.\nApp is ready to work offline.\n11\nHome\nProducts\nHouse Hold and Lifestyles\nFloor Wiper\nHouse Hold and Lifestyles\nFloor Wiper\nNew Arrival\nMRP: ₹230.00\nMember Price: ₹190.00\n17% OFF\nBecome a member to save!\n\nFloor wiper\n\nChoose pack size:\n\n16 Inch(10 available)\n12 Inch(10 available)\n1\nAdd to Cart\nBuy Now\n\nOnly 10 left in stock!\n\nDescription\n\nPrecision Design & Excel"
+  },
+  {
+    "name": "remove one variant",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (1)\nFloor Wiper\n\n16 Inch\n\n₹230\n\n1\nSubtotal\n₹230.00\nShipping\n₹75.00\nTotal\n₹305.00\nProceed to Checkout\nContinue Shopping\nClose"
+  },
+  {
+    "name": "remove final variant",
+    "status": "OBSERVED",
+    "detail": "Back to Products\nShopping Cart (0)\n\nYour cart is empty\n\nBrowse Products\nClose"
+  }
+]

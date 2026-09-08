@@ -22,6 +22,7 @@ import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
 import { useShippingSettings } from "@/hooks/useShippingSettings";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 import {
   Dialog,
   DialogContent,
@@ -94,6 +95,20 @@ const Checkout = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderPlaced, setOrderPlaced] = useState<{ orderNumber: string; amount: number } | null>(null);
+
+  // Store-pickup stock (store_inventory) is tracked separately from each
+  // product's central stock_quantity, and the product listing/cart now
+  // treats a product as available if either pool has stock — but Home
+  // Delivery can only ever draw from the central pool. Cart items that are
+  // only coverable by a pickup store's stock must not be allowed through on
+  // Home Delivery, or the order would be rejected at the final step.
+  const { data: storePickupStockMap } = useStorePickupStockMap(items.map((item) => item.product_id));
+  const pickupOnlyItems = items.filter((item) => {
+    const centralStock = item.variant?.stock_quantity ?? item.product.stock_quantity ?? 0;
+    if (item.quantity <= centralStock) return false;
+    const pickupStock = storePickupStockMap?.get(item.product_id) ?? 0;
+    return item.quantity <= pickupStock;
+  });
 
 
   const [newAddress, setNewAddress] = useState({
@@ -315,6 +330,14 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
+    if (fulfillmentType === "delivery" && pickupOnlyItems.length > 0) {
+      toast({
+        title: "Store pickup only",
+        description: `${pickupOnlyItems.map((item) => item.product.name).join(", ")} ${pickupOnlyItems.length > 1 ? "are" : "is"} only available for store pickup right now. Switch to Store Pickup to order ${pickupOnlyItems.length > 1 ? "them" : "it"}.`,
+        variant: "destructive",
+      });
+      return;
+    }
     if (fulfillmentType === "delivery" && !selectedAddressId) {
       toast({ title: "Select Address", description: "Please select a delivery address.", variant: "destructive" });
       return;
@@ -532,6 +555,14 @@ const Checkout = () => {
                         ))}
                       </RadioGroup>
                     </div>
+                  )}
+
+                  {fulfillmentType === "delivery" && pickupOnlyItems.length > 0 && (
+                    <p className="mt-4 text-sm text-destructive">
+                      {pickupOnlyItems.map((item) => item.product.name).join(", ")}{" "}
+                      {pickupOnlyItems.length > 1 ? "are" : "is"} only available for store pickup right now —
+                      switch to Store Pickup above to order {pickupOnlyItems.length > 1 ? "them" : "it"}.
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -871,7 +902,12 @@ const Checkout = () => {
                   className="w-full"
                   size="lg"
                   onClick={handlePlaceOrder}
-                  disabled={placing || (fulfillmentType === "delivery" ? !selectedAddressId : !pickupStoreId)}
+                  disabled={
+                    placing ||
+                    (fulfillmentType === "delivery"
+                      ? !selectedAddressId || pickupOnlyItems.length > 0
+                      : !pickupStoreId)
+                  }
                 >
                   {placing ? "Placing Order..." : "Place Order"}
                 </Button>

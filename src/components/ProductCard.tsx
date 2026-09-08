@@ -30,6 +30,8 @@ interface ProductCardProps {
   variantOptions?: VariantOption[];
   /** Stock for a product with no pack options — used to detect out-of-stock when variantOptions isn't provided */
   stockQuantity?: number | null;
+  /** Stock held for this product by the best-stocked pickup store, tracked separately from stockQuantity — treated as an alternate source of availability so a centrally sold-out product a store can still fulfill isn't shown as unavailable */
+  storePickupStock?: number;
   /** "compact" renders a smaller card for dense horizontal-scroll rows */
   variant?: "default" | "compact";
   /** Load the image eagerly instead of lazily — set for cards visible above the fold on first paint */
@@ -52,6 +54,7 @@ const ProductCard = ({
   unitValue,
   variantOptions,
   stockQuantity,
+  storePickupStock = 0,
   variant = "default",
   imagePriority = false,
 }: ProductCardProps) => {
@@ -80,8 +83,8 @@ const ProductCard = ({
 
   const displayPrice = activeOption ? activeOption.price : price;
   const outOfStock = activeOption
-    ? activeOption.stock <= 0
-    : stockQuantity != null && stockQuantity <= 0;
+    ? activeOption.stock <= 0 && storePickupStock <= 0
+    : stockQuantity != null && stockQuantity <= 0 && storePickupStock <= 0;
   // Auto-calculate member price if not set (10% discount)
   const effectiveMemberPrice = activeOption
     ? activeOption.memberPrice ?? Math.round(activeOption.price * 0.9)
