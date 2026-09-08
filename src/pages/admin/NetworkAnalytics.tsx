@@ -43,64 +43,44 @@ const NetworkAnalytics = () => {
   const fetchData = async () => {
     setLoading(true);
 
-    // Fetch profiles for user level stats
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, user_level, referral_count, registration_fee_paid");
+    // Scoped RPCs (SECURITY DEFINER, gated by is_any_admin — covers
+    // mlm_admin as well as admin/super_admin) rather than direct table
+    // reads: profiles/wallets/referrals RLS only grants broad read access
+    // to admin/super_admin, which left this page showing near-zero numbers
+    // for a pure mlm_admin viewing their own Network Analytics page.
+    const [statsRes, topReferrersRes] = await Promise.all([
+      supabase.rpc("get_network_admin_stats"),
+      supabase.rpc("get_top_referrers", { p_limit: 10 }),
+    ]);
 
-    // profiles.user_level can drift out of sync with the actual founder
-    // designation (see migration 20260902010000) — user_roles is the
-    // authoritative source for who the designated founders are, so use it
-    // rather than trusting user_level to say "founder".
-    const { data: founderRoles } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "founding_member");
-    const founderIds = new Set((founderRoles || []).map((r) => r.user_id));
+    const result = statsRes.data as {
+      total_users: number;
+      founders: number;
+      masters: number;
+      associates: number;
+      total_referrals: number;
+      total_wallet_balance: number;
+      total_withdrawable: number;
+      total_purchase_only: number;
+      registration_fees_collected: number;
+    } | null;
 
-    // Fetch wallets for balance stats
-    const { data: wallets } = await supabase
-      .from("wallets")
-      .select("balance, withdrawable_balance, purchase_only_balance");
-
-    // Fetch referrals count
-    const { count: referralCount } = await supabase
-      .from("referrals")
-      .select("id", { count: "exact" });
-
-    // Fetch top referrers
-    const { data: topReferrersData } = await supabase
-      .from("profiles")
-      .select("id, full_name, email, referral_count, user_level")
-      .gt("referral_count", 0)
-      .order("referral_count", { ascending: false })
-      .limit(10);
-
-    if (profiles && wallets) {
-      const founders = profiles.filter(p => founderIds.has(p.id)).length;
-      const masters = profiles.filter(p => !founderIds.has(p.id) && p.user_level === "master").length;
-      const associates = profiles.filter(p => !founderIds.has(p.id) && p.user_level === "associate").length;
-      const registrationFees = profiles.reduce((sum, p) => sum + (Number(p.registration_fee_paid) || 0), 0);
-
-      const totalBalance = wallets.reduce((sum, w) => sum + (Number(w.balance) || 0), 0);
-      const totalWithdrawable = wallets.reduce((sum, w) => sum + (Number(w.withdrawable_balance) || 0), 0);
-      const totalPurchaseOnly = wallets.reduce((sum, w) => sum + (Number(w.purchase_only_balance) || 0), 0);
-
+    if (!statsRes.error && result && !("error" in result)) {
       setStats({
-        totalUsers: profiles.length,
-        founders,
-        masters,
-        associates,
-        totalReferrals: referralCount || 0,
-        totalWalletBalance: totalBalance,
-        totalWithdrawable,
-        totalPurchaseOnly,
-        registrationFeesCollected: registrationFees
+        totalUsers: result.total_users,
+        founders: result.founders,
+        masters: result.masters,
+        associates: result.associates,
+        totalReferrals: result.total_referrals,
+        totalWalletBalance: Number(result.total_wallet_balance) || 0,
+        totalWithdrawable: Number(result.total_withdrawable) || 0,
+        totalPurchaseOnly: Number(result.total_purchase_only) || 0,
+        registrationFeesCollected: Number(result.registration_fees_collected) || 0,
       });
     }
 
-    if (topReferrersData) {
-      setTopReferrers(topReferrersData);
+    if (!topReferrersRes.error && topReferrersRes.data) {
+      setTopReferrers(topReferrersRes.data as TopReferrer[]);
     }
 
     setLoading(false);

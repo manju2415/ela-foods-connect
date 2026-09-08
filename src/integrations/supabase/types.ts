@@ -2171,6 +2171,7 @@ export type Database = {
         Returns: string
       }
       get_homepage_product_sections: { Args: never; Returns: Json }
+      get_network_admin_stats: { Args: never; Returns: Json }
       get_network_roots: {
         Args: never
         Returns: {
@@ -2196,6 +2197,16 @@ export type Database = {
       get_user_mlm_setting: {
         Args: { _key: string; _user_id: string }
         Returns: Json
+      }
+      get_top_referrers: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+          full_name: string | null
+          email: string
+          referral_count: number | null
+          user_level: Database["public"]["Enums"]["user_level"] | null
+        }[]
       }
       has_role: {
         Args: {

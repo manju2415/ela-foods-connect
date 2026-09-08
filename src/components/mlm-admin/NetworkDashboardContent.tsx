@@ -28,29 +28,33 @@ export function NetworkDashboardContent() {
 
   useEffect(() => {
     const fetchStats = async () => {
-      const [profilesRes, referralsRes, codesRes, walletsRes, withdrawalsRes] = await Promise.all([
-        supabase.from("profiles").select("user_level"),
-        supabase.from("referrals").select("id", { count: "exact" }),
-        supabase.from("referral_codes").select("id", { count: "exact" }),
-        supabase.from("wallets").select("balance"),
-        supabase.from("withdrawal_requests").select("id", { count: "exact" }).eq("status", "pending"),
-      ]);
+      // Scoped RPC (SECURITY DEFINER, gated by is_any_admin — covers
+      // mlm_admin as well as admin/super_admin) rather than direct table
+      // reads: those are RLS-restricted to admin/super_admin, which left
+      // this dashboard showing near-zero numbers for a pure mlm_admin.
+      const { data, error } = await supabase.rpc("get_network_admin_stats");
+      if (error || !data || (data as { error?: string }).error) return;
 
-      const profiles = profilesRes.data || [];
-      const founders = profiles.filter((profile) => profile.user_level === "founder").length;
-      const masters = profiles.filter((profile) => profile.user_level === "master").length;
-      const associates = profiles.filter((profile) => profile.user_level === "associate").length;
-      const totalBalance = (walletsRes.data || []).reduce((sum, wallet) => sum + (Number(wallet.balance) || 0), 0);
+      const result = data as {
+        total_users: number;
+        founders: number;
+        masters: number;
+        associates: number;
+        total_referrals: number;
+        referral_codes: number;
+        total_wallet_balance: number;
+        pending_withdrawals: number;
+      };
 
       setStats({
-        totalMembers: profiles.length,
-        founders,
-        masters,
-        associates,
-        totalReferrals: referralsRes.count || 0,
-        referralCodes: codesRes.count || 0,
-        totalWalletBalance: totalBalance,
-        pendingWithdrawals: withdrawalsRes.count || 0,
+        totalMembers: result.total_users,
+        founders: result.founders,
+        masters: result.masters,
+        associates: result.associates,
+        totalReferrals: result.total_referrals,
+        referralCodes: result.referral_codes,
+        totalWalletBalance: Number(result.total_wallet_balance) || 0,
+        pendingWithdrawals: result.pending_withdrawals,
       });
     };
 
