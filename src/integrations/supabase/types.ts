@@ -2208,6 +2208,28 @@ export type Database = {
           user_level: Database["public"]["Enums"]["user_level"] | null
         }[]
       }
+      get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
+      get_withdrawal_requests_admin: {
+        Args: never
+        Returns: {
+          id: string
+          user_id: string
+          amount: number
+          status: string
+          bank_name: string | null
+          bank_account_number: string | null
+          bank_ifsc: string | null
+          bank_account_holder: string | null
+          notes: string | null
+          created_at: string
+          processed_at: string | null
+          paid_at: string | null
+          payment_reference: string | null
+          payment_method: string | null
+          profile_email: string | null
+          profile_full_name: string | null
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

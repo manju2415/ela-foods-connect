@@ -75,61 +75,28 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
 
   const fetchUserData = async () => {
     if (!userId) return;
-    
+
     setLoading(true);
 
-    const [profileRes, walletRes, ordersRes, referralsRes] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-      supabase.from("wallets").select("balance, withdrawable_balance, purchase_only_balance").eq("user_id", userId).maybeSingle(),
-      supabase.from("orders").select("id, order_number, status, total_amount, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(10),
-      supabase.from("referrals").select("id, created_at, referred_id").eq("referrer_id", userId).order("created_at", { ascending: false }).limit(20)
-    ]);
+    // Scoped RPC (SECURITY DEFINER, gated by is_any_admin — covers
+    // mlm_admin as well as admin/super_admin) rather than direct table
+    // reads: those are RLS-restricted to admin/super_admin, which left
+    // this viewer showing "User not found" for a pure mlm_admin.
+    const { data, error } = await supabase.rpc("get_user_dashboard_details", { p_user_id: userId });
 
-    if (profileRes.data) {
-      setProfile(profileRes.data);
-      
-      // Fetch referrer name if exists
-      if (profileRes.data.referred_by) {
-        const { data: referrer } = await supabase
-          .from("profiles")
-          .select("full_name, email")
-          .eq("id", profileRes.data.referred_by)
-          .maybeSingle();
-        
-        if (referrer) {
-          setReferrerName(referrer.full_name || referrer.email);
-        }
-      }
-    }
-
-    if (walletRes.data) {
-      setWallet(walletRes.data);
-    }
-
-    if (ordersRes.data) {
-      setOrders(ordersRes.data);
-    }
-
-    // Fetch referred users' profiles
-    if (referralsRes.data && referralsRes.data.length > 0) {
-      const referredIds = referralsRes.data.map(r => r.referred_id);
-      const { data: referredProfiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, user_level")
-        .in("id", referredIds);
-      
-      const referralsWithProfiles = referralsRes.data.map(r => ({
-        ...r,
-        referred_profile: referredProfiles?.find(p => p.id === r.referred_id) || {
-          full_name: null,
-          email: "Unknown",
-          user_level: "associate"
-        }
-      }));
-      
-      setReferrals(referralsWithProfiles);
-    } else {
-      setReferrals([]);
+    if (!error && data && !("error" in (data as object))) {
+      const result = data as unknown as {
+        profile: UserProfile | null;
+        wallet: UserWallet | null;
+        orders: UserOrder[];
+        referrals: Referral[];
+        referrer_name: string | null;
+      };
+      setProfile(result.profile);
+      setWallet(result.wallet);
+      setOrders(result.orders || []);
+      setReferrals(result.referrals || []);
+      setReferrerName(result.referrer_name);
     }
 
     setLoading(false);

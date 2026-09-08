@@ -71,20 +71,18 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
   // Whole-network level breakdown (matches the Overview tab) — deliberately
   // NOT scoped to root users, since a founder/master can have an upline
   // referrer and still not be a "root" node in get_network_roots().
+  // Uses the same scoped RPC as the Network Admin/Analytics dashboards
+  // (SECURITY DEFINER, gated by is_any_admin) rather than direct profiles/
+  // user_roles reads — those are RLS-restricted to admin/super_admin, which
+  // left this breakdown empty for a pure mlm_admin viewer.
   const fetchLevelCounts = async () => {
-    const [{ data: profiles }, { data: founderRoles }] = await Promise.all([
-      supabase.from("profiles").select("id, user_level"),
-      supabase.from("user_roles").select("user_id").eq("role", "founding_member"),
-    ]);
-    if (!profiles) return;
-
-    // user_roles is the authoritative source for founder designation —
-    // profiles.user_level can drift out of sync with it.
-    const founderIds = new Set((founderRoles || []).map((r) => r.user_id));
+    const { data, error } = await supabase.rpc("get_network_admin_stats");
+    if (error || !data || (data as { error?: string }).error) return;
+    const result = data as { founders: number; masters: number; associates: number };
     setLevelCounts({
-      founders: profiles.filter((p) => founderIds.has(p.id)).length,
-      masters: profiles.filter((p) => !founderIds.has(p.id) && p.user_level === "master").length,
-      associates: profiles.filter((p) => !founderIds.has(p.id) && p.user_level === "associate").length,
+      founders: result.founders,
+      masters: result.masters,
+      associates: result.associates,
     });
   };
 

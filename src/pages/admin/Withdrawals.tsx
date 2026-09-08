@@ -66,28 +66,22 @@ const AdminWithdrawals = () => {
 
   const fetchRequests = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("withdrawal_requests")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // Scoped RPC (SECURITY DEFINER, gated by is_any_admin — covers
+    // mlm_admin as well as admin/super_admin) rather than direct table
+    // reads: withdrawal_requests/profiles RLS only grants broad read access
+    // to admin/super_admin, which left this list empty for a pure
+    // mlm_admin. The approve/reject action itself already goes through
+    // process_withdrawal, which was already is_any_admin()-gated.
+    const { data, error } = await supabase.rpc("get_withdrawal_requests_admin");
 
     if (data) {
-      // Fetch user profiles
-      const userIds = [...new Set(data.map(r => r.user_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email, full_name")
-        .in("id", userIds);
-
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
-      const enrichedRequests = data.map(r => ({
+      const enrichedRequests = data.map((r) => ({
         ...r,
-        profile: profileMap.get(r.user_id)
+        profile: { email: r.profile_email, full_name: r.profile_full_name },
       }));
-      
+
       setRequests(enrichedRequests);
-      
+
       // Calculate stats
       const pending = data.filter(r => r.status === "pending").length;
       const approved = data.filter(r => ["approved", "processing"].includes(r.status)).length;
