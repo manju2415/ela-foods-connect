@@ -124,12 +124,17 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   // Only send real customer emails to Razorpay (never internal placeholders)
   const customerEmail = realEmailOrEmpty(options.prefill?.email);
 
-  // Step 1: Create Razorpay order via edge function
+  // Step 1: Create Razorpay order via edge function — also records a
+  // "payment started" row server-side, before the customer sees the payment
+  // sheet, so the payment is never untraceable even if they never come back.
   const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
     body: {
       amount: options.amount,
       receipt: options.receipt || `rcpt_${Date.now()}`,
       notes: { ...(options.notes || {}), ...(customerEmail ? { email: customerEmail } : {}) },
+      purpose: options.purpose,
+      orderId: options.orderId,
+      attemptContext: options.attemptContext,
     },
   });
 

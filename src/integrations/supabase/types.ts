@@ -1021,7 +1021,7 @@ export type Database = {
           items: Json
           notes: string | null
           order_id: string | null
-          payment_id: string
+          payment_id: string | null
           purpose: string
           razorpay_order_id: string | null
           status: string
@@ -1041,7 +1041,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_id?: string | null
-          payment_id: string
+          payment_id?: string | null
           purpose?: string
           razorpay_order_id?: string | null
           status?: string
@@ -1061,7 +1061,7 @@ export type Database = {
           items?: Json
           notes?: string | null
           order_id?: string | null
-          payment_id?: string
+          payment_id?: string | null
           purpose?: string
           razorpay_order_id?: string | null
           status?: string

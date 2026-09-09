@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { completeRegistration } from "../_shared/completeRegistration.ts";
+import { settlePayment } from "../_shared/settlePayment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,127 +85,20 @@ serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // For an existing order, the actual amount paid must match what the order
-    // really costs (fetched fresh from the DB — never trust the client's `amount`).
-    if (order_id && purpose !== "registration" && purpose !== "wallet_topup") {
-      const { data: orderRow } = await supabase.from("orders").select("total_amount").eq("id", order_id).maybeSingle();
-      const expectedPaise = Math.round(Number(orderRow?.total_amount ?? 0) * 100);
-      if (!orderRow || capturedAmountPaise < expectedPaise) {
-        console.error("Underpayment detected for order:", { order_id, capturedAmountPaise, expectedPaise });
-        return new Response(JSON.stringify({ verified: false, error: "Paid amount does not match order total" }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
+    const settleResult = await settlePayment(supabase, {
+      razorpayPaymentId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+      capturedAmountPaise,
+      purpose,
+      orderId: order_id ?? null,
+      attempt: attempt ?? null,
+    });
 
-    // The real captured amount (in rupees) — authoritative for wallet credit and
-    // for the record kept below, never the client-claimed `amount`.
-    const capturedAmount = capturedAmountPaise / 100;
-
-    // Record the payment BEFORE any order is created, so a failure further down
-    // the line can never leave a paid customer without a traceable record.
-    const attemptRow = {
-      payment_id: razorpay_payment_id,
-      razorpay_order_id,
-      purpose: purpose || (order_id ? "order" : "unknown"),
-      user_id: attempt?.user_id ?? (purpose === "registration" ? order_id : null),
-      guest_details: attempt?.guest_details ?? null,
-      customer_name: attempt?.customer_name ?? null,
-      customer_phone: attempt?.customer_phone ?? null,
-      customer_email: attempt?.customer_email ?? null,
-      amount: capturedAmount,
-      items: attempt?.items ?? [],
-      coupon_code: attempt?.coupon_code ?? null,
-      discount_amount: Number(attempt?.discount_amount ?? 0),
-      status: purpose === "registration" || purpose === "wallet_topup" || !!order_id ? "converted" : "pending",
-      order_id: purpose === "registration" ? null : order_id ?? null,
-    };
-
-    const { error: attemptErr } = await supabase
-      .from("payment_attempts")
-      .upsert(attemptRow, { onConflict: "payment_id" });
-
-    if (attemptErr) {
-      console.error("Failed to record payment attempt:", attemptErr);
-    }
-
-    if (purpose === "registration" && (attempt?.user_id || order_id)) {
-      // order_id here carries the user_id for registration payments.
-      // Complete the registration server-side so it never depends on the app
-      // regaining control after the payment (native builds pay in a separate
-      // browser tab, which sometimes fails to hand back).
-      const regUserId = attempt?.user_id ?? order_id;
-      try {
-        const regResult = await completeRegistration(supabase, regUserId, razorpay_payment_id, capturedAmount, null);
-        if (!regResult.success) {
-          console.error("Registration completion failed:", regResult.error);
-        }
-      } catch (regErr) {
-        console.error("Registration completion threw:", regErr);
-      }
-    } else if (purpose === "wallet_topup" && attempt?.user_id) {
-
-      const topupAmount = capturedAmount;
-      if (topupAmount > 0) {
-        const { data: walletRow, error: walletFetchErr } = await supabase
-          .from("wallets")
-          .select("id, balance, withdrawable_balance")
-          .eq("user_id", attempt.user_id)
-          .maybeSingle();
-
-        if (walletFetchErr) {
-          console.error("Wallet lookup error:", walletFetchErr);
-        } else if (walletRow) {
-          const newBalance = Number(walletRow.balance || 0) + topupAmount;
-          const newWithdrawable = Number(walletRow.withdrawable_balance || 0) + topupAmount;
-
-          // Insert the ledger row FIRST — a unique constraint on
-          // (reference_id) for type='add_money' rejects a second insert for
-          // the same payment outright, so a retried/duplicate verify call
-          // can never credit the wallet twice. Only proceed to update the
-          // balance if this call actually won that race.
-          const { error: txnErr } = await supabase.from("wallet_transactions").insert({
-            wallet_id: walletRow.id,
-            amount: topupAmount,
-            type: "add_money",
-            description: "Added money to wallet",
-            is_withdrawable: true,
-            reference_id: razorpay_payment_id,
-            balance_after: newBalance,
-          });
-
-          if (txnErr) {
-            if (txnErr.code !== "23505") {
-              console.error("Wallet transaction insert error:", txnErr);
-            }
-            // 23505 = already credited by a concurrent/earlier call — nothing more to do.
-          } else {
-            const { error: walletUpdateErr } = await supabase
-              .from("wallets")
-              .update({
-                balance: newBalance,
-                withdrawable_balance: newWithdrawable,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", walletRow.id);
-
-            if (walletUpdateErr) console.error("Wallet credit error:", walletUpdateErr);
-          }
-        } else {
-          console.error("Wallet top-up: no wallet row for user", attempt.user_id);
-        }
-      }
-    } else if (order_id) {
-      // Update order payment status
-      const { error } = await supabase
-        .from("orders")
-        .update({ payment_status: "completed", is_cod: false })
-        .eq("id", order_id);
-
-      if (error) {
-        console.error("Order update error:", error);
-      }
+    if (!settleResult.success) {
+      return new Response(JSON.stringify({ verified: false, error: settleResult.error || "Could not complete payment" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
 

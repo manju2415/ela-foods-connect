@@ -6,10 +6,11 @@ import { SuperAdminGuard } from "@/components/admin/SuperAdminGuard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertTriangle, PackagePlus, X } from "lucide-react";
+import { Loader2, AlertTriangle, PackagePlus, X, Search } from "lucide-react";
 import { format } from "date-fns";
 
 interface PaymentAttemptItem {
@@ -47,6 +48,8 @@ export default function PaymentRecovery() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [lookupPaymentId, setLookupPaymentId] = useState("");
+  const [lookupBusy, setLookupBusy] = useState(false);
 
   const { data: attempts = [], isLoading } = useQuery({
     queryKey: ["payment-attempts-unmatched"],
@@ -122,6 +125,32 @@ export default function PaymentRecovery() {
     }
   };
 
+  const settleByPaymentId = async () => {
+    const trimmed = lookupPaymentId.trim();
+    if (!trimmed) return;
+    setLookupBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-payment-attempt", {
+        body: { action: "settle_by_payment_id", payment_id: trimmed },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || "Failed");
+      toast({
+        title: data?.already_settled ? "Already settled" : "Payment settled",
+        description: data?.already_settled
+          ? "This payment was already fully processed."
+          : `₹${Number(data?.amount || 0).toFixed(2)} confirmed and completed.`,
+      });
+      setLookupPaymentId("");
+      queryClient.invalidateQueries({ queryKey: ["payment-attempts-unmatched"] });
+      queryClient.invalidateQueries({ queryKey: ["incomplete-registrations"] });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed";
+      toast({ title: "Could not settle payment", description: message, variant: "destructive" });
+    } finally {
+      setLookupBusy(false);
+    }
+  };
+
   const itemCount = (items: unknown) =>
     Array.isArray(items)
       ? (items as PaymentAttemptItem[]).reduce((s: number, i) => s + Number(i.quantity || 0), 0)
@@ -137,6 +166,31 @@ export default function PaymentRecovery() {
               Payments received where the order was never created. Create the order in one click.
             </p>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Look up a Razorpay payment</CardTitle>
+              <CardDescription>
+                Paste a Razorpay payment ID (from the Razorpay dashboard) to see what it was for and complete it —
+                no manual database edits.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="pay_XXXXXXXXXXXXXX"
+                  value={lookupPaymentId}
+                  onChange={(e) => setLookupPaymentId(e.target.value)}
+                  disabled={lookupBusy}
+                  className="font-mono"
+                />
+                <Button onClick={settleByPaymentId} disabled={lookupBusy || !lookupPaymentId.trim()}>
+                  {lookupBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4 mr-1" />}
+                  Settle
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
