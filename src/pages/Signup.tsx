@@ -78,23 +78,11 @@ const sendOtp = async (phone: string) => {
   };
 };
 
-const verifyOtp = async (phone: string, otp: string) => {
-  if (isDemoPhone(phone)) {
-    return otp === DEMO_OTP
-      ? { success: true as const }
-      : { success: false as const, error: "Invalid OTP" };
-  }
-  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", {
-    body: { phone, otp },
-  });
-  if (error || !data?.success) {
-    return {
-      success: false as const,
-      error: data?.error || error?.message || "Invalid OTP",
-    };
-  }
-  return { success: true as const };
-};
+// The code is verified once, server-side, inside verify-otp-login — there is
+// no separate client-side pre-check any more. Checking it twice consumed the
+// code before session creation and made slow devices fail signup.
+
+
 
 export default function Signup() {
   const [step, setStep] = useState<"form" | "otp">("form");
@@ -108,6 +96,9 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  // Real server-side reason for the last failed attempt, kept on screen so the
+  // user can simply tap again with the same code instead of re-requesting one.
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
@@ -203,18 +194,8 @@ export default function Signup() {
   const handleVerify = async () => {
     if (otp.length !== 6) return;
     setSubmitting(true);
+    setLastError(null);
     try {
-      const v = await verifyOtp(phoneNumber, otp);
-      if (!v.success) {
-        toast({
-          title: "Verification failed",
-          description: v.error,
-          variant: "destructive",
-        });
-        setOtp("");
-        return;
-      }
-
       // Create the account server-side (idempotent)
       const { data: created, error: createErr } = await supabase.functions.invoke(
         "signup-create-user",
@@ -229,21 +210,20 @@ export default function Signup() {
       );
 
       if (createErr || !created?.success) {
-        toast({
-          title: "Signup failed",
-          description:
-            created?.error || createErr?.message || "Could not create account.",
-          variant: "destructive",
-        });
+        const msg =
+          created?.error || createErr?.message || "Could not create account.";
+        setLastError(msg);
+        toast({ title: "Signup failed", description: msg, variant: "destructive" });
         return;
       }
 
-      // Sign in — the OTP is re-verified server-side atomically with session creation
+      // Sign in — the OTP is verified server-side atomically with session creation
       const { error } = await createSessionForPhone(phoneNumber, otp);
 
       if (error) {
+        setLastError(error.message);
         toast({
-          title: "Login failed",
+          title: "Sign-in failed",
           description: error.message,
           variant: "destructive",
         });
@@ -262,6 +242,7 @@ export default function Signup() {
     } catch (err) {
       // A network hiccup here must never leave the verify button stuck spinning.
       console.error("[Signup] OTP verification failed unexpectedly:", err);
+      setLastError(err instanceof Error ? err.message : "Network error. Please try again.");
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
@@ -291,13 +272,18 @@ export default function Signup() {
                 </InputOTPGroup>
               </InputOTP>
             </div>
+            {lastError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {lastError}
+              </div>
+            )}
             <Button
               className="w-full"
               disabled={otp.length !== 6 || submitting}
               onClick={handleVerify}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Account
+              {lastError ? "Try again" : "Create Account"}
             </Button>
             <div className="text-center text-sm">
               {cooldown > 0 ? (

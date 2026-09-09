@@ -4,7 +4,7 @@
 // data, and it is rotated to a fresh random value on every call here, so a session can
 // only ever be obtained by actually passing OTP verification (real MSG91 check, or the
 // test-account bypass below for QA phones).
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,57 +30,129 @@ const sanitizeSecret = (raw: string | undefined): string => {
 const json = (status: number, body: Record<string, unknown>) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
+/**
+ * Best-effort platform label for a request. Newer app builds send `platform`
+ * explicitly; older installed builds don't, so we fall back to the User-Agent,
+ * which still distinguishes iPhone from Android reliably enough for triage.
+ */
+const detectPlatform = (req: Request, claimed?: unknown): string => {
+  const ua = req.headers.get("user-agent") || "";
+  let derived = "unknown";
+  if (/iphone|ipad|ipod/i.test(ua)) derived = "ios";
+  else if (/android/i.test(ua)) derived = "android";
+  else if (/mozilla|chrome|safari/i.test(ua)) derived = "web";
+  const claimedStr = typeof claimed === "string" && claimed.trim() ? claimed.trim().slice(0, 40) : "";
+  return claimedStr ? `${claimedStr}/${derived}` : derived;
+};
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  let logClient: SupabaseClient | null = null;
   try {
-    const { phone, otp } = await req.json();
-    if (!phone || typeof phone !== "string" || !otp || typeof otp !== "string") {
-      return json(400, { success: false, error: "Phone and OTP are required" });
+    logClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+  } catch (_) {
+    logClient = null;
+  }
+
+  let loggedPhone = "unknown";
+  let platform = detectPlatform(req);
+
+  /**
+   * Records the outcome of this session attempt so a failure names its own
+   * cause instead of surfacing only the client's catch-all message.
+   * `outcome` carries the branch code, `provider_request_id` the platform,
+   * `error` the detail — no schema change needed.
+   */
+  const logAttempt = async (code: string, detail?: unknown) => {
+    if (!logClient) return;
+    try {
+      const { error: logError } = await logClient.from("otp_send_log").insert({
+        phone: loggedPhone,
+        outcome: `session:${code}`,
+        provider_request_id: platform,
+        error: detail === undefined || detail === null
+          ? null
+          : (typeof detail === "string" ? detail : JSON.stringify(detail)).slice(0, 2000),
+      });
+      if (logError) console.error("[verify-otp-login] log insert error:", JSON.stringify(logError));
+    } catch (e) {
+      console.error("[verify-otp-login] log write failed:", e);
     }
+  };
+
+  try {
+    const body = await req.json();
+    const { phone, otp } = body ?? {};
+    platform = detectPlatform(req, body?.platform);
+    if (!phone || typeof phone !== "string" || !otp || typeof otp !== "string") {
+      await logAttempt("BAD_REQUEST");
+      return json(400, { success: false, code: "BAD_REQUEST", error: "Phone and OTP are required" });
+    }
+    loggedPhone = phone;
 
     // 1. Verify the OTP server-side. This is the only gate — nothing downstream
     // trusts anything the client claims about verification having happened.
     if (isTestPhone(phone)) {
       if (otp !== TEST_OTP) {
-        return json(400, { success: false, error: "Invalid OTP" });
+        await logAttempt("OTP_REJECTED", "test phone: wrong test OTP");
+        return json(400, { success: false, code: "OTP_REJECTED", error: "Invalid OTP" });
       }
     } else {
       const authKey = sanitizeSecret(Deno.env.get("MSG91_AUTH_TOKEN"));
       if (!authKey) {
-        return json(500, { success: false, error: "MSG91 not configured" });
+        await logAttempt("PROVIDER_NOT_CONFIGURED");
+        return json(500, { success: false, code: "PROVIDER_NOT_CONFIGURED", error: "SMS provider is not configured. Please contact support." });
       }
 
       let mobile = phone.replace(/^\+/, "").replace(/\s+/g, "");
       if (mobile.length === 10) mobile = "91" + mobile;
 
       const verifyUrl = `https://control.msg91.com/api/v5/otp/verify?mobile=${mobile}&otp=${otp}`;
-      const response = await fetch(verifyUrl, { method: "GET", headers: { authkey: authKey } });
-      const responseText = await response.text();
+      let responseText = "";
+      try {
+        const response = await fetch(verifyUrl, { method: "GET", headers: { authkey: authKey } });
+        responseText = await response.text();
+      } catch (netErr) {
+        await logAttempt("PROVIDER_UNREACHABLE", netErr instanceof Error ? netErr.message : String(netErr));
+        return json(502, { success: false, code: "PROVIDER_UNREACHABLE", error: "Could not reach the SMS provider. Please try again." });
+      }
 
       let data: { type?: string; message?: string } = {};
       try {
         data = JSON.parse(responseText);
       } catch {
-        return json(502, { success: false, error: "Invalid response from SMS provider" });
+        await logAttempt("PROVIDER_BAD_RESPONSE", responseText);
+        return json(502, { success: false, code: "PROVIDER_BAD_RESPONSE", error: "Invalid response from SMS provider" });
       }
 
       const msg = (data.message || "").toString().toLowerCase();
+      // Installed builds still pre-verify the code before calling us, so a
+      // second check legitimately comes back "already verified" — accept it.
       const alreadyVerified = msg.includes("already verified");
       if (data.type !== "success" && !alreadyVerified) {
-        return json(400, { success: false, error: data.message || data.type || "OTP verification failed" });
+        await logAttempt("OTP_REJECTED", data);
+        return json(400, {
+          success: false,
+          code: "OTP_REJECTED",
+          error: data.message || data.type || "OTP verification failed",
+        });
       }
     }
 
     // 2. Mint a session for the phone's account. The password is rotated to a
     // fresh random value on every login, so it is never guessable and never
     // needs to be shared with — or computed by — the client.
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
     const admin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -123,6 +195,7 @@ Deno.serve(async (req) => {
               }));
             } else {
               console.error("[verify-otp-login] guest-account repair failed:", repairError);
+              await logAttempt("REPAIR_FAILED", repairError.message);
             }
           }
         }
@@ -130,33 +203,57 @@ Deno.serve(async (req) => {
     }
 
     if (linkError || !linkData?.user) {
-      return json(404, { success: false, error: "Account not found. Please contact admin to be added." });
+      await logAttempt("NO_AUTH_USER", linkError?.message || "generateLink returned no user");
+      return json(404, {
+        success: false,
+        code: "NO_AUTH_USER",
+        error: "Account not found. Please contact admin to be added.",
+      });
     }
 
-    const rotatedSecret = crypto.randomUUID() + crypto.randomUUID();
-    const { error: pwError } = await admin.auth.admin.updateUserById(linkData.user.id, { password: rotatedSecret });
-    if (pwError) {
-      console.error("[verify-otp-login] password rotation failed:", pwError);
-      return json(500, { success: false, error: "Could not sign in. Please try again." });
+    const authUserId = linkData.user.id;
+
+    // Rotate + sign in, retried once: a transient failure here previously
+    // surfaced to the user as a permanent "account not found".
+    let lastError: string | null = null;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const rotatedSecret = crypto.randomUUID() + crypto.randomUUID();
+      const { error: pwError } = await admin.auth.admin.updateUserById(authUserId, { password: rotatedSecret });
+      if (pwError) {
+        lastError = `ROTATION_FAILED: ${pwError.message}`;
+        console.error("[verify-otp-login] password rotation failed:", pwError);
+        if (attempt === 1) { await sleep(400); continue; }
+        await logAttempt("ROTATION_FAILED", pwError.message);
+        return json(500, { success: false, code: "ROTATION_FAILED", error: "Could not complete sign-in (security step failed). Please try again." });
+      }
+
+      const anon = createClient(supabaseUrl, anonKey);
+      const { data: signInData, error: signInError } = await anon.auth.signInWithPassword({
+        email: mockEmail,
+        password: rotatedSecret,
+      });
+
+      if (signInError || !signInData.session) {
+        lastError = `SIGNIN_FAILED: ${signInError?.message || "no session returned"}`;
+        console.error("[verify-otp-login] sign-in after rotation failed:", signInError);
+        if (attempt === 1) { await sleep(400); continue; }
+        await logAttempt("SIGNIN_FAILED", lastError);
+        return json(500, { success: false, code: "SIGNIN_FAILED", error: "Could not sign in. Please try again." });
+      }
+
+      await logAttempt(attempt === 1 ? "SUCCESS" : "SUCCESS_AFTER_RETRY", attempt === 1 ? null : lastError);
+      return json(200, {
+        success: true,
+        access_token: signInData.session.access_token,
+        refresh_token: signInData.session.refresh_token,
+      });
     }
 
-    const anon = createClient(supabaseUrl, anonKey);
-    const { data: signInData, error: signInError } = await anon.auth.signInWithPassword({
-      email: mockEmail,
-      password: rotatedSecret,
-    });
-    if (signInError || !signInData.session) {
-      console.error("[verify-otp-login] sign-in after rotation failed:", signInError);
-      return json(500, { success: false, error: "Could not sign in. Please try again." });
-    }
-
-    return json(200, {
-      success: true,
-      access_token: signInData.session.access_token,
-      refresh_token: signInData.session.refresh_token,
-    });
+    await logAttempt("SIGNIN_FAILED", lastError);
+    return json(500, { success: false, code: "SIGNIN_FAILED", error: "Could not sign in. Please try again." });
   } catch (err) {
     console.error("[verify-otp-login] error:", err);
-    return json(500, { success: false, error: err instanceof Error ? err.message : "Internal server error" });
+    await logAttempt("UNEXPECTED", err instanceof Error ? err.message : String(err));
+    return json(500, { success: false, code: "UNEXPECTED", error: err instanceof Error ? err.message : "Internal server error" });
   }
 });
