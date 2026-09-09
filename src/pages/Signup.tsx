@@ -242,6 +242,7 @@ export default function Signup() {
     } catch (err) {
       // A network hiccup here must never leave the verify button stuck spinning.
       console.error("[Signup] OTP verification failed unexpectedly:", err);
+      setLastError(err instanceof Error ? err.message : "Network error. Please try again.");
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
     } finally {
       setSubmitting(false);
