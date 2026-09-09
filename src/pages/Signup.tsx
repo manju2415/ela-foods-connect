@@ -191,6 +191,7 @@ export default function Signup() {
   const handleVerify = async () => {
     if (otp.length !== 6) return;
     setSubmitting(true);
+    setLastError(null);
     try {
       // Create the account server-side (idempotent)
       const { data: created, error: createErr } = await supabase.functions.invoke(
