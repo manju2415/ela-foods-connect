@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   const logAttempt = async (code: string, detail?: unknown) => {
     if (!logClient) return;
     try {
-      await logClient.from("otp_send_log").insert({
+      const { error: logError } = await logClient.from("otp_send_log").insert({
         phone: loggedPhone,
         outcome: `session:${code}`,
         provider_request_id: platform,
