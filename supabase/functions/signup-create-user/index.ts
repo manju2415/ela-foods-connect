@@ -64,12 +64,16 @@ Deno.serve(async (req) => {
       return founder === true ? null : await pickWalkInFounder(userId);
     };
 
-    // Check if user already exists by trying to look them up via profiles
-    const { data: existingProfile } = await supabase
+    // Check if user already exists by looking them up via profiles. Matched on
+    // the last 10 digits — the same rule verify-otp-login uses — so a profile
+    // stored without the +91 prefix is never mistaken for a new signup.
+    const last10 = cleanPhone.replace(/\D/g, "").slice(-10);
+    const { data: existingProfiles } = await supabase
       .from("profiles")
       .select("id, referred_by")
-      .eq("phone", phone.startsWith("+") ? phone : `+${cleanPhone}`)
-      .maybeSingle();
+      .or(`phone.eq.+91${last10},phone.eq.91${last10},phone.eq.${last10}`)
+      .limit(1);
+    const existingProfile = existingProfiles?.[0] ?? null;
 
     if (existingProfile) {
       if (!existingProfile.referred_by && founder !== true) {
