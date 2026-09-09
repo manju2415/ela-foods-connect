@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -386,12 +386,12 @@ const Auth = () => {
         otpCode,
         pendingSignupRef.current || undefined
       );
-      pendingSignupRef.current = null;
-
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
         return;
       }
+
+      pendingSignupRef.current = null;
 
       toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
       await handlePostVerifyRedirect(isNewUser || false);
@@ -536,7 +536,7 @@ const Auth = () => {
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 New to Elabazar?{" "}
-                <a href="/signup" className="text-primary hover:underline">Create an account</a>
+                <Link to={`/signup${location.search}`} className="text-primary hover:underline">Create an account</Link>
               </p>
             </form>
           ) : (
@@ -607,6 +607,10 @@ const Auth = () => {
               type="button"
               className="text-sm font-medium text-primary hover:underline"
               onClick={() => {
+                if (isLogin) {
+                  navigate(`/signup${location.search}`);
+                  return;
+                }
                 setIsLogin(!isLogin);
                 loginForm.reset();
                 signupForm.reset();

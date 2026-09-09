@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useNavigate,
   Link,
@@ -94,6 +94,9 @@ export default function Signup() {
   );
   const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // React's disabled state is rendered asynchronously. Block a second tap
+  // immediately so two session requests cannot rotate the same password.
+  const verificationInFlight = useRef(false);
   const [cooldown, setCooldown] = useState(0);
   const [agreed, setAgreed] = useState(false);
   // Real server-side reason for the last failed attempt, kept on screen so the
@@ -192,7 +195,8 @@ export default function Signup() {
   };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) return;
+    if (otp.length !== 6 || verificationInFlight.current) return;
+    verificationInFlight.current = true;
     setSubmitting(true);
     setLastError(null);
     try {
@@ -210,8 +214,10 @@ export default function Signup() {
       );
 
       if (createErr || !created?.success) {
+        const context = (createErr as { context?: Response } | null)?.context;
+        const response = await context?.clone().json().catch(() => null);
         const msg =
-          created?.error || createErr?.message || "Could not create account.";
+          response?.error || created?.error || createErr?.message || "Could not create account.";
         setLastError(msg);
         toast({ title: "Signup failed", description: msg, variant: "destructive" });
         return;
@@ -245,6 +251,7 @@ export default function Signup() {
       setLastError(err instanceof Error ? err.message : "Network error. Please try again.");
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
     } finally {
+      verificationInFlight.current = false;
       setSubmitting(false);
     }
   };
