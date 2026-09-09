@@ -96,6 +96,9 @@ export default function Signup() {
   const [submitting, setSubmitting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  // Real server-side reason for the last failed attempt, kept on screen so the
+  // user can simply tap again with the same code instead of re-requesting one.
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const { toast } = useToast();
