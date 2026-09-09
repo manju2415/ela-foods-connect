@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
           ? null
           : (typeof detail === "string" ? detail : JSON.stringify(detail)).slice(0, 2000),
       });
+      if (logError) console.error("[verify-otp-login] log insert error:", JSON.stringify(logError));
     } catch (e) {
       console.error("[verify-otp-login] log write failed:", e);
     }
