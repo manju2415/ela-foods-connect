@@ -272,13 +272,18 @@ export default function Signup() {
                 </InputOTPGroup>
               </InputOTP>
             </div>
+            {lastError && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {lastError}
+              </div>
+            )}
             <Button
               className="w-full"
               disabled={otp.length !== 6 || submitting}
               onClick={handleVerify}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Account
+              {lastError ? "Try again" : "Create Account"}
             </Button>
             <div className="text-center text-sm">
               {cooldown > 0 ? (
