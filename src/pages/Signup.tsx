@@ -78,23 +78,11 @@ const sendOtp = async (phone: string) => {
   };
 };
 
-const verifyOtp = async (phone: string, otp: string) => {
-  if (isDemoPhone(phone)) {
-    return otp === DEMO_OTP
-      ? { success: true as const }
-      : { success: false as const, error: "Invalid OTP" };
-  }
-  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", {
-    body: { phone, otp },
-  });
-  if (error || !data?.success) {
-    return {
-      success: false as const,
-      error: data?.error || error?.message || "Invalid OTP",
-    };
-  }
-  return { success: true as const };
-};
+// The code is verified once, server-side, inside verify-otp-login — there is
+// no separate client-side pre-check any more. Checking it twice consumed the
+// code before session creation and made slow devices fail signup.
+
+
 
 export default function Signup() {
   const [step, setStep] = useState<"form" | "otp">("form");
