@@ -192,17 +192,6 @@ export default function Signup() {
     if (otp.length !== 6) return;
     setSubmitting(true);
     try {
-      const v = await verifyOtp(phoneNumber, otp);
-      if (!v.success) {
-        toast({
-          title: "Verification failed",
-          description: v.error,
-          variant: "destructive",
-        });
-        setOtp("");
-        return;
-      }
-
       // Create the account server-side (idempotent)
       const { data: created, error: createErr } = await supabase.functions.invoke(
         "signup-create-user",
