@@ -2171,6 +2171,7 @@ export type Database = {
         Returns: string
       }
       get_homepage_product_sections: { Args: never; Returns: Json }
+      get_network_admin_stats: { Args: never; Returns: Json }
       get_network_roots: {
         Args: never
         Returns: {
@@ -2182,6 +2183,17 @@ export type Database = {
           user_level: string
         }[]
       }
+      get_top_referrers: {
+        Args: { p_limit?: number }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          referral_count: number
+          user_level: Database["public"]["Enums"]["user_level"]
+        }[]
+      }
+      get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
       get_user_downline: {
         Args: { p_user_id: string }
         Returns: {
@@ -2196,6 +2208,27 @@ export type Database = {
       get_user_mlm_setting: {
         Args: { _key: string; _user_id: string }
         Returns: Json
+      }
+      get_withdrawal_requests_admin: {
+        Args: never
+        Returns: {
+          amount: number
+          bank_account_holder: string
+          bank_account_number: string
+          bank_ifsc: string
+          bank_name: string
+          created_at: string
+          id: string
+          notes: string
+          paid_at: string
+          payment_method: string
+          payment_reference: string
+          processed_at: string
+          profile_email: string
+          profile_full_name: string
+          status: string
+          user_id: string
+        }[]
       }
       has_role: {
         Args: {
