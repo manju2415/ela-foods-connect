@@ -2183,6 +2183,17 @@ export type Database = {
           user_level: string
         }[]
       }
+      get_top_referrers: {
+        Args: { p_limit?: number }
+        Returns: {
+          email: string
+          full_name: string
+          id: string
+          referral_count: number
+          user_level: Database["public"]["Enums"]["user_level"]
+        }[]
+      }
+      get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
       get_user_downline: {
         Args: { p_user_id: string }
         Returns: {
@@ -2198,36 +2209,25 @@ export type Database = {
         Args: { _key: string; _user_id: string }
         Returns: Json
       }
-      get_top_referrers: {
-        Args: { p_limit?: number }
-        Returns: {
-          id: string
-          full_name: string | null
-          email: string
-          referral_count: number | null
-          user_level: Database["public"]["Enums"]["user_level"] | null
-        }[]
-      }
-      get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
       get_withdrawal_requests_admin: {
         Args: never
         Returns: {
-          id: string
-          user_id: string
           amount: number
-          status: string
-          bank_name: string | null
-          bank_account_number: string | null
-          bank_ifsc: string | null
-          bank_account_holder: string | null
-          notes: string | null
+          bank_account_holder: string
+          bank_account_number: string
+          bank_ifsc: string
+          bank_name: string
           created_at: string
-          processed_at: string | null
-          paid_at: string | null
-          payment_reference: string | null
-          payment_method: string | null
-          profile_email: string | null
-          profile_full_name: string | null
+          id: string
+          notes: string
+          paid_at: string
+          payment_method: string
+          payment_reference: string
+          processed_at: string
+          profile_email: string
+          profile_full_name: string
+          status: string
+          user_id: string
         }[]
       }
       has_role: {
