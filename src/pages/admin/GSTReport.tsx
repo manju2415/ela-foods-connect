@@ -251,7 +251,7 @@ export default function GSTReport() {
                   <div>
                     <CardTitle>Invoice Register</CardTitle>
                     <CardDescription>
-                      Registration (R) and sales (S) invoices, in date order
+                      Registration and sales invoices, in date order
                     </CardDescription>
                   </div>
                   <Button onClick={exportRegister} disabled={lines.length === 0} className="gap-2 shrink-0">
