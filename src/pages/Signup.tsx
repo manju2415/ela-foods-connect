@@ -210,21 +210,20 @@ export default function Signup() {
       );
 
       if (createErr || !created?.success) {
-        toast({
-          title: "Signup failed",
-          description:
-            created?.error || createErr?.message || "Could not create account.",
-          variant: "destructive",
-        });
+        const msg =
+          created?.error || createErr?.message || "Could not create account.";
+        setLastError(msg);
+        toast({ title: "Signup failed", description: msg, variant: "destructive" });
         return;
       }
 
-      // Sign in — the OTP is re-verified server-side atomically with session creation
+      // Sign in — the OTP is verified server-side atomically with session creation
       const { error } = await createSessionForPhone(phoneNumber, otp);
 
       if (error) {
+        setLastError(error.message);
         toast({
-          title: "Login failed",
+          title: "Sign-in failed",
           description: error.message,
           variant: "destructive",
         });
