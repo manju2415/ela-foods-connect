@@ -148,14 +148,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const { data, error } = await supabase.functions.invoke("verify-otp-login", {
-      body: { phone, otp },
+      body: { phone, otp, platform: Capacitor.getPlatform() },
     });
 
     if (error || !data?.success || !data?.access_token || !data?.refresh_token) {
       const ctx = (error as { context?: { text?: () => Promise<string> } } | undefined)?.context;
       let body: { error?: string } | null = null;
       try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
-      return { error: new Error(body?.error || data?.error || error?.message || "Account not found. Please contact admin to be added.") };
+      // Prefer whatever the server actually said; the old catch-all text is only
+      // used when no server message came back at all (e.g. a network failure).
+      const serverMessage = body?.error || data?.error || error?.message;
+      return { error: new Error(serverMessage || "Could not sign in. Please check your connection and try again.") };
     }
 
     const { data: sessionData, error: setSessionError } = await supabase.auth.setSession({
