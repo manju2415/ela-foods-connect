@@ -479,6 +479,7 @@ export type Database = {
           invoice_type: string
           issued_at: string
           items: Json
+          legacy_invoice_number: string | null
           order_id: string | null
           payment_method: string | null
           payment_reference: string | null
@@ -506,6 +507,7 @@ export type Database = {
           invoice_type: string
           issued_at?: string
           items?: Json
+          legacy_invoice_number?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_reference?: string | null
@@ -533,6 +535,7 @@ export type Database = {
           invoice_type?: string
           issued_at?: string
           items?: Json
+          legacy_invoice_number?: string | null
           order_id?: string | null
           payment_method?: string | null
           payment_reference?: string | null
