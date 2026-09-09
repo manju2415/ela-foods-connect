@@ -1,6 +1,7 @@
 // Guarded service-worker registration helpers.
 // The app registers its PWA service worker ONLY from our own wrapper so that
-// preview / dev / iframe contexts never install a stale worker.
+// preview / dev / iframe / native-app contexts never install a stale worker.
+import { Capacitor } from "@capacitor/core";
 
 function hostnameBlocked(host: string): boolean {
   if (host.startsWith("id-preview--") || host.startsWith("preview--")) return true;
@@ -14,6 +15,7 @@ function hostnameBlocked(host: string): boolean {
 export function canRegisterSW(): boolean {
   if (typeof window === "undefined") return false; // SSR guard
   if (!import.meta.env.PROD) return false; // never in dev
+  if (Capacitor.isNativePlatform()) return false; // native app updates via the app binary itself, not a web SW
   if (window.self !== window.top) return false; // never inside an iframe
   if (hostnameBlocked(window.location.hostname)) return false;
   if (new URLSearchParams(window.location.search).has("sw=off")) return false;

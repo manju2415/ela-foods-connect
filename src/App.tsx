@@ -121,7 +121,9 @@ const PageLoader = () => (
 function App() {
   useEffect(() => {
     // In contexts where the app-shell SW must not run (dev / Lovable preview /
-    // iframe), evict any stale registration left over from a previous build.
+    // iframe / native app), evict any stale registration left over from a
+    // previous build — native apps previously registered this SW too, which
+    // kept serving old cached JS after an App Store/Play Store update.
     if (!canRegisterSW()) {
       unregisterStaleAppSW();
     }
