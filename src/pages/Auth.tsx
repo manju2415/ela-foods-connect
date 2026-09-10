@@ -59,24 +59,6 @@ const getOtpSentDescription = (phone: string, result: { requestId?: string; mobi
   return `A 6-digit code was accepted by MSG91 for ${phone}.${details}`;
 };
 
-const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
-  if (isTestPhone(phone)) {
-    if (otp === TEST_OTP) return { success: true as const };
-    return { success: false as const, error: "Invalid OTP" };
-  }
-  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
-  console.log("[Auth] msg91-verify-otp response:", { data, error });
-  if (error) {
-    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
-    let body: { error?: string } | null = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
-    console.error("[Auth] msg91-verify-otp error body:", body);
-    return { success: false as const, error: body?.error || error.message || "Invalid OTP" };
-  }
-  if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
-  return { success: true as const };
-};
-
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
@@ -368,19 +350,15 @@ const Auth = () => {
   };
 
   // ── Verify OTP ──
+  // The code is verified once, server-side, inside createSessionForPhone
+  // (verify-otp-login) — no separate client-side pre-check. Checking it
+  // twice against MSG91 consumed the code before session creation and made
+  // slow devices fail signup/login (same bug already fixed in Signup.tsx).
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
     setIsSubmitting(true);
     try {
-      const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
-
-      if (!verify.success) {
-        toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
-        setOtpCode("");
-        return;
-      }
-
       const { error, isNewUser } = await createSessionForPhone(
         phoneNumber,
         otpCode,

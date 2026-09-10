@@ -65,7 +65,18 @@ serve(async (req) => {
       });
     }
 
-    const body = JSON.parse(rawBody);
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      // Signature was valid but the body isn't JSON — nothing retrying would
+      // fix, so this is a 4xx, not a 5xx.
+      console.error("[razorpay-webhook] Signed body is not valid JSON");
+      return new Response(JSON.stringify({ error: "Malformed request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const event = body?.event as string | undefined;
     const payment = body?.payload?.payment?.entity as
       | { id?: string; order_id?: string; amount?: number; status?: string }
@@ -101,10 +112,11 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error("[razorpay-webhook] error:", err);
-    // Still 200 — a malformed-but-signed payload will fail the same way on
-    // retry, and we've already logged it for investigation.
-    return new Response(JSON.stringify({ received: true, error: "Internal error, logged" }), {
-      status: 200,
+    // 500, not 200: anything reaching here is an unexpected failure (e.g. a
+    // transient DB error inside settlement) rather than a validly-handled
+    // event, so Razorpay should retry instead of treating this as delivered.
+    return new Response(JSON.stringify({ error: "Internal error" }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
