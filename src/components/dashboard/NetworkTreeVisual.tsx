@@ -1,3 +1,4 @@
+import { memberLevelLabel } from "@/lib/memberLevel";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
   const [downline, setDownline] = useState<DownlineUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [rootUser, setRootUser] = useState<{ email: string; full_name: string | null; user_level: string } | null>(null);
+  const [rootUser, setRootUser] = useState<{ email: string; full_name: string | null; user_level: string; registration_fee_paid: number | null } | null>(null);
   const [previewUser, setPreviewUser] = useState<DownlineUser | null>(null);
 
   const [invitations, setInvitations] = useState<Pick<DownlineUser, "user_id" | "email" | "full_name">[]>([]);
@@ -66,7 +67,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
         const { data: session } = await supabase.auth.getUser();
         if (session.user?.id !== userId) throw new Error("Account changed");
         const [profileRes, networkRes] = await Promise.all([
-          supabase.from("profiles").select("email, full_name, user_level").eq("id", userId).single(),
+          supabase.from("profiles").select("email, full_name, user_level, registration_fee_paid").eq("id", userId).single(),
           supabase.rpc("get_my_member_network")
         ]);
         if (profileRes.error || networkRes.error) throw new Error("Unable to load network");
@@ -316,7 +317,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
                     {displayContact(rootUser.email)}
                   </p>
                   <Badge className={`${getLevelColor(rootUser.user_level)} w-fit`}>
-                    {rootUser.user_level}
+                    {memberLevelLabel(rootUser.user_level, rootUser.registration_fee_paid)}
                   </Badge>
                 </div>
               </div>
@@ -352,7 +353,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
             <div key={invitee.user_id} className="rounded-lg border p-3 space-y-1">
               <p className="font-medium break-words">{invitee.full_name || "Unnamed"}</p>
               <p className="text-sm text-muted-foreground">{displayContact(invitee.email)}</p>
-              <Badge variant="secondary">Awaiting membership payment</Badge>
+              <Badge variant="secondary">No role ? Awaiting membership payment</Badge>
             </div>
           ))}
         </div>

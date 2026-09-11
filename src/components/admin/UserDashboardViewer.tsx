@@ -1,3 +1,4 @@
+import { memberLevelLabel } from "@/lib/memberLevel";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -49,6 +50,7 @@ interface Referral {
     full_name: string | null;
     email: string;
     user_level: string;
+    registration_fee_paid: number | null;
   };
 }
 
@@ -169,7 +171,7 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-xl font-semibold">{profile.full_name || "Unnamed User"}</h3>
                         <Badge className={getLevelColor(profile.user_level)}>
-                          {profile.user_level}
+                          {memberLevelLabel(profile.user_level, profile.registration_fee_paid)}
                         </Badge>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
@@ -314,7 +316,7 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge variant="outline" className={getLevelColor(ref.referred_profile.user_level)}>
-                                  {ref.referred_profile.user_level}
+                                  {memberLevelLabel(ref.referred_profile.user_level, ref.referred_profile.registration_fee_paid)}
                                 </Badge>
                                 <p className="text-xs text-muted-foreground">
                                   {format(new Date(ref.created_at), "PP")}

@@ -1,3 +1,4 @@
+import { memberLevelLabel } from "@/lib/memberLevel";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +44,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
     
     const [codesRes, profileRes, referralsRes, walletRes] = await Promise.all([
       supabase.from("referral_codes").select("*").eq("user_id", userId).eq("is_active", true),
-      supabase.from("profiles").select("referral_count, user_level").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("referral_count, user_level, registration_fee_paid").eq("id", userId).maybeSingle(),
       supabase.rpc("get_my_member_network"),
       supabase.from("wallets").select("id").eq("user_id", userId).maybeSingle(),
     ]);
@@ -68,7 +69,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
       total_referrals: members.filter(member => member.level_depth === 1).length,
       total_earnings: totalEarnings,
       referral_count: members.length,
-      user_level: profileRes.data?.user_level || "associate",
+      user_level: memberLevelLabel(profileRes.data?.user_level, profileRes.data?.registration_fee_paid).toLowerCase(),
     });
 
     setLoading(false);
@@ -139,8 +140,8 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
             <CardTitle className="text-sm font-medium">Your Level</CardTitle>
           </CardHeader>
           <CardContent>
-            <Badge className={getLevelBadgeColor(stats?.user_level || "associate")}>
-              {(stats?.user_level || "associate").replace(/\b\w/g, (l) => l.toUpperCase())}
+            <Badge className={getLevelBadgeColor(stats?.user_level || "no role")}>
+              {(stats?.user_level || "no role").replace(/\b\w/g, (l) => l.toUpperCase())}
             </Badge>
           </CardContent>
         </Card>
