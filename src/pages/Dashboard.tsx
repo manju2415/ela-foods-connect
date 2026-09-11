@@ -1115,8 +1115,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
           {/* Network Tab (Referrals & Downline) */}
           <TabsContent value="network" className="space-y-6">
-            <ReferralSection userId={user.id} />
-            <NetworkTreeVisual userId={user.id} />
+            <ReferralSection key={user.id} userId={user.id} />
+            <NetworkTreeVisual key={user.id} userId={user.id} />
           </TabsContent>
 
           {/* Settings Tab */}

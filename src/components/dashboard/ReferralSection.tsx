@@ -44,7 +44,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
     const [codesRes, profileRes, referralsRes, walletRes] = await Promise.all([
       supabase.from("referral_codes").select("*").eq("user_id", userId).eq("is_active", true),
       supabase.from("profiles").select("referral_count, user_level").eq("id", userId).maybeSingle(),
-      supabase.from("referrals").select("id").eq("referrer_id", userId),
+      supabase.rpc("get_my_member_network"),
       supabase.from("wallets").select("id").eq("user_id", userId).maybeSingle(),
     ]);
 
@@ -63,10 +63,11 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
       totalEarnings = (txns || []).reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
     }
 
+    const members = (referralsRes.data as unknown as { members?: { level_depth: number }[] } | null)?.members || [];
     setStats({
-      total_referrals: referralsRes.data?.length || 0,
+      total_referrals: members.filter(member => member.level_depth === 1).length,
       total_earnings: totalEarnings,
-      referral_count: profileRes.data?.referral_count || 0,
+      referral_count: members.length,
       user_level: profileRes.data?.user_level || "associate",
     });
 
@@ -148,7 +149,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Total Referrals
+              Paid Direct Referrals
             </CardTitle>
           </CardHeader>
           <CardContent>

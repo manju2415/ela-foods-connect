@@ -2197,6 +2197,7 @@ export type Database = {
         }[]
       }
       get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
+      get_my_member_network: { Args: never; Returns: Json }
       get_user_downline: {
         Args: { p_user_id: string }
         Returns: {
