@@ -295,7 +295,7 @@ export const UserDashboardViewer = ({ userId, open, onOpenChange }: UserDashboar
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
                         <Users className="h-5 w-5" />
-                        Referrals ({profile.referral_count})
+                        Referrals ({referrals.length})
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
