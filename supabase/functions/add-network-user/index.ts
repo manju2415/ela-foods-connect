@@ -116,10 +116,15 @@ serve(async (req) => {
       });
     }
 
-    // Referral credit always goes to whoever is actually authenticated — never
-    // a client-supplied id, which would let anyone redirect referral credit
-    // to an account they don't own.
-    const actualReferrerId = caller.id;
+    // Referral credit goes to whoever actually owns the validated referral_code
+    // (codeData.user_id), never a client-supplied raw id — that still prevents
+    // a caller from redirecting credit to an account they don't control, since
+    // codeData was looked up from an active referral_codes row, not trusted
+    // input. In admin mode the admin picks which member's code to place the
+    // new user under, so that member (not the admin) must get the credit; in
+    // self-service mode the caller's own code is auto-filled, so this resolves
+    // to the same caller.id as before.
+    const actualReferrerId = codeData.user_id;
 
     const cleanPhone = `91${phone}`;
     const mockEmail = `${cleanPhone}@elabazar.local`;
