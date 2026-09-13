@@ -2174,6 +2174,7 @@ export type Database = {
         Returns: string
       }
       get_homepage_product_sections: { Args: never; Returns: Json }
+      get_my_member_network: { Args: never; Returns: Json }
       get_network_admin_stats: { Args: never; Returns: Json }
       get_network_roots: {
         Args: never
@@ -2197,7 +2198,6 @@ export type Database = {
         }[]
       }
       get_user_dashboard_details: { Args: { p_user_id: string }; Returns: Json }
-      get_my_member_network: { Args: never; Returns: Json }
       get_user_downline: {
         Args: { p_user_id: string }
         Returns: {

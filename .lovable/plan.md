@@ -1,33 +1,37 @@
-# Razorpay webhook: finish payments without depending on the app
+# Login failing for 7025430609 (Akshay p k)
 
-Your webhook secret is saved on our side. What's missing is the endpoint Razorpay calls — it doesn't exist yet, so the secret is currently unused.
+## What I found
 
-## Why this matters
+His account is healthy. Nothing is missing:
 
-Today a payment is only recorded after the customer's phone or browser calls back to us. If that tab closes or the network drops, Razorpay has the money and we have no record — which is exactly the failed callback you fixed by hand.
+- Account exists, phone `+917025430609`, registration fee paid, roles member + admin
+- He **successfully logged in from the Android app at 09:15 today**
+- OTP messages are being delivered fine (several sends logged today)
 
-With the webhook, Razorpay tells our server directly and keeps retrying until we confirm, so the payment always lands even if the customer never returns to the app.
+So "Account not found. Please contact admin to be added." is wrong — the account is there.
 
-## What gets built
+## Why that message appears
 
-1. **A webhook endpoint** that Razorpay calls on every captured payment. It checks Razorpay's signature with the secret you saved, then finishes the payment exactly the way the app does today:
-   - Registration: activates membership, welcome bonus, referral/founder credit, invoice
-   - Order: marks the order paid
-   - Wallet top-up: credits the wallet
-2. **Runs once, never twice.** Whichever arrives first — the app's callback or the webhook — the other one becomes a no-op. Existing one-time guards on registration, wallet credits and order status are reused, not replaced.
-3. **Failed payments** are recorded as failed instead of vanishing, so Payment Recovery can show them.
+That exact sentence is the **old** wording. It was removed from the app on 9 September and replaced with honest, specific errors. The screen in the photo is still showing it, which means the browser he is using is running an **older version of the site** — either it was never republished after the 9 September fix, or his browser is holding a cached copy.
 
-## Nothing that works today changes
+Underneath, the sign-in request never reached our server at all: there is no record of any sign-in attempt for his number at that time, while successful ones from other people the same hour are all recorded. In the old version, any request that failed to reach the server (dropped connection, stale saved session, cached page) was shown as "Account not found" regardless of the real cause. That is what he is seeing.
 
-The current app callback path stays exactly as it is; the completion steps are moved into one shared piece of code that both paths call, unchanged. Untouched: pricing, stock, coupons, shipping, invoices, order placement, guest checkout, logins, roles, existing accounts, wallets and past transactions. No existing records are edited.
+## What to do
 
-## What you'll need to do
+1. **Republish the site** so the corrected version — with real error messages instead of the catch-all — is what people actually load.
+2. **Force stale browsers to pick up the new version** so a cached old copy can't keep showing the wrong message.
+3. **Make a failed sign-in name itself even when the server is never reached**: when the sign-in call fails at the network level, the app records the failure (phone, platform, HTTP status, message) so the next report has evidence instead of guesswork.
+4. **Test the live site end to end** with his number path: send OTP, wrong OTP, correct OTP, and confirm the session is created and the right landing page is reached.
 
-After this is live I'll give you the webhook URL to paste into your Razorpay dashboard (Settings → Webhooks), with the same secret you already saved, and events `payment.captured` and `payment.failed`. Until that's set in Razorpay, nothing changes for customers.
+If after republishing he still can't get in, the new message will state the actual reason (wrong/expired code, connection problem, provider issue), and it will be recorded for me to read.
+
+## Nothing else changes
+
+No accounts, roles, wallets, orders, payments, referrals or registrations are touched. Android app login, website login, admin/network/delivery logins, signup, and guest checkout all keep working exactly as now; the only code change is on the error-reporting path.
 
 ## Technical notes
 
-- New `supabase/functions/_shared/settlePayment.ts`: the registration / wallet-topup / order branches lifted verbatim out of `razorpay-verify-payment`, plus the Razorpay payment lookup and `payment_attempts` upsert (`onConflict: payment_id`, which is already unique).
-- New `supabase/functions/razorpay-webhook/index.ts`: `verify_jwt = false`, raw-body HMAC-SHA256 against `RAZORPAY_WEBHOOK_SECRET`, handles `payment.captured` and `payment.failed`, always returns 200 once processed so Razorpay stops retrying.
-- Payment context (purpose, user_id, internal order_id) is read from the Razorpay order `notes`, so `razorpay-create-order` is extended to put `purpose` / `user_id` / `order_id` into `notes` for every payment; the webhook skips any payment whose notes it cannot resolve and records it as an unresolved attempt for admin review.
-- `razorpay-verify-payment` keeps its exact current request/response shape so installed app builds keep working.
+- `src/contexts/AuthContext.tsx` already prefers the server's message; add a `logClientAuthFailure` call on the `invoke` failure branch that posts to a small endpoint writing `otp_send_log` with outcome `session:CLIENT_INVOKE_FAILED` and the HTTP status/message. Best effort, never blocks or alters the user-facing result.
+- Cache busting: `index.html` gets no-store on the document plus a build-version check so an open tab reloads when a new build is live; hashed assets are already versioned.
+- No changes to `verify-otp-login`, `signup-create-user`, `check-phone-registered`, or any database object.
+- Separate issue spotted while looking: `supabase/config.toml` declares `[functions.razorpay-webhook]` but `supabase/functions/razorpay-webhook/` does not exist — the Razorpay webhook endpoint is still unbuilt, so the webhook secret you saved is unused. Not part of this fix.
