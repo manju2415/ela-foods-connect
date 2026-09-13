@@ -1,37 +1,51 @@
-# Login failing for 7025430609 (Akshay p k)
+# Full data export for the MongoDB / Node migration
 
-## What I found
+Goal: one downloadable ZIP containing every row of your data, the user account list, and all uploaded images, in a shape that is easy to load into MongoDB.
 
-His account is healthy. Nothing is missing:
+## What the ZIP will contain
 
-- Account exists, phone `+917025430609`, registration fee paid, roles member + admin
-- He **successfully logged in from the Android app at 09:15 today**
-- OTP messages are being delivered fine (several sends logged today)
+```text
+elabazar-export-<date>/
+  data/                 one .json file per table (array of records)
+    products.json
+    orders.json
+    order_items.json
+    profiles.json
+    wallets.json
+    wallet_transactions.json
+    ... (all 45 tables)
+  auth/
+    users.json          account list: id, email, phone, created, confirmed, last sign-in
+                        (passwords can never be exported - they are one-way encrypted)
+  storage/
+    files/...           every uploaded image/file, in its original folders
+    inventory.json      list of files with path, size, type, public URL
+  schema/
+    tables.json         columns, types, required fields, relationships per table
+    enums.json          allowed values (order status, roles, etc.)
+  README.md             row counts per table, how the files map to Mongo collections
+  MIGRATION-NOTES.md    which id fields link to which table, so relations survive
+```
 
-So "Account not found. Please contact admin to be added." is wrong — the account is there.
+## How it will be produced
 
-## Why that message appears
+1. List every table in the app database and export each one as a JSON array, in full - no row limits, no sampling.
+2. Export the account list from the authentication store (no password material - that cannot leave the system by design).
+3. List every storage bucket, download each file, and keep the original folder paths.
+4. Dump column types, required fields, defaults, relationships and the allowed-value lists so the Node/Mongo side can rebuild validation.
+5. Add row counts and a short mapping note for each table.
+6. Zip everything and hand you the file to download.
 
-That exact sentence is the **old** wording. It was removed from the app on 9 September and replaced with honest, specific errors. The screen in the photo is still showing it, which means the browser he is using is running an **older version of the site** — either it was never republished after the 9 September fix, or his browser is holding a cached copy.
+## Important notes
 
-Underneath, the sign-in request never reached our server at all: there is no record of any sign-in attempt for his number at that time, while successful ones from other people the same hour are all recorded. In the old version, any request that failed to reach the server (dropped connection, stale saved session, cached page) was shown as "Account not found" regardless of the real cause. That is what he is seeing.
+- The export is read-only. Nothing in the live database or storage is changed, and no orders, wallets, or accounts are touched.
+- Rows with sensitive fields (bank account numbers, phone numbers, addresses) are included in full, since this is your own backup. Store the ZIP securely.
+- Database logic that currently lives inside the database - order placement, wallet credits, referral and commission rules, invoice numbering, access rules - is **not** data and will not come across in the ZIP. It has to be rewritten in Node. I can produce a separate written specification of those rules if you want it as part of this step.
+- If the total image size is very large, images will be split into a second ZIP so each download stays manageable.
 
-## What to do
+## Technical details
 
-1. **Republish the site** so the corrected version — with real error messages instead of the catch-all — is what people actually load.
-2. **Force stale browsers to pick up the new version** so a cached old copy can't keep showing the wrong message.
-3. **Make a failed sign-in name itself even when the server is never reached**: when the sign-in call fails at the network level, the app records the failure (phone, platform, HTTP status, message) so the next report has evidence instead of guesswork.
-4. **Test the live site end to end** with his number path: send OTP, wrong OTP, correct OTP, and confirm the session is created and the right landing page is reached.
-
-If after republishing he still can't get in, the new message will state the actual reason (wrong/expired code, connection problem, provider issue), and it will be recorded for me to read.
-
-## Nothing else changes
-
-No accounts, roles, wallets, orders, payments, referrals or registrations are touched. Android app login, website login, admin/network/delivery logins, signup, and guest checkout all keep working exactly as now; the only code change is on the error-reporting path.
-
-## Technical notes
-
-- `src/contexts/AuthContext.tsx` already prefers the server's message; add a `logClientAuthFailure` call on the `invoke` failure branch that posts to a small endpoint writing `otp_send_log` with outcome `session:CLIENT_INVOKE_FAILED` and the HTTP status/message. Best effort, never blocks or alters the user-facing result.
-- Cache busting: `index.html` gets no-store on the document plus a build-version check so an open tab reloads when a new build is live; hashed assets are already versioned.
-- No changes to `verify-otp-login`, `signup-create-user`, `check-phone-registered`, or any database object.
-- Separate issue spotted while looking: `supabase/config.toml` declares `[functions.razorpay-webhook]` but `supabase/functions/razorpay-webhook/` does not exist — the Razorpay webhook endpoint is still unbuilt, so the webhook secret you saved is unused. Not part of this fix.
+- Per-table JSON is produced with row-to-JSON queries against the connected database (full table scans, streamed to file), not a binary dump.
+- Storage files are fetched over the storage API bucket by bucket, preserving `bucket/path/filename`.
+- Schema output is read from `information_schema` plus enum catalogs.
+- Output is written under `/mnt/documents/` and zipped there for download.
