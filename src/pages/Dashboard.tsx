@@ -16,6 +16,7 @@ import { ReferralSection } from "@/components/dashboard/ReferralSection";
 import { WithdrawalSection } from "@/components/dashboard/WithdrawalSection";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
+import { orderPaymentMethodLabel, orderValue } from "@/lib/paymentMethod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -97,6 +98,7 @@ interface Order {
   shipping_amount: number | null;
   discount_amount: number | null;
   wallet_amount_used?: number | null;
+  is_cod?: boolean | null;
   shipping_address: {
     full_name?: string;
     phone?: string;
@@ -802,7 +804,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">₹{Number(order.total_amount).toFixed(2)}</p>
+                          <p className="font-semibold">₹{orderValue(order).toFixed(2)}</p>
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
                           </Badge>
@@ -875,7 +877,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                                 .replace(/\b\w/g, (l) => l.toUpperCase())}
                             </Badge>
                             <p className="font-bold text-lg">
-                              ₹{Number(order.total_amount).toFixed(2)}
+                              ₹{orderValue(order).toFixed(2)}
                             </p>
                             <Button
                               variant="outline"
@@ -1395,6 +1397,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               {/* Order Summary */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
+                  <span>Payment Method</span>
+                  <span className="font-medium">{orderPaymentMethodLabel(selectedOrder)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>₹{Number(selectedOrder.subtotal).toFixed(2)}</span>
                 </div>
@@ -1413,20 +1419,23 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                       </span>
                     </div>
                   )}
+                <Separator />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Order Value</span>
+                  <span>₹{orderValue(selectedOrder).toFixed(2)}</span>
+                </div>
                 {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Paid from wallet</span>
-                    <span>
-                      -₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}
-                    </span>
+                    <span>₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
                   </div>
                 )}
-
-                <Separator />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
-                </div>
+                {Number(selectedOrder.total_amount || 0) > 0 && Number(selectedOrder.wallet_amount_used || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Charged online</span>
+                    <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Return Request Button - only show for delivered orders */}

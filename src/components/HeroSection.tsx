@@ -132,7 +132,7 @@ const HeroSection = () => {
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
-            <Link to="/products">
+            <Link to="/categories">
               <Button variant="heroOutline" size="xl">
                 Explore Categories
               </Button>
