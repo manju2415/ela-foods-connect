@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "187347378980",
+    "project_id": "ela-bazar",
+    "storage_bucket": "ela-bazar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:187347378980:android:667c657ee054ce40e589b1",
+        "android_client_info": {
+          "package_name": "com.shyju.Elabazar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAd-fxlGFqRPCDFFp2JZvAgOogom1Vmqb0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
