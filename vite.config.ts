@@ -14,16 +14,18 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      // "prompt" (not "autoUpdate"): with autoUpdate, vite-plugin-pwa's own
-      // register module skips onNeedRefresh entirely and forces an
-      // unconditional window.location.reload() the instant a new SW
-      // activates — with no way to check whether the user is mid checkout.
-      // "prompt" keeps the new worker in the browser's normal "waiting"
-      // state so PWABadge decides *when* it's safe to call
-      // updateServiceWorker(true) (never while isOnSensitivePage()).
-      registerType: "prompt",
-      // Registration is handled by our own guarded wrapper (src/pwa/sw-guard.ts)
-      // so the plugin never auto-injects a registration script (keeps Lovable preview SW-free).
+      // Registration and updates are handled entirely by our own code
+      // (src/components/pwa/PWABadge.tsx, gated by src/pwa/sw-guard.ts) via a
+      // plain navigator.serviceWorker.register call — we do NOT use
+      // vite-plugin-pwa's generated register module (virtual:pwa-register).
+      // That module's own "prompt" flow attaches its own controllerchange
+      // listener that force-reloads unconditionally once it has seen a
+      // "waiting" worker — bypassing any checkout/payment guard. With
+      // skipWaiting below, the "waiting" state is short-lived enough that
+      // this could fire unpredictably. Registering directly ourselves means
+      // our guarded listener is the only thing reacting to controllerchange.
+      // injectRegister: null also keeps the plugin from auto-injecting any
+      // registration script (needed so Lovable preview stays SW-free).
       injectRegister: null,
       devOptions: {
         enabled: false,
@@ -60,19 +62,22 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
-        // clientsClaim: the moment the app explicitly activates a waiting SW
-        // (see PWABadge's updateServiceWorker(true) call), let it take control
-        // of any already-open tabs immediately rather than only on their next
-        // navigation — so once we've decided it's safe to update, it applies
-        // everywhere without an extra reload cycle.
-        //
-        // Deliberately NOT setting skipWaiting here: that would make the new
-        // SW call self.skipWaiting() unconditionally on install and activate
-        // itself in the background regardless of what the user is doing,
-        // which is what let the previous "autoUpdate" registerType force a
-        // reload mid-checkout. Leaving it unset keeps the SW's default
-        // postMessage-triggered skipWaiting listener, which is what
-        // PWABadge's guarded updateServiceWorker(true) relies on.
+        // skipWaiting + clientsClaim are both required for an already-stuck
+        // visitor to ever recover. skipWaiting makes a newly downloaded
+        // service worker activate itself the moment the browser notices it
+        // changed — which happens on the browser's OWN update schedule
+        // (every navigation, and the spec forces a re-check at least every
+        // 24h regardless of HTTP cache headers), completely independent of
+        // whatever JS is currently loaded on the page. That's essential: a
+        // visitor stuck on a broken/ancient build is running the exact code
+        // that would need to detect and apply an update, so nothing about
+        // that old code can be trusted to fix itself — only the browser's
+        // native, code-independent check can. clientsClaim then hands that
+        // now-active worker control of any already-open tabs immediately
+        // instead of only on their next navigation. The app's own
+        // controllerchange listener (PWABadge.tsx) decides *when* it's safe
+        // to actually reload the visible page (never mid checkout/payment).
+        skipWaiting: true,
         clientsClaim: true,
         runtimeCaching: [
           {
