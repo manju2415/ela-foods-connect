@@ -158,6 +158,37 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Native app only. Root cause (confirmed in
+    // node_modules/@capacitor/app's AppPlugin.java handleOnBackPressed): with
+    // no JS "backButton" listener registered, Capacitor's own default handler
+    // only ever calls webView.goBack() when canGoBack() is true — when it's
+    // false (nothing left to go back to) it does *nothing at all*, silently
+    // swallowing the press instead of exiting. That's the exact bug: the
+    // system Back button appears to do nothing once you're back at a root
+    // screen. Registering our own listener lets us handle both cases
+    // explicitly, using the same canGoBack flag Capacitor already computes
+    // from the WebView's own navigation stack.
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listenerPromise = CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (canGoBack) {
+        // Goes through the SPA's own history (React Router listens for
+        // popstate), so this correctly steps back through in-app navigation
+        // rather than bypassing it.
+        window.history.back();
+      } else {
+        // Nothing left to go back to — close the app instead of leaving the
+        // back press silently swallowed.
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      listenerPromise.then((listener) => listener.remove());
+    };
+  }, []);
+
+  useEffect(() => {
     let lastToastAt = 0;
 
     const notify = (message: string) => {
