@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, X } from "lucide-react";
+import { isOnSensitivePage } from "@/pwa/sw-guard";
 
 /**
  * Single PWA service-worker registration + update prompt.
@@ -21,9 +22,6 @@ import { RefreshCw, X } from "lucide-react";
  * unless they're on a checkout/payment page (where a forced reload would wipe
  * unsaved input) or explicitly dismiss it, in which case it waits.
  */
-const SENSITIVE_PATH_PREFIXES = ["/checkout", "/guest-checkout", "/registration-payment", "/payment-bridge"];
-const isOnSensitivePage = () =>
-  SENSITIVE_PATH_PREFIXES.some((p) => window.location.pathname.startsWith(p));
 
 // How often to ask the browser to check for a new service worker while the
 // tab is open. Without this, the check only happens on the browser's own

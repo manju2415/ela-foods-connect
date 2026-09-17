@@ -14,7 +14,14 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      // "prompt" (not "autoUpdate"): with autoUpdate, vite-plugin-pwa's own
+      // register module skips onNeedRefresh entirely and forces an
+      // unconditional window.location.reload() the instant a new SW
+      // activates — with no way to check whether the user is mid checkout.
+      // "prompt" keeps the new worker in the browser's normal "waiting"
+      // state so PWABadge decides *when* it's safe to call
+      // updateServiceWorker(true) (never while isOnSensitivePage()).
+      registerType: "prompt",
       // Registration is handled by our own guarded wrapper (src/pwa/sw-guard.ts)
       // so the plugin never auto-injects a registration script (keeps Lovable preview SW-free).
       injectRegister: null,
@@ -53,6 +60,20 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // clientsClaim: the moment the app explicitly activates a waiting SW
+        // (see PWABadge's updateServiceWorker(true) call), let it take control
+        // of any already-open tabs immediately rather than only on their next
+        // navigation — so once we've decided it's safe to update, it applies
+        // everywhere without an extra reload cycle.
+        //
+        // Deliberately NOT setting skipWaiting here: that would make the new
+        // SW call self.skipWaiting() unconditionally on install and activate
+        // itself in the background regardless of what the user is doing,
+        // which is what let the previous "autoUpdate" registerType force a
+        // reload mid-checkout. Leaving it unset keeps the SW's default
+        // postMessage-triggered skipWaiting listener, which is what
+        // PWABadge's guarded updateServiceWorker(true) relies on.
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,

@@ -22,6 +22,18 @@ export function canRegisterSW(): boolean {
   return true;
 }
 
+// Routes where an unannounced reload could wipe in-progress input or interrupt
+// a live payment (e.g. a Razorpay iframe). Shared by the update-prompt UI
+// (PWABadge) and the lazy-chunk retry fallback (lazyWithRetry) so both
+// mechanisms agree on what "mid checkout/payment" means.
+const SENSITIVE_PATH_PREFIXES = ["/checkout", "/guest-checkout", "/registration-payment", "/payment-bridge"];
+
+/** Whether the current page is a checkout/payment flow that must never be auto-reloaded. */
+export function isOnSensitivePage(): boolean {
+  if (typeof window === "undefined") return false;
+  return SENSITIVE_PATH_PREFIXES.some((p) => window.location.pathname.startsWith(p));
+}
+
 /** Remove any app-shell (/sw.js) registrations — used in contexts where we must not register. */
 export async function unregisterStaleAppSW(): Promise<void> {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
