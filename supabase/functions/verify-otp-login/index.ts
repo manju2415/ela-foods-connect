@@ -165,6 +165,18 @@ Deno.serve(async (req) => {
       email: mockEmail,
     });
 
+    // A transient Auth Admin API error here (not "account doesn't exist")
+    // previously surfaced to an existing, correctly-matched account as a
+    // permanent "Account not found" with no retry at all — retry once before
+    // falling through to the phone-based repair/lookup below.
+    if (linkError || !linkData?.user) {
+      await sleep(300);
+      ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email: mockEmail,
+      }));
+    }
+
     if (linkError || !linkData?.user) {
       // The account may exist but not under the deterministic phone email —
       // e.g. it was created during guest checkout with a random guest_*
@@ -182,21 +194,27 @@ Deno.serve(async (req) => {
 
         if (profile) {
           const { data: userRes } = await admin.auth.admin.getUserById(profile.id);
-          if (userRes?.user && userRes.user.email !== mockEmail) {
-            const { error: repairError } = await admin.auth.admin.updateUserById(profile.id, {
-              email: mockEmail,
-              email_confirm: true,
-            });
-            if (!repairError) {
-              await admin.from("profiles").update({ email: mockEmail, phone: `+91${last10}` }).eq("id", profile.id);
-              ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-                type: "magiclink",
+          if (userRes?.user) {
+            if (userRes.user.email !== mockEmail) {
+              const { error: repairError } = await admin.auth.admin.updateUserById(profile.id, {
                 email: mockEmail,
-              }));
-            } else {
-              console.error("[verify-otp-login] guest-account repair failed:", repairError);
-              await logAttempt("REPAIR_FAILED", repairError.message);
+                email_confirm: true,
+              });
+              if (!repairError) {
+                await admin.from("profiles").update({ email: mockEmail, phone: `+91${last10}` }).eq("id", profile.id);
+              } else {
+                console.error("[verify-otp-login] guest-account repair failed:", repairError);
+                await logAttempt("REPAIR_FAILED", repairError.message);
+              }
             }
+            // The auth user genuinely exists for this phone (repaired just now,
+            // or already correctly linked and the earlier failures were
+            // transient) — retry the link generation once more before
+            // reporting "not found" for an account that clearly exists.
+            ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+              type: "magiclink",
+              email: mockEmail,
+            }));
           }
         }
       }
