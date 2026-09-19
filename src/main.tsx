@@ -11,3 +11,7 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>
 );
+
+// Harmless marker so a deploy produces a new bundle hash (used to verify the
+// PWA auto-update flow end to end). Safe to delete after testing.
+(window as Window & { __ELA_BUILD_MARK?: string }).__ELA_BUILD_MARK = "sw-update-test-1";
