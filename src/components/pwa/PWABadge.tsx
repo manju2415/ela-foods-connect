@@ -20,17 +20,19 @@ import { isOnSensitivePage } from "@/pwa/sw-guard";
  *
  * The generated service worker (vite.config.ts: workbox.skipWaiting +
  * clientsClaim) activates itself the moment the browser discovers a new
- * version. That check runs on the browser's OWN schedule (every navigation,
- * and at least every 24h per the Service Worker spec) — independent of
- * whatever JS is currently loaded on the page. That independence is what
- * actually rescues an already-stuck visitor: their current JS is exactly the
- * broken thing that would need to detect and apply an update, so nothing
- * about it can be trusted to fix itself.
+ * version. That check runs on the browser's OWN schedule (on navigation, but
+ * at most once per 24h) — independent of whatever JS is currently loaded on
+ * the page. That independence is what actually rescues an already-stuck
+ * visitor: their current JS is exactly the broken thing that would need to
+ * detect and apply an update, so nothing about it can be trusted to fix
+ * itself. On top of that, this component asks explicitly (registration.update())
+ * at startup, on focus / visible / pageshow / online, and every 5 minutes
+ * while visible as a fallback, so up-to-date pages don't wait for the browser's 24h throttle.
  *
  * Once the new worker takes control of an open tab, `controllerchange` fires
  * (a native browser guarantee, not something any app bundle has to
  * implement) and we reload to actually pick up the new JS — except while the
- * user is on a checkout/payment page, where an unannounced reload could wipe
+ * user is mid checkout/payment/typing, where an unannounced reload could wipe
  * unsaved input or interrupt a live Razorpay iframe; there we keep checking
  * back every few seconds instead of forcing it.
  */
@@ -38,7 +40,51 @@ import { isOnSensitivePage } from "@/pwa/sw-guard";
 // How often to ask the browser to check for a new service worker while the
 // tab is open, on top of the browser's own schedule — so a returning visitor
 // who leaves a tab open for a long time still gets checked well inside 24h.
-const UPDATE_CHECK_INTERVAL_MS = 60_000;
+const UPDATE_CHECK_INTERVAL_MS = 5 * 60_000;
+
+// Explicit update() calls (focus / visible / online / interval) are coalesced
+// to at most one per this window, so several events firing together cost one
+// small sw.js request rather than a burst.
+const MIN_UPDATE_GAP_MS = 30_000;
+
+// Safety net against any reload loop: never reload for a worker change twice
+// within this window in the same tab.
+const RELOAD_GUARD_KEY = "ela-sw-reload-at";
+const RELOAD_GUARD_MS = 30_000;
+
+// Extra places (beyond isOnSensitivePage) where an unannounced reload could
+// lose money-related state: wallet top-up screens launch Razorpay too.
+const NO_RELOAD_PATH_PREFIXES = ["/customer-app/wallet", "/member-app/wallet"];
+
+/** True while a reload could wipe input or interrupt a live payment. */
+function isBusyForReload(): boolean {
+  if (isOnSensitivePage()) return true;
+  const path = window.location.pathname;
+  if (NO_RELOAD_PATH_PREFIXES.some((p) => path.startsWith(p))) return true;
+  // Razorpay's checkout is injected into the page as a container/iframe.
+  if (document.querySelector(".razorpay-container, iframe.razorpay-checkout-frame")) return true;
+  // Someone is typing (e.g. entering an OTP) — don't wipe it.
+  const el = document.activeElement as HTMLElement | null;
+  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return true;
+  return false;
+}
+
+function reloadedRecently(): boolean {
+  try {
+    const at = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
+    return Date.now() - at < RELOAD_GUARD_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markReloading() {
+  try {
+    sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+  } catch {
+    /* storage unavailable — the in-memory `reloaded` flag still applies */
+  }
+}
 
 export function PWABadge() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
@@ -49,54 +95,86 @@ export function PWABadge() {
 
     let reloaded = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    // The very first controllerchange on a device with no controller is just
+    // the new worker claiming an already-fresh page (clientsClaim) — nothing
+    // stale to replace, so don't reload brand-new visitors. Every later
+    // controllerchange is a real version swap.
+    let hadController = !!navigator.serviceWorker.controller;
     const reloadWhenSafe = () => {
       if (reloaded) return;
-      if (isOnSensitivePage()) {
+      if (isBusyForReload()) {
+        if (retryTimer) clearTimeout(retryTimer);
         retryTimer = setTimeout(reloadWhenSafe, 4000);
         return;
       }
+      if (reloadedRecently()) return;
       reloaded = true;
+      markReloading();
       window.location.reload();
     };
-    navigator.serviceWorker.addEventListener("controllerchange", reloadWhenSafe);
+    const onControllerChange = () => {
+      if (!hadController) {
+        hadController = true;
+        return;
+      }
+      reloadWhenSafe();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
 
     // No controller yet on this load means this is the first-ever install on
     // this device (nothing to reload away from), matching the old
     // `onOfflineReady` signal well enough for a cosmetic toast.
     const isFirstInstall = !navigator.serviceWorker.controller;
     navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
+      // updateViaCache "none": always revalidate sw.js AND anything it imports.
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
       .then((registration) => {
         registrationRef.current = registration;
         if (isFirstInstall) setOfflineReady(true);
+        // register() on an already-registered worker does NOT check for a
+        // newer version, and the browser's own navigation check is throttled
+        // to once per 24h — so ask explicitly once at startup.
+        registration.update().catch(() => {
+          // Best-effort — the interval / focus checks will retry.
+        });
       })
       .catch((error) => {
         console.error("[pwa] service worker registration error:", error);
       });
 
     return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", reloadWhenSafe);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, []);
 
   useEffect(() => {
+    let lastCheckAt = 0;
     const checkForUpdate = () => {
-      if (document.visibilityState === "visible") {
-        registrationRef.current?.update().catch(() => {
-          // Best-effort — a failed check just means we try again next tick.
-        });
-      }
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastCheckAt < MIN_UPDATE_GAP_MS) return;
+      lastCheckAt = now;
+      registrationRef.current?.update().catch(() => {
+        // Best-effort — a failed check just means we try again next tick.
+      });
     };
 
     const intervalId = setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
-    // Also check immediately whenever the tab regains focus, so switching
-    // back to a long-idle tab doesn't wait for the next interval tick.
+    // Also check whenever the user returns: tab visible again, window focus,
+    // restored from the back/forward cache, or the network comes back — so a
+    // long-idle or backgrounded app doesn't wait for the next interval tick.
     document.addEventListener("visibilitychange", checkForUpdate);
+    window.addEventListener("focus", checkForUpdate);
+    window.addEventListener("pageshow", checkForUpdate);
+    window.addEventListener("online", checkForUpdate);
 
     return () => {
       clearInterval(intervalId);
       document.removeEventListener("visibilitychange", checkForUpdate);
+      window.removeEventListener("focus", checkForUpdate);
+      window.removeEventListener("pageshow", checkForUpdate);
+      window.removeEventListener("online", checkForUpdate);
     };
   }, []);
 
