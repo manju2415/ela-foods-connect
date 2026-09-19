@@ -82,6 +82,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch(() => {
+      // getSession() rejected (e.g. storage/lock failure). Don't touch stored
+      // auth data — supabase-js already removes a session only when the
+      // server says it is invalid — just make sure the app doesn't hang on
+      // the loading state; onAuthStateChange will still deliver any session.
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

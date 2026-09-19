@@ -81,6 +81,17 @@ export default defineConfig(({ mode }) => ({
         clientsClaim: true,
         runtimeCaching: [
           {
+            // Auth, database, edge-function (OTP/payment) and realtime calls
+            // must always hit the network. NetworkFirst would fall back to a
+            // stale cached response on any failed request (e.g. a cached
+            // /auth/v1/user for a dead session, or another user's /rest/v1
+            // data on a shared browser). Listed first: Workbox uses the first
+            // matching route.
+            urlPattern: /^https:\/\/[^/]+\.supabase\.(?:co|in)\/(?:auth|rest|functions|realtime)\/v1\//i,
+            handler: "NetworkOnly",
+          },
+          {
+            // Remaining Supabase traffic (Storage images) keeps its existing behaviour.
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
             options: {
