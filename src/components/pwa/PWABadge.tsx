@@ -107,6 +107,7 @@ export function PWABadge() {
     const reloadWhenSafe = () => {
       if (reloaded) return;
       if (isBusyForReload()) {
+        console.info("[pwa] new version is active but reload is deferred (checkout/payment/typing)");
         if (retryTimer) clearTimeout(retryTimer);
         retryTimer = setTimeout(reloadWhenSafe, 4000);
         return;
@@ -114,6 +115,7 @@ export function PWABadge() {
       if (reloadedRecently()) return;
       reloaded = true;
       markReloading();
+      console.info("[pwa] new version active — reloading once to load it");
       window.location.reload();
     };
     const onControllerChange = () => {
@@ -134,6 +136,9 @@ export function PWABadge() {
       .register("/sw.js", { scope: "/", updateViaCache: "none" })
       .then((registration) => {
         registrationRef.current = registration;
+        registration.addEventListener("updatefound", () => {
+          console.info("[pwa] new version found — installing");
+        });
         if (isFirstInstall) setOfflineReady(true);
         // register() on an already-registered worker does NOT check for a
         // newer version, and the browser's own navigation check is throttled
