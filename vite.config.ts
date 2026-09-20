@@ -79,6 +79,8 @@ export default defineConfig(({ mode }) => ({
         // to actually reload the visible page (never mid checkout/payment).
         skipWaiting: true,
         clientsClaim: true,
+        // On activation, navigate tabs still running an old build (see file).
+        importScripts: ["sw-reload-stale-tabs.js"],
         runtimeCaching: [
           {
             // Auth, database, edge-function (OTP/payment) and realtime calls
