@@ -53,8 +53,20 @@ const RELOAD_GUARD_KEY = "ela-sw-reload-at";
 const RELOAD_GUARD_MS = 30_000;
 
 // Extra places (beyond isOnSensitivePage) where an unannounced reload could
-// lose money-related state: wallet top-up screens launch Razorpay too.
-const NO_RELOAD_PATH_PREFIXES = ["/customer-app/wallet", "/member-app/wallet"];
+// lose state: wallet top-up screens launch Razorpay too, and login / signup /
+// registration screens may be mid-OTP (waiting for an SMS with no field
+// focused). Keep in sync with public/sw-reload-stale-tabs.js.
+const NO_RELOAD_PATH_PREFIXES = [
+  "/customer-app/wallet",
+  "/member-app/wallet",
+  "/auth",
+  "/mlm-login",
+  "/signup",
+  "/founder-signup",
+  "/complete-registration",
+  "/admin",
+  "/mlm-admin",
+];
 
 /** True while a reload could wipe input or interrupt a live payment. */
 function isBusyForReload(): boolean {
