@@ -61,8 +61,12 @@ function isBusyForReload(): boolean {
   if (isOnSensitivePage()) return true;
   const path = window.location.pathname;
   if (NO_RELOAD_PATH_PREFIXES.some((p) => path.startsWith(p))) return true;
-  // Razorpay's checkout is injected into the page as a container/iframe.
-  if (document.querySelector(".razorpay-container, iframe.razorpay-checkout-frame")) return true;
+  // Razorpay's checkout is injected into the page as a container/iframe. Its
+  // script keeps a hidden (display:none) container in the DOM after loading,
+  // so only an actually rendered one (getClientRects is empty for display:none
+  // or a hidden ancestor) means a payment sheet is open.
+  const razorpayEls = document.querySelectorAll(".razorpay-container, iframe.razorpay-checkout-frame");
+  if (Array.from(razorpayEls).some((el) => el.getClientRects().length > 0)) return true;
   // Someone is typing (e.g. entering an OTP) — don't wipe it.
   const el = document.activeElement as HTMLElement | null;
   if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return true;
