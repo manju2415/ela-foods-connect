@@ -44,7 +44,7 @@ const HeroSection = () => {
         .eq("is_active", true)
         .order("display_order", { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (error && error.code !== "PGRST116") throw error;
       try {
         if (data) localStorage.setItem(HERO_BANNER_CACHE_KEY, JSON.stringify(data));
