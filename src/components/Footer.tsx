@@ -1,3 +1,4 @@
+import { BUILD_MARK } from "@/buildMark";
 import * as React from "react";
 import { Link } from "react-router-dom";
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
@@ -113,6 +114,7 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
           <div className="border-t border-card/20 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-card/60 text-sm">
               © 2026 {storeSettings.store_name}. All rights reserved.
+              <span className="ml-2 text-xs opacity-50">{BUILD_MARK}</span>
             </p>
             <div className="flex gap-6 text-sm flex-wrap">
               <Link to="/policies/return" className="text-card/60 hover:text-secondary transition-colors">
