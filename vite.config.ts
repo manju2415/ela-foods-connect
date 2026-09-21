@@ -61,7 +61,21 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Precache only the app shell (index.html + its entry JS/CSS) so a new
+        // worker installs in seconds. Precaching every lazy route chunk made
+        // installs download ~166 files one after another (~3+ min on this
+        // host), and until that finished visitors kept getting the old build.
+        // Lazy chunks and icons are cached on first use by the runtime rules
+        // below instead. Keep index.html's script/style references precached:
+        // public/sw-reload-stale-tabs.js treats a shell that references an
+        // un-precached script as stale.
+        globPatterns: [
+          "index.html",
+          "assets/index-*.{js,css}",
+          "sw-reload-stale-tabs.js",
+          "favicon.{ico,png}",
+          "placeholder.svg",
+        ],
         // skipWaiting + clientsClaim are both required for an already-stuck
         // visitor to ever recover. skipWaiting makes a newly downloaded
         // service worker activate itself the moment the browser notices it
@@ -104,6 +118,23 @@ export default defineConfig(({ mode }) => ({
               },
               cacheableResponse: {
                 statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // Hashed build chunks (lazy routes, fonts) no longer precached:
+            // filenames change with content, so cache-first is safe.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/assets/") && /\.(?:js|css|woff2?)$/.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "assets-cache",
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [200],
               },
             },
           },
