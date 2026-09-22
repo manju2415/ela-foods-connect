@@ -4,5 +4,15 @@
       "source": "/((?!assets/|icons/|placeholder.svg|robots.txt|manifest-customer.json|manifest-driver.json|manifest-member.json).*)",
       "destination": "/index.html"
     }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, must-revalidate" }]
+    },
+    {
+      "source": "/index.html",
+      "headers": [{ "key": "Cache-Control", "value": "no-store, must-revalidate" }]
+    }
   ]
 }

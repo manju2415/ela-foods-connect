@@ -27,6 +27,27 @@ const isInactiveTooLong = (): boolean => {
   }
 };
 
+// Records a verify-otp-login call that never got a parseable reply from the
+// server at all — the server-side log (written by the function itself) has
+// no row for these by definition, so without this a customer's "it just
+// doesn't work" leaves no trace anywhere. Best-effort and non-blocking: a
+// failure here must never affect the login flow it's reporting on. Runs with
+// no session yet (a login attempt is, by definition, not yet logged in), so
+// this goes through the anon client — see the otp_send_log INSERT policy,
+// scoped to only this exact outcome value.
+const logClientInvokeFailure = async (phone: string, message?: string) => {
+  try {
+    await supabase.from("otp_send_log").insert({
+      phone,
+      outcome: "session:CLIENT_INVOKE_FAILED",
+      provider_request_id: Capacitor.getPlatform(),
+      error: message ? message.slice(0, 500) : null,
+    });
+  } catch {
+    // Best-effort — never let logging failure mask or block the real error.
+  }
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -164,6 +185,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Prefer whatever the server actually said; the old catch-all text is only
       // used when no server message came back at all (e.g. a network failure).
       const serverMessage = body?.error || data?.error || error?.message;
+      if (error && !body) {
+        // The invoke failed before any parseable server reply came back at all
+        // (dropped connection, CORS block, a stale cached bundle hitting a
+        // removed/renamed endpoint) — the server never got a chance to log
+        // this attempt itself. Record it client-side, best-effort, so the
+        // next occurrence names its own cause instead of leaving no trace.
+        void logClientInvokeFailure(phone, error.message);
+      }
       return { error: new Error(serverMessage || "Could not sign in. Please check your connection and try again.") };
     }
 
