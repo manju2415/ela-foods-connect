@@ -104,7 +104,7 @@ export default function Signup() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const navigate = useNavigate();
   const locationRoute = useLocation();
   const [searchParams] = useSearchParams();
@@ -179,6 +179,8 @@ export default function Signup() {
 
   const handleResend = async () => {
     if (cooldown > 0 || !phoneNumber) return;
+    dismiss(); // clear any leftover toast from a previous attempt
+    setLastError(null); // clear any leftover inline error from a previous attempt
     setSubmitting(true);
     const r = await sendOtp(phoneNumber);
     setSubmitting(false);
@@ -191,12 +193,17 @@ export default function Signup() {
       return;
     }
     setCooldown(RESEND_COOLDOWN);
+    // A resend invalidates the previous code on the provider's side — clear
+    // whatever digits were typed so a stale, now-rejected code can't be
+    // submitted by mistake.
+    setOtp("");
     toast({ title: "OTP Resent" });
   };
 
   const handleVerify = async () => {
     if (otp.length !== 6 || verificationInFlight.current) return;
     verificationInFlight.current = true;
+    dismiss(); // clear any leftover toast from a previous attempt
     setSubmitting(true);
     setLastError(null);
     try {

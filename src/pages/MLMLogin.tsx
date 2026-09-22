@@ -161,6 +161,10 @@ const MLMLogin = () => {
       return;
     }
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    // A resend invalidates the previous code on the provider's side — clear
+    // whatever digits were typed so a stale, now-rejected code can't be
+    // submitted by mistake.
+    setOtpCode("");
     toast({ title: "OTP Resent", description: getOtpSentDescription(phoneNumber, result) });
   };
 
