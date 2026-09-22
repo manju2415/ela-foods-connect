@@ -3,7 +3,15 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+// Was 1000000 (~16.7 min) — the shadcn/ui template default. DISMISS_TOAST
+// already flips `open: false` immediately, so a normal toast still visually
+// closes on Radix's own ~5s timer; but that timer is a setTimeout, which
+// browsers throttle/pause while a tab is backgrounded (e.g. a customer
+// switches to their SMS app to read an OTP). On return, the old toast could
+// still be sitting on screen well after this delay, overlapping a fresh
+// attempt and making a resolved error look current. 5s keeps the same
+// behavior as a normal toast once the tab is foregrounded again.
+const TOAST_REMOVE_DELAY = 5000;
 
 type ToasterToast = ToastProps & {
   id: string;

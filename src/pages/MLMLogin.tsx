@@ -72,7 +72,7 @@ const MLMLogin = () => {
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   const form = useForm<PhoneFormData>({
     resolver: zodResolver(phoneSchema),
@@ -112,6 +112,7 @@ const MLMLogin = () => {
   }, [resendCooldown]);
 
   const handleSendOtp = async (data: PhoneFormData) => {
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     await signOut();
@@ -151,6 +152,7 @@ const MLMLogin = () => {
 
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || !phoneNumber) return;
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     const result = await sendOtpViaMsg91(phoneNumber);
     setIsSubmitting(false);
@@ -169,6 +171,7 @@ const MLMLogin = () => {
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     try {
       const { error } = await createSessionForPhone(phoneNumber, otpCode);

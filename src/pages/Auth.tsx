@@ -86,7 +86,7 @@ const Auth = () => {
   const { user, createSessionForPhone, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   const redirectTo = useMemo(() => {
     const redirectParam = new URLSearchParams(location.search).get("redirect")?.trim();
@@ -262,6 +262,7 @@ const Auth = () => {
 
   // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
@@ -313,6 +314,7 @@ const Auth = () => {
       return;
     }
 
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
@@ -338,6 +340,7 @@ const Auth = () => {
 
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || !phoneNumber) return;
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     const result = await sendOtpViaMsg91(phoneNumber);
     setIsSubmitting(false);
@@ -357,6 +360,7 @@ const Auth = () => {
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     try {
       const { error, isNewUser } = await createSessionForPhone(
