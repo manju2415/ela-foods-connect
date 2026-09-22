@@ -1,47 +1,40 @@
-# iPhone signup: account is created but sign-in shows "Account not found"
+# Login failure for +91 98451 21558 — findings and proposed fix
 
-## What the live data shows (checked just now)
+## What the records show (read-only checks, nothing changed)
 
-- Sign-in attempt logging has been in place since 9 September. In the whole log there are only **two** recorded failures, both from 9 September test numbers. Every real attempt since then is recorded as a success, including attempts marked `ios`.
-- Several recent accounts exist with **no sign-in ever recorded** — for example Kanakaraj (9731411909) and Janardhanan (9886459486), both created 14 September, and Manju (8951774194). Their account records are complete and confirmed, matching your description: the details are saved, but the person never gets signed in.
-- For those same accounts there is **no record of the sign-in step being called at all** — not a failure, nothing. So the failing iPhone attempts are not reaching the server step that would log the real reason.
-- Server logs for the two functions involved are no longer retained, so the failed calls cannot be traced after the fact.
+**The account is healthy.**
+- Profile: Sudevan P M, phone stored as `+919845121558`, active, created 15 Aug.
+- One matching login account, `919845121558@elabazar.local`, email confirmed, no duplicates.
+- Last successful sign-in: **today 22 Sep, 05:01:29 UTC** (10:31 IST) — recorded as a success from the website on an iPhone.
+- Earlier successes on 16 Sep (twice) and 15 Sep.
 
-What this points to — not yet proven — is that the installed TestFlight app is running an **older bundled copy of the app** (from before the 9 September signup fix), which showed "Account not found. Please contact admin to be added." as a catch-all whenever the sign-in call failed for any reason. Since you're not sure when that build was made, confirming this is step one, not an assumption.
+**No failure was ever recorded for this number.** Every login attempt the server actually received for him succeeded. Across the whole log there has never been a single "account not found" result for anyone — not once, for any number.
 
-## Plan
+**But many codes were sent and never used.** Codes went out on 10, 17 (x3), 18, 19, 21 (x3) and 22 Sep (x3) with no matching login attempt on the server at all. So on those occasions he entered the code and the request never reached us.
 
-### Step 1 — Make the installed app identify itself (server-side + app-side)
+## What this means
 
-- Stamp every sign-in and account-creation call with the app's build version and platform, and record it with the attempt. The moment a tester tries again, we will know exactly which bundle they are on and whether the call arrived.
-- Add the same attempt logging to the account-creation step, which currently records nothing. This closes the blind spot where an account is created but the sign-in that follows leaves no trace.
+The wording he sees — "Account not found. Please contact admin to be added." — no longer exists as a server reply. It only exists in the **older version of the website** that his browser is still loading from cache. In the current version that same situation shows a connection message instead.
 
-### Step 2 — Never show "Account not found" for a failure that isn't one
+So the most likely cause is: his browser/app is running a stale copy of the site, and his verify request is failing before it reaches the server (connection drop, cached old code), while the old copy mislabels that as "account not found".
 
-On the phone, when the sign-in call fails without a server reply (no network, blocked request, timeout), show a plain "Couldn't reach the server — check your connection and tap Try again" instead of the misleading admin message. Keep the real server wording whenever the server does answer.
+This is consistent, not proven — no server-side trace exists for the failed attempts, by definition.
 
-### Step 3 — Rescue the people already stuck
+## Proposed fix (nothing done yet — awaiting confirmation)
 
-For accounts that exist with no sign-in yet, nothing is broken in their record — they only need a successful sign-in. Once Steps 1-2 ship, ask one of them to open the app and log in with their number (not sign up again). Signing up again is already safe and will not duplicate accounts, referrals or charges.
+1. **Force stale browsers to pick up the current site.** Serve the entry page as never-cached and bump the build marker, so a returning visitor always loads the latest version instead of a months-old one. This touches only hosting/caching config and the build marker — not the login path.
+2. **Record failures that never reach the server.** When the verify call fails with no reply from the server, write one log row (number, platform, HTTP status, message) so the next occurrence names its own cause instead of leaving a blank. Best-effort and non-blocking.
+3. **Ask him to do one hard refresh** (or reinstall the app) and try once; then read the new log row if it fails again.
 
-### Step 4 — Ship a fresh iPhone build
-
-Rebuild and upload a new TestFlight build from current code. This is the decisive step if the installed build is indeed old; it also carries Steps 1-2 to the phone. Nothing in Steps 1-2 breaks older installed builds.
-
-### Step 5 — Verification
-
-Verifiable from here: account creation, sign-in for customer/member, admin, network admin and delivery roles, signup with and without a referral code, wrong and expired codes rejected, retry after interruption, existing accounts untouched, website and Android signup unchanged.
-
-Cannot be verified from here: the installed iPhone app. One real iPhone attempt on the new build is needed; a desktop preview does not prove it. After Step 1 ships, even a failed attempt will name its own cause and the build it came from.
+No changes to `src/pages/Auth.tsx`, `src/pages/Signup.tsx`, `src/pages/MLMLogin.tsx`, `supabase/functions/verify-otp-login`, or `supabase/functions/msg91-send-otp` — the recently fixed files stay untouched. If you prefer, step 2 can be dropped and only the cache fix applied.
 
 ## Explicitly unchanged
 
-Existing account IDs, orders, wallets and transaction history; referral and founder assignment; registration payment and membership activation; guest checkout; pricing, inventory, shipping and payment calculations; role permissions. Ordinary login still never creates an account.
+Accounts, orders, wallets, transactions, referrals, registrations, roles, pricing, guest checkout — none touched. This is read-only diagnosis plus, if approved, caching and logging only.
 
 ## Technical notes
 
-- `verify-otp-login`: include an `appVersion` field (sent by the client, falls back to "unknown") in the `otp_send_log` row alongside the existing platform label; no behaviour change to the verification or session branches.
-- `signup-create-user`: write an `otp_send_log` row per attempt (`signup:CREATED` / `signup:EXISTING` / `signup:FAILED`) with phone, platform and reason. Add the same `outcome` prefix to the table's allowed values.
-- `AuthContext.createSessionForPhone` / `Signup.tsx`: pass platform + app version; when the invoke returns no server body, surface a connectivity message instead of the server's 404 wording.
-- iOS: `npx cap sync` and a new archive/upload; `capacitor.config.ts` already has the dev `server.url` commented out, so the build bundles local assets correctly.
-- No schema changes beyond widening the log `outcome` check constraint; no migration touching user, order, wallet or payment data.
+- `otp_send_log`: 160 `session:SUCCESS`, 6 `session:OTP_REJECTED`, 6 `session:SIGNIN_FAILED` (all test numbers, "Email not confirmed"), zero `session:NO_AUTH_USER` ever.
+- `AuthContext.createSessionForPhone` already prefers the server message and falls back to "Could not sign in. Please check your connection and try again." — the "Account not found" string is only in the deployed old bundle and the server's `NO_AUTH_USER` branch, which has never fired.
+- Cache fix: add `Cache-Control: no-store` headers for `/` and `/index.html` in `vercel.json`, bump `src/buildMark.ts`.
+- Logging: new small helper called from the failure branch of `createSessionForPhone`, writing `session:CLIENT_INVOKE_FAILED` to `otp_send_log`.
