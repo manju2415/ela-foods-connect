@@ -87,6 +87,11 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
         description: "Failed to generate referral code",
         variant: "destructive",
       });
+    } else if (!data) {
+      toast({
+        title: "Not available yet",
+        description: "Your referral code will be available after your membership payment is complete.",
+      });
     } else {
       toast({
         title: "Success",
