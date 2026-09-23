@@ -189,12 +189,7 @@ serve(async (req) => {
       incentive_paid: false,
     });
 
-    // Generate the new user's own referral code so their downlink is trackable
-    try {
-      await supabase.rpc("generate_user_referral_code", { p_user_id: newUserId });
-    } catch (err) {
-      console.error("Referral code generation error:", err);
-    }
+    // Their own referral code is issued after registration payment completes.
 
     // Fetch referrer's name for the invite SMS + notification
     const { data: referrerProfile } = await supabase

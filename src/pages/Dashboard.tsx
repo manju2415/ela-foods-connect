@@ -318,7 +318,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           .from("orders")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id),
-        supabase.from("referral_codes").select("*").eq("user_id", user.id),
+        supabase.from("referral_codes").select("*").eq("user_id", user.id).eq("is_active", true),
         supabase.rpc("is_founding_member", { _user_id: user.id }),
       ]);
 
@@ -730,6 +730,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                         <Skeleton className="h-12 w-full" />
                         <Skeleton className="h-12 w-full" />
                       </div>
+                    ) : !isPaymentComplete ? (
+                      <p className="text-muted-foreground">
+                        Your referral code will be available after your membership payment is complete.
+                      </p>
                     ) : referralCodes.length === 0 ? (
                       <p className="text-muted-foreground">
                         No referral codes available. Contact support to get one.

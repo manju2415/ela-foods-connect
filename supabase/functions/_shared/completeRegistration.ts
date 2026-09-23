@@ -270,15 +270,20 @@ export async function completeRegistration(
         p_registration_fee: registrationAmount,
       });
       if (mlmError) console.error("MLM referral processing error:", mlmError);
-    } else {
-      const { error: codeError } = await supabase.rpc("generate_user_referral_code", { p_user_id: userId });
-      if (codeError) console.error("Referral code generation error:", codeError);
     }
   }
 
   await supabase
     .from("user_roles")
     .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
+
+  // Invited users already have a pending referral record. Issue their code
+  // independently of referral processing, including on payment retries.
+  const { data: ownCode, error: codeError } = await supabase.rpc("generate_user_referral_code", { p_user_id: userId });
+  if (codeError || !ownCode) {
+    console.error("Referral code generation error:", codeError);
+    return { success: false, error: "Membership payment recorded, but referral code creation failed. Please retry." };
+  }
 
   return {
     success: true,
