@@ -89,6 +89,7 @@ const Checkout = () => {
   const [couponError, setCouponError] = useState("");
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<Date | null>(null);
   const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState<string | null>(null);
+  const [hasDeliveryDate, setHasDeliveryDate] = useState(true);
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
   const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
   const [pickupStores, setPickupStores] = useState<Tables<"stores">[]>([]);
@@ -344,6 +345,10 @@ const Checkout = () => {
     }
     if (fulfillmentType === "store_pickup" && !pickupStoreId) {
       toast({ title: "Select Store", description: "Please select a store for pickup.", variant: "destructive" });
+      return;
+    }
+    if (!hasDeliveryDate) {
+      toast({ title: "No delivery date", description: "No delivery date is available for all the items in your cart.", variant: "destructive" });
       return;
     }
     if (!user) return;
@@ -669,6 +674,8 @@ const Checkout = () => {
               selectedSlotId={selectedDeliverySlotId}
               onDateChange={setSelectedDeliveryDate}
               onSlotChange={setSelectedDeliverySlotId}
+              productIds={items.map((item) => item.product_id)}
+              onAvailabilityChange={setHasDeliveryDate}
             />
 
             {/* Payment Options */}
@@ -904,6 +911,7 @@ const Checkout = () => {
                   onClick={handlePlaceOrder}
                   disabled={
                     placing ||
+                    !hasDeliveryDate ||
                     (fulfillmentType === "delivery"
                       ? !selectedAddressId || pickupOnlyItems.length > 0
                       : !pickupStoreId)

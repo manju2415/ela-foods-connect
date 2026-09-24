@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { format, addDays, isBefore, startOfToday } from "date-fns";
+import { format } from "date-fns";
+import { availableDeliveryDates, loadDeliveryRules, type DeliveryRules } from "@/lib/deliveryDays";
 
 interface DeliverySlot {
   id: string;
@@ -20,6 +21,10 @@ interface DeliverySchedulerProps {
   selectedSlotId: string | null;
   onDateChange: (date: Date) => void;
   onSlotChange: (slotId: string) => void;
+  // Products in the cart; their categories decide which dates are offered.
+  productIds?: string[];
+  // Reports whether at least one delivery date is available.
+  onAvailabilityChange?: (available: boolean) => void;
 }
 
 export const DeliveryScheduler = ({
@@ -27,12 +32,29 @@ export const DeliveryScheduler = ({
   selectedSlotId,
   onDateChange,
   onSlotChange,
+  productIds = [],
+  onAvailabilityChange,
 }: DeliverySchedulerProps) => {
   const [slots, setSlots] = useState<DeliverySlot[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rules, setRules] = useState<DeliveryRules | null>(null);
 
-  // Generate next 7 available days
-  const availableDates = Array.from({ length: 7 }, (_, i) => addDays(startOfToday(), i + 1));
+  const productKey = [...productIds].sort().join(",");
+  useEffect(() => {
+    let cancelled = false;
+    loadDeliveryRules(productKey ? productKey.split(",") : []).then((loaded) => {
+      if (!cancelled) setRules(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [productKey]);
+
+  // Next available days, skipping days the cart's items can't be delivered on.
+  const availableDates = useMemo(
+    () => (rules ? availableDeliveryDates(rules.categoryIds, rules.categories, rules.overrides) : []),
+    [rules],
+  );
 
   useEffect(() => {
     fetchSlots();
@@ -55,13 +77,21 @@ export const DeliveryScheduler = ({
     setLoading(false);
   };
 
+  // Pick the first available date, and replace a selection that is no longer
+  // allowed (e.g. after the cart changed).
   useEffect(() => {
-    if (!selectedDate && availableDates.length > 0) {
+    if (!rules || availableDates.length === 0) return;
+    const stillValid = selectedDate && availableDates.some((d) => d.toDateString() === selectedDate.toDateString());
+    if (!stillValid) {
       onDateChange(availableDates[0]);
     }
-  }, [selectedDate, availableDates, onDateChange]);
+  }, [rules, selectedDate, availableDates, onDateChange]);
 
-  if (loading) {
+  useEffect(() => {
+    if (rules) onAvailabilityChange?.(availableDates.length > 0);
+  }, [rules, availableDates, onAvailabilityChange]);
+
+  if (loading || !rules) {
     return (
       <Card>
         <CardHeader>
@@ -92,6 +122,16 @@ export const DeliveryScheduler = ({
         {/* Date Selection */}
         <div className="space-y-3">
           <Label className="text-sm font-medium">Select Delivery Date</Label>
+          {rules.restrictedLabels.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Delivery days: {rules.restrictedLabels.join(" · ")}
+            </p>
+          )}
+          {availableDates.length === 0 && (
+            <p className="text-sm text-destructive">
+              No delivery date is available for all the items in your cart. Please order them separately or try again later.
+            </p>
+          )}
           <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
             {availableDates.map((date) => (
               <Button

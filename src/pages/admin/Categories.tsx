@@ -45,6 +45,7 @@ import {
 import { Search, Plus, Pencil, Trash2, FolderTree, Upload, X, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { compressImage } from "@/utils/imageCompression";
+import { WEEKDAY_LABELS } from "@/lib/deliveryDays";
 
 interface Category {
   id: string;
@@ -59,6 +60,7 @@ interface Category {
   return_enabled?: boolean;
   return_window_days?: number;
   exchange_enabled?: boolean;
+  delivery_weekdays?: number[] | null;
 }
 
 interface CategoryFormData {
@@ -71,6 +73,8 @@ interface CategoryFormData {
   return_enabled: boolean;
   return_window_days: string;
   exchange_enabled: boolean;
+  // Empty = delivered every day.
+  delivery_weekdays: number[];
 }
 
 const initialFormData: CategoryFormData = {
@@ -83,7 +87,18 @@ const initialFormData: CategoryFormData = {
   return_enabled: true,
   return_window_days: "7",
   exchange_enabled: true,
+  delivery_weekdays: [],
 };
+
+// Saved separately from the main category fields so that a missing
+// delivery_weekdays column can never block editing a category.
+async function saveDeliveryWeekdays(categoryId: string, weekdays: number[]) {
+  const { error } = await supabase
+    .from("categories")
+    .update({ delivery_weekdays: weekdays.length > 0 ? [...weekdays].sort() : null })
+    .eq("id", categoryId);
+  if (error) toast.error("Category saved, but delivery days could not be saved: " + error.message);
+}
 
 export default function Categories() {
   const [search, setSearch] = useState("");
@@ -130,7 +145,7 @@ export default function Categories() {
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
       }
-      const { error } = await supabase.from("categories").insert({
+      const { data: created, error } = await supabase.from("categories").insert({
         name: data.name,
         slug: data.slug || data.name.toLowerCase().replace(/\s+/g, "-"),
         description: data.description || null,
@@ -141,8 +156,11 @@ export default function Categories() {
         return_enabled: data.return_enabled,
         return_window_days: parseInt(data.return_window_days) || 7,
         exchange_enabled: data.exchange_enabled,
-      });
+      }).select("id").single();
       if (error) throw error;
+      if (created && data.delivery_weekdays.length > 0) {
+        await saveDeliveryWeekdays(created.id, data.delivery_weekdays);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
@@ -178,6 +196,10 @@ export default function Categories() {
         })
         .eq("id", id);
       if (error) throw error;
+      const previous = categories.find((c) => c.id === id)?.delivery_weekdays ?? [];
+      if ([...previous].sort().join() !== [...data.delivery_weekdays].sort().join()) {
+        await saveDeliveryWeekdays(id, data.delivery_weekdays);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
@@ -226,6 +248,7 @@ export default function Categories() {
       return_enabled: category.return_enabled !== false,
       return_window_days: (category.return_window_days || 7).toString(),
       exchange_enabled: category.exchange_enabled !== false,
+      delivery_weekdays: category.delivery_weekdays ?? [],
     });
     setExistingImage(category.image_url);
     setImageFile(null);
@@ -537,6 +560,38 @@ export default function Categories() {
                       </Label>
                     </>
                   )}
+                </div>
+              </div>
+
+              {/* Delivery Days */}
+              <div className="space-y-2 border-t pt-4">
+                <h4 className="text-sm font-medium">Delivery Days</h4>
+                <p className="text-xs text-muted-foreground">
+                  Customers can only pick these days at checkout. Select none to deliver every day.
+                  {formData.parent_id ? " If none are selected, the parent category's days apply." : ""}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAY_LABELS.map((label, day) => {
+                    const selected = formData.delivery_weekdays.includes(day);
+                    return (
+                      <Button
+                        key={label}
+                        type="button"
+                        size="sm"
+                        variant={selected ? "default" : "outline"}
+                        onClick={() =>
+                          setFormData({
+                            ...formData,
+                            delivery_weekdays: selected
+                              ? formData.delivery_weekdays.filter((d) => d !== day)
+                              : [...formData.delivery_weekdays, day],
+                          })
+                        }
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
 
