@@ -195,6 +195,7 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             </div>
           </div>
         </div>
+        <span className="ml-2 text-xs opacity-50">{BUILD_MARK}</span>
       </footer>
     );
   },
