@@ -151,7 +151,6 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
           <div className="border-t border-card/20 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-card/60 text-sm">
               © 2026 {storeSettings.store_name}. All rights reserved.
-              <span className="ml-2 text-xs opacity-50">{BUILD_MARK}</span>
             </p>
             <div className="flex gap-6 text-sm flex-wrap">
               <Link
@@ -191,7 +190,6 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
               >
                 Delete Account
               </Link>
-              <span className="ml-2 text-xs opacity-50">{BUILD_MARK}</span>
             </div>
           </div>
         </div>
