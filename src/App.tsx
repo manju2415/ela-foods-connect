@@ -299,6 +299,7 @@ function App() {
                         <Route path="/policies" element={<Policies />} />
                         <Route path="/stores" element={<StoreLocator />} />
                         <Route path="/policies/:slug" element={<Policies />} />
+                        <Route path="/privacy-policy" element={<Navigate to="/policies/privacy" replace />} />
                         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                         <Route path="/user-agreement" element={<UserAgreementPage />} />
                         <Route path="/complete-registration" element={<CompleteRegistration />} />

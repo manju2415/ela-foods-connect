@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -479,7 +479,8 @@ const RegistrationPayment = () => {
               </div>
 
               <p className="text-xs text-center text-muted-foreground">
-                By completing payment, you agree to our Terms of Service and Privacy Policy
+                By completing payment, you agree to our Terms of Service and{" "}
+                <Link to="/policies/privacy" target="_blank" className="underline">Privacy Policy</Link>
               </p>
             </CardContent>
           </Card>
