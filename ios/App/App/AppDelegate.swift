@@ -1,5 +1,9 @@
 import UIKit
 import Capacitor
+#if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+import FirebaseCore
+import FirebaseMessaging
+#endif
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,7 +12,42 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+        // Only configure Firebase when GoogleService-Info.plist is bundled —
+        // FirebaseApp.configure() crashes the app without it.
+        if FirebaseApp.app() == nil, Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil {
+            FirebaseApp.configure()
+        }
+        #endif
         return true
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        // send-push-notification delivers through FCM HTTP v1, which only accepts
+        // FCM registration tokens — so hand Capacitor the FCM token, never the raw
+        // APNs token (an APNs token saved to profiles.push_token would be rejected
+        // by FCM and could overwrite the user's working Android token).
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging)
+        if FirebaseApp.app() != nil {
+            Messaging.messaging().apnsToken = deviceToken
+            Messaging.messaging().token { token, error in
+                if let error = error {
+                    NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+                } else if let token = token {
+                    NotificationCenter.default.post(name: .capacitorDidRegisterForRemoteNotifications, object: token)
+                }
+            }
+            return
+        }
+        #endif
+        let error = NSError(domain: "ElaBazarPush", code: 1, userInfo: [
+            NSLocalizedDescriptionKey: "Firebase is not configured for iOS; an FCM token is required by the push backend."
+        ])
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NotificationCenter.default.post(name: .capacitorDidFailToRegisterForRemoteNotifications, object: error)
     }
 
     func applicationWillResignActive(_ application: UIApplication) {
