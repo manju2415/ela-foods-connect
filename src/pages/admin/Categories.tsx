@@ -93,7 +93,7 @@ const initialFormData: CategoryFormData = {
 // Saved separately from the main category fields so that a missing
 // delivery_weekdays column can never block editing a category.
 async function saveDeliveryWeekdays(categoryId: string, weekdays: number[]) {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from("categories")
     .update({ delivery_weekdays: weekdays.length > 0 ? [...weekdays].sort() : null })
     .eq("id", categoryId);
