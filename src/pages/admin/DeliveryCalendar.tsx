@@ -51,7 +51,7 @@ export default function DeliveryCalendar() {
   const { data: categories = [] } = useQuery({
     queryKey: ["delivery-calendar-categories"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("categories")
         .select("id, name, parent_id, delivery_weekdays")
         .order("name");
@@ -63,7 +63,7 @@ export default function DeliveryCalendar() {
   const { data: overrides = [], isLoading } = useQuery({
     queryKey: ["delivery-date-overrides"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("delivery_date_overrides")
         .select("id, override_date, category_id, is_available, reason")
         .gte("override_date", today)
@@ -78,7 +78,7 @@ export default function DeliveryCalendar() {
 
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("delivery_date_overrides").insert({
+      const { error } = await (supabase as any).from("delivery_date_overrides").insert({
         override_date: date,
         category_id: scope === STORE_WIDE ? null : scope,
         is_available: availability === "open",
@@ -103,7 +103,7 @@ export default function DeliveryCalendar() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("delivery_date_overrides").delete().eq("id", id);
+      const { error } = await (supabase as any).from("delivery_date_overrides").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
