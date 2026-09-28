@@ -94,8 +94,8 @@ export async function loadDeliveryRules(productIds: string[]): Promise<DeliveryR
       productIds.length > 0
         ? supabase.from("products").select("id, category_id").in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
-      supabase.from("categories").select("id, name, parent_id, delivery_weekdays"),
-      supabase
+      (supabase as any).from("categories").select("id, name, parent_id, delivery_weekdays"),
+      (supabase as any)
         .from("delivery_date_overrides")
         .select("override_date, category_id, is_available")
         .gte("override_date", today)
