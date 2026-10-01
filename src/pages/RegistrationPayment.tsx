@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 
 
@@ -38,6 +38,11 @@ const RegistrationPayment = () => {
   const [emailError, setEmailError] = useState<string | null>(null);
 
 
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
 
   useEffect(() => {
     if (!user) {

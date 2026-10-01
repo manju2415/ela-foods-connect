@@ -102,9 +102,28 @@ const loadRazorpayScript = (): Promise<void> => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    script.onerror = () => {
+      // Drop the failed tag so the next attempt injects a fresh one instead
+      // of waiting on a tag whose error event has already fired.
+      script.remove();
+      reject(new Error("Failed to load Razorpay SDK"));
+    };
     document.head.appendChild(script);
   });
+};
+
+/**
+ * Starts downloading Razorpay's checkout script in the background. The script
+ * is no longer loaded on every page from index.html, so pages that can take a
+ * payment call this when they open — it is then already there by the time the
+ * customer taps Pay. Purely a head start: openRazorpayCheckout still waits
+ * for the script itself, so a failure here is harmless. Skipped in the native
+ * app, which never opens checkout in its own WebView (see
+ * initiateRazorpayPayment below).
+ */
+export const preloadRazorpayScript = () => {
+  if (Capacitor.isNativePlatform()) return;
+  loadRazorpayScript().catch(() => {});
 };
 
 /**

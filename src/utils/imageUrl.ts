@@ -17,6 +17,23 @@
 const WSRV_ENDPOINT = "https://wsrv.nl/";
 const DEFAULT_WIDTH = 800;
 
+// Largest width any uploaded image can have: admin uploads are downscaled
+// before upload (src/utils/imageCompression.ts) to 1920px, or 2560px for
+// banners. Asking the proxy for more than this can only upscale — a bigger
+// download with no extra detail.
+const MAX_SOURCE_IMAGE_WIDTH = 2560;
+
+/**
+ * Multiplier applied to an image's display size when requesting it: device
+ * pixel ratio (capped at 2x) so it stays sharp on retina screens, but never
+ * so much that the request exceeds the largest possible source width.
+ */
+export function getImageRequestScale(displayWidth?: number): number {
+  const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+  if (!displayWidth) return dpr;
+  return Math.max(1, Math.min(dpr, MAX_SOURCE_IMAGE_WIDTH / displayWidth));
+}
+
 export function getOptimizedImageUrl(
   url: string,
   options: {

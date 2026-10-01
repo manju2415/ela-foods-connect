@@ -14,7 +14,7 @@ import {
   MapPin, CreditCard, Ticket, X, Check,
   ShoppingCart, Loader2, ChevronRight, Edit2, CheckCircle2, Crown,
 } from "lucide-react";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
@@ -69,6 +69,11 @@ const GuestCheckout = () => {
   });
 
   const [paymentMethod, setPaymentMethod] = useState<string>("upi");
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
 
   useEffect(() => {
     if (user) {

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
@@ -122,6 +122,11 @@ const Checkout = () => {
     postal_code: "",
     label: "Home",
   });
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
 
   useEffect(() => {
     if (!user) {

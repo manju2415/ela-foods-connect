@@ -22,15 +22,20 @@ import OnboardingGate from "@/components/OnboardingGate";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
-import { MLMAdminLayout } from "./components/mlm-admin/MLMAdminLayout";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 import Products from "./pages/Products";
 
 // Lazy-loaded pages
+// Auth brings its own form/validation libraries that no other startup page
+// uses, and the MLM admin layout brings the admin sidebar — neither is needed
+// to show the storefront, so both load on demand like the other routes.
+const Auth = lazy(() => import("./pages/Auth"));
+const MLMAdminLayout = lazy(() =>
+  import("./components/mlm-admin/MLMAdminLayout").then((m) => ({ default: m.MLMAdminLayout }))
+);
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Signup = lazy(() => import("./pages/Signup"));
 const UserAgreementPage = lazy(() => import("./pages/UserAgreement"));

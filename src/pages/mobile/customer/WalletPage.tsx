@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Wallet, ArrowUpRight, ArrowDownLeft, Plus, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty } from "@/lib/email";
 import { toast } from "sonner";
 
@@ -75,6 +75,11 @@ export default function CustomerWalletPage() {
     
     setLoading(false);
   }, [user]);
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
 
   useEffect(() => {
     fetchData();
