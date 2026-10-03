@@ -1,0 +1,1 @@
+- Logged-in online checkout is payment-first: razorpay-create-order (purpose member_order) quotes via quote_checkout and stores checkout_payload; settlePayment creates the order via place_paid_order keyed on 'rzp:<payment_id>'. Why: no unpaid orders, and webhook/sweep can create orders if the app closes.
