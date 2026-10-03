@@ -43,6 +43,9 @@ export interface SettlePaymentResult {
   success: boolean;
   already_settled?: boolean;
   error?: string;
+  order_id?: string | null;
+  order_number?: string | null;
+  needs_refund?: boolean;
 }
 
 export async function settlePayment(supabase: Client, params: SettlePaymentParams): Promise<SettlePaymentResult> {
@@ -55,7 +58,12 @@ export async function settlePayment(supabase: Client, params: SettlePaymentParam
     .maybeSingle();
 
   if (existingByPaymentId && existingByPaymentId.status === "converted") {
-    return { success: true, already_settled: true };
+    let orderNumber: string | null = null;
+    if (existingByPaymentId.order_id) {
+      const { data: o } = await supabase.from("orders").select("order_number").eq("id", existingByPaymentId.order_id).maybeSingle();
+      orderNumber = o?.order_number ?? null;
+    }
+    return { success: true, already_settled: true, order_id: existingByPaymentId.order_id ?? null, order_number: orderNumber };
   }
 
   // Pull the "initiated" row recorded at razorpay-create-order time, if any —
@@ -113,6 +121,8 @@ export async function settlePayment(supabase: Client, params: SettlePaymentParam
     discount_amount: discountAmount,
     status: purpose === "registration" || purpose === "wallet_topup" || !!orderId ? "converted" : "pending",
     order_id: purpose === "registration" ? null : orderId,
+    checkout_payload: initiatedRow?.checkout_payload ?? null,
+    expected_amount: initiatedRow?.expected_amount ?? null,
   };
 
   const { error: attemptErr } = await supabase
@@ -185,6 +195,29 @@ export async function settlePayment(supabase: Client, params: SettlePaymentParam
         console.error("[settlePayment] Wallet top-up: no wallet row for user", userId);
       }
     }
+  } else if (purpose === "member_order") {
+    // Payment-first logged-in checkout: the order is created here, only now
+    // that the payment is verified — once per payment (place_paid_order is
+    // keyed on the Razorpay payment id).
+    const payload = initiatedRow?.checkout_payload;
+    if (!payload || !userId) {
+      await supabase.from("payment_attempts").update({ status: "needs_refund", notes: "Checkout details missing" }).eq("payment_id", razorpayPaymentId);
+      return { success: false, needs_refund: true, error: "Payment received but checkout details were missing" };
+    }
+    const { data: placed, error: placeErr } = await supabase.rpc("place_paid_order", {
+      p_payment_id: razorpayPaymentId,
+      p_captured_amount: capturedAmount,
+      p_user_id: userId,
+      p_payload: payload,
+    });
+    if (placeErr || !placed?.success) {
+      const reason = placed?.error || placeErr?.message || "Order could not be created";
+      console.error("[settlePayment] member order creation failed:", reason);
+      await supabase.from("payment_attempts").update({ status: "needs_refund", notes: reason }).eq("payment_id", razorpayPaymentId);
+      return { success: false, needs_refund: true, error: reason };
+    }
+    await supabase.from("payment_attempts").update({ status: "converted", order_id: placed.order_id }).eq("payment_id", razorpayPaymentId);
+    return { success: true, order_id: placed.order_id, order_number: placed.order_number };
   } else if (orderId) {
     const { error } = await supabase
       .from("orders")

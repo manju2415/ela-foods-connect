@@ -134,7 +134,7 @@ serve(async (req) => {
       // new order id here, so there is nothing to conflict with — and the
       // uniqueness on razorpay_order_id is a partial index (only rows still
       // awaiting a payment_id), which upsert's ON CONFLICT can't target.
-      await supabase.from("payment_attempts").insert({
+      const { error: insertErr } = await supabase.from("payment_attempts").insert({
         payment_id: null,
         razorpay_order_id: data.id,
         purpose: resolvedPurpose,
@@ -152,7 +152,11 @@ serve(async (req) => {
         status: "initiated",
         order_id: resolvedPurpose === "registration" ? null : orderId ?? null,
       });
+      if (insertErr) throw insertErr;
     } catch (intentErr) {
+      // A logged-in order can only be created from this saved checkout, so
+      // never let the customer pay without it.
+      if (purpose === "member_order") return json({ error: "Could not start payment. Please try again." }, 500);
       console.error("[razorpay-create-order] Failed to record payment intent:", intentErr);
     }
 
