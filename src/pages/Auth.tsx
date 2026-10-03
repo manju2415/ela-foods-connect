@@ -202,8 +202,16 @@ const Auth = () => {
     // Wait for auth session + RLS context to fully propagate before querying
     await new Promise(r => setTimeout(r, 800));
 
-    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-    if (!verifiedUser) return;
+    // getUser() is a fresh network round-trip; on a flaky mobile connection it
+    // can come back empty even though the session was just stored. Fall back
+    // to that stored session instead of silently stopping here, which left a
+    // successfully signed-in user stuck on the OTP screen.
+    const { data: { user: fetchedUser } } = await supabase.auth.getUser();
+    const verifiedUser = fetchedUser ?? (await supabase.auth.getSession()).data.session?.user;
+    if (!verifiedUser) {
+      toast({ title: "Could not finish signing in", description: "Please try again.", variant: "destructive" });
+      return;
+    }
 
     const { data: partnerData } = await supabase
       .from("delivery_partners")
@@ -380,7 +388,16 @@ const Auth = () => {
       pendingSignupRef.current = null;
 
       toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-      await handlePostVerifyRedirect(isNewUser || false);
+      try {
+        await handlePostVerifyRedirect(isNewUser || false);
+      } catch (redirectErr) {
+        // Already signed in — only working out where to send them failed.
+        // Hand off to the same role-based redirect used when a logged-in user
+        // opens /auth, rather than leaving them on the OTP screen.
+        console.error("[Auth] post-login redirect failed:", redirectErr);
+        hasAttemptedLoginRef.current = false;
+        setHasAttemptedLogin(false);
+      }
     } catch (err) {
       // A network hiccup here must never leave the verify button stuck
       // spinning forever.
