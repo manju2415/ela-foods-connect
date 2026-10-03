@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -137,13 +138,15 @@ serve(async (req) => {
         payment_id: null,
         razorpay_order_id: data.id,
         purpose: resolvedPurpose,
-        user_id: attemptContext?.user_id ?? (resolvedPurpose === "registration" ? orderId ?? null : null),
+        user_id: memberUserId ?? attemptContext?.user_id ?? (resolvedPurpose === "registration" ? orderId ?? null : null),
         guest_details: attemptContext?.guest_details ?? null,
         customer_name: attemptContext?.customer_name ?? null,
         customer_phone: attemptContext?.customer_phone ?? null,
         customer_email: attemptContext?.customer_email ?? null,
-        amount,
-        items: attemptContext?.items ?? [],
+        amount: chargeAmount,
+        items: checkoutPayload?.items ?? attemptContext?.items ?? [],
+        checkout_payload: checkoutPayload,
+        expected_amount: checkoutPayload ? chargeAmount : null,
         coupon_code: attemptContext?.coupon_code ?? null,
         discount_amount: Number(attemptContext?.discount_amount ?? 0),
         status: "initiated",
