@@ -82,8 +82,63 @@ serve(async (req) => {
       }
     }
 
+    // Abandoned unpaid orders: still pending/pending 30+ minutes after being
+    // placed. Ask Razorpay first — if money was captured, settle instead of
+    // cancelling. Cancelling returns stock and wallet money via DB triggers.
+    const orderCutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: unpaidOrders } = await supabase
+      .from("orders")
+      .select("id, order_number")
+      .eq("status", "pending")
+      .eq("payment_status", "pending")
+      .gt("total_amount", 0)
+      .is("admin_deleted_at", null)
+      .lt("created_at", orderCutoff)
+      .limit(100);
+
+    let ordersCancelled = 0;
+    let ordersSettled = 0;
+    for (const order of unpaidOrders || []) {
+      const { data: attempts } = await supabase
+        .from("payment_attempts")
+        .select("razorpay_order_id")
+        .eq("order_id", order.id)
+        .not("razorpay_order_id", "is", null);
+
+      let paid = false;
+      let lookupFailed = false;
+      let inProgress = false;
+      for (const a of attempts || []) {
+        const { ok, items } = await fetchRazorpayOrderPayments(a.razorpay_order_id);
+        if (!ok) { lookupFailed = true; continue; }
+        const captured = items.find((p) => p.status === "captured" || p.status === "authorized");
+        if (captured) {
+          const r = await settlePayment(supabase, {
+            razorpayPaymentId: captured.id,
+            razorpayOrderId: a.razorpay_order_id,
+            capturedAmountPaise: Number(captured.amount || 0),
+            orderId: order.id,
+            purpose: "order",
+          });
+          if (r.success) { paid = true; ordersSettled++; }
+          else lookupFailed = true;
+          break;
+        }
+        if (items.some((p) => p.status === "created")) inProgress = true;
+      }
+      if (paid || lookupFailed || inProgress) continue;
+
+      const { error: cancelErr } = await supabase
+        .from("orders")
+        .update({ status: "cancelled", payment_status: "failed" })
+        .eq("id", order.id)
+        .eq("payment_status", "pending");
+      if (cancelErr) console.error("[sweep-pending-payments] cancel failed for", order.order_number, cancelErr);
+      else ordersCancelled++;
+    }
+
     return new Response(
-      JSON.stringify({ checked: staleRows?.length || 0, settled, failed, still_pending: stillPending }),
+      JSON.stringify({ checked: staleRows?.length || 0, settled, failed, still_pending: stillPending, orders_settled: ordersSettled, orders_cancelled: ordersCancelled }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
