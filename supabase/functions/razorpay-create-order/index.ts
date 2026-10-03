@@ -42,18 +42,58 @@ serve(async (req) => {
       attemptContext?: AttemptContext;
     } = await req.json();
 
-    if (!amount || amount <= 0) {
-      return new Response(JSON.stringify({ error: "Invalid amount" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    const json = (body: unknown, status = 200) =>
+      new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+    // Payment-first logged-in checkout: the amount is never taken from the
+    // client — it is quoted server-side from the real cart, and the full
+    // checkout is stored so the order can be created after payment.
+    let chargeAmount = amount;
+    let memberUserId: string | null = null;
+    let checkoutPayload: Record<string, unknown> | null = null;
+    if (purpose === "member_order") {
+      const token = (req.headers.get("Authorization") || "").replace("Bearer ", "").trim();
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      const { data: userData } = await admin.auth.getUser(token);
+      if (!userData?.user) return json({ error: "Please sign in again to pay." }, 401);
+      memberUserId = userData.user.id;
+      const c = (attemptContext as any)?.checkout;
+      if (!c || !Array.isArray(c.items) || c.items.length === 0) return json({ error: "Your cart is empty." }, 400);
+      checkoutPayload = {
+        items: c.items.map((i: any) => ({ product_id: i.product_id, variant_id: i.variant_id ?? null, quantity: Number(i.quantity) })),
+        shipping_address: c.shipping_address ?? {},
+        fulfillment_type: c.fulfillment_type === "store_pickup" ? "store_pickup" : "delivery",
+        pickup_store_id: c.pickup_store_id ?? null,
+        coupon_code: c.coupon_code ?? null,
+        use_wallet: !!c.use_wallet,
+        preferred_delivery_date: c.preferred_delivery_date ?? null,
+        preferred_delivery_slot_id: c.preferred_delivery_slot_id ?? null,
+      };
+      const { data: quote, error: quoteErr } = await admin.rpc("quote_checkout", {
+        p_user_id: memberUserId,
+        p_items: checkoutPayload.items,
+        p_shipping_address: checkoutPayload.shipping_address,
+        p_fulfillment_type: checkoutPayload.fulfillment_type,
+        p_pickup_store_id: checkoutPayload.pickup_store_id,
+        p_coupon_code: checkoutPayload.coupon_code,
+        p_use_wallet: checkoutPayload.use_wallet,
+        p_preferred_delivery_date: checkoutPayload.preferred_delivery_date,
+        p_preferred_delivery_slot_id: checkoutPayload.preferred_delivery_slot_id,
       });
+      if (quoteErr || !quote?.success) return json({ error: quote?.error || "Could not check your cart. Please try again." }, 400);
+      chargeAmount = Number(quote.total_amount);
+      if (!(chargeAmount > 0)) return json({ error: "Nothing to pay online", code: "NO_ONLINE_AMOUNT" }, 400);
+    }
+
+    if (!chargeAmount || chargeAmount <= 0) {
+      return json({ error: "Invalid amount" }, 400);
     }
 
     const keyId = "rzp_live_T2arUsQZHfGFov";
     const keySecret = Deno.env.get("RAZORPAY_KEY_SECRET")!;
 
     const orderPayload = {
-      amount: Math.round(amount * 100), // Razorpay expects amount in paise
+      amount: Math.round(chargeAmount * 100), // Razorpay expects amount in paise
       currency: currency || "INR",
       receipt: receipt || `rcpt_${Date.now()}`,
       notes: notes || {},
