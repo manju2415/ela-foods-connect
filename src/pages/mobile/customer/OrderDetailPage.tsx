@@ -235,7 +235,7 @@ export default function CustomerOrderDetailPage() {
                   )}
                   {order.total_amount > 0 && order.wallet_amount_used && order.wallet_amount_used > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Charged online</span>
+                      <span>{order.payment_status === "completed" ? "Charged online" : order.status === "cancelled" ? "Online payment not completed" : "Awaiting online payment"}</span>
                       <span>₹{order.total_amount.toFixed(2)}</span>
                     </div>
                   )}

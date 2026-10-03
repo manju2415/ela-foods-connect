@@ -531,7 +531,7 @@ export default function Orders() {
                   )}
                   {Number(selectedOrder.total_amount || 0) > 0 && Number(selectedOrder.wallet_amount_used || 0) > 0 && (
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Charged online</span>
+                      <span>{selectedOrder.payment_status === "completed" ? "Charged online" : selectedOrder.status === "cancelled" ? "Online payment not completed" : "Awaiting online payment"}</span>
                       <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
                     </div>
                   )}

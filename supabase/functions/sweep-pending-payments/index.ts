@@ -130,7 +130,7 @@ serve(async (req) => {
 
       const { error: cancelErr } = await supabase
         .from("orders")
-        .update({ status: "cancelled", payment_status: "failed", notes: "Auto-cancelled: online payment not completed" })
+        .update({ status: "cancelled", payment_status: "failed" })
         .eq("id", order.id)
         .eq("payment_status", "pending");
       if (cancelErr) console.error("[sweep-pending-payments] cancel failed for", order.order_number, cancelErr);
