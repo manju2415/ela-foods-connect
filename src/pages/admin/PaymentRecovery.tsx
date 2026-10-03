@@ -99,7 +99,7 @@ export default function PaymentRecovery() {
   };
 
 
-  const pending = attempts.filter((a) => a.status === "pending");
+  const pending = attempts.filter((a) => a.status === "pending" || a.status === "needs_refund");
 
   const runAction = async (attempt: PaymentAttempt, action: "create_order" | "dismiss") => {
     setBusyId(attempt.id);
@@ -224,7 +224,7 @@ export default function PaymentRecovery() {
                               {a.customer_phone || a.customer_email || a.payment_id}
                             </div>
                           </div>
-                          <Badge variant={a.status === "pending" ? "destructive" : "secondary"}>{a.status}</Badge>
+                          <Badge variant={a.status === "pending" || a.status === "needs_refund" ? "destructive" : "secondary"}>{a.status}</Badge>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <AdminMobileField label="Amount">₹{Number(a.amount).toFixed(2)}</AdminMobileField>
@@ -296,7 +296,7 @@ export default function PaymentRecovery() {
                               {format(new Date(a.created_at), "dd MMM yyyy, hh:mm a")}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={a.status === "pending" ? "destructive" : "secondary"}>{a.status}</Badge>
+                              <Badge variant={a.status === "pending" || a.status === "needs_refund" ? "destructive" : "secondary"}>{a.status}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               {a.status === "pending" && (
