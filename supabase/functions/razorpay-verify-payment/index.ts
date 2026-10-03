@@ -95,7 +95,7 @@ serve(async (req) => {
     });
 
     if (!settleResult.success) {
-      return new Response(JSON.stringify({ verified: false, error: settleResult.error || "Could not complete payment" }), {
+      return new Response(JSON.stringify({ verified: false, needs_refund: !!settleResult.needs_refund, error: settleResult.error || "Could not complete payment" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -103,7 +103,7 @@ serve(async (req) => {
 
 
     return new Response(
-      JSON.stringify({ verified: true, payment_id: razorpay_payment_id }),
+      JSON.stringify({ verified: true, payment_id: razorpay_payment_id, order_id: settleResult.order_id ?? null, order_number: settleResult.order_number ?? null }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

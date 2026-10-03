@@ -200,7 +200,11 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
         );
 
         if (verifyError || !verifyData?.verified) {
-          options.onFailure(new Error("Payment verification failed"));
+          options.onFailure(new Error(
+            verifyData?.needs_refund
+              ? `Payment received, but the order could not be completed (${verifyData?.error || "unknown reason"}). Our team will refund you or contact you.`
+              : "Payment verification failed",
+          ));
           return;
         }
 

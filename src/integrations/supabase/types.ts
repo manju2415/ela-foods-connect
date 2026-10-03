@@ -1054,12 +1054,14 @@ export type Database = {
       payment_attempts: {
         Row: {
           amount: number
+          checkout_payload: Json | null
           coupon_code: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
           discount_amount: number
+          expected_amount: number | null
           guest_details: Json | null
           id: string
           items: Json
@@ -1074,12 +1076,14 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          checkout_payload?: Json | null
           coupon_code?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
+          expected_amount?: number | null
           guest_details?: Json | null
           id?: string
           items?: Json
@@ -1094,12 +1098,14 @@ export type Database = {
         }
         Update: {
           amount?: number
+          checkout_payload?: Json | null
           coupon_code?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
+          expected_amount?: number | null
           guest_details?: Json | null
           id?: string
           items?: Json
@@ -2331,6 +2337,15 @@ export type Database = {
         }
         Returns: Json
       }
+      place_paid_order: {
+        Args: {
+          p_captured_amount: number
+          p_payload: Json
+          p_payment_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       process_mlm_referral: {
         Args: {
           p_referral_code: string
@@ -2352,6 +2367,20 @@ export type Database = {
           p_payment_reference?: string
           p_request_id: string
           p_status: string
+        }
+        Returns: Json
+      }
+      quote_checkout: {
+        Args: {
+          p_coupon_code?: string
+          p_fulfillment_type?: string
+          p_items: Json
+          p_pickup_store_id?: string
+          p_preferred_delivery_date?: string
+          p_preferred_delivery_slot_id?: string
+          p_shipping_address: Json
+          p_use_wallet?: boolean
+          p_user_id: string
         }
         Returns: Json
       }
