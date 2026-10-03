@@ -248,6 +248,7 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          delivery_weekdays: number[] | null
           description: string | null
           display_order: number | null
           exchange_enabled: boolean | null
@@ -263,6 +264,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_weekdays?: number[] | null
           description?: string | null
           display_order?: number | null
           exchange_enabled?: boolean | null
@@ -278,6 +280,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_weekdays?: number[] | null
           description?: string | null
           display_order?: number | null
           exchange_enabled?: boolean | null
@@ -357,6 +360,44 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: []
+      }
+      delivery_date_overrides: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_available: boolean
+          override_date: string
+          reason: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_available?: boolean
+          override_date: string
+          reason?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_available?: boolean
+          override_date?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_date_overrides_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_partners: {
         Row: {
