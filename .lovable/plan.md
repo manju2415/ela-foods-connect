@@ -1,40 +1,57 @@
-# Login failure for +91 98451 21558 — findings and proposed fix
+# Checkout/payment audit — why an unpaid order exists (findings + proposed fix)
 
-## What the records show (read-only checks, nothing changed)
+Read-only audit. Nothing has been changed, cancelled, refunded or deployed.
 
-**The account is healthy.**
-- Profile: Sudevan P M, phone stored as `+919845121558`, active, created 15 Aug.
-- One matching login account, `919845121558@elabazar.local`, email confirmed, no duplicates.
-- Last successful sign-in: **today 22 Sep, 05:01:29 UTC** (10:31 IST) — recorded as a success from the website on an iPhone.
-- Earlier successes on 16 Sep (twice) and 15 Sep.
+## 1. Files / functions involved
+- `src/pages/Checkout.tsx` → `handlePlaceOrder` (order placement, payment start, failure handling)
+- Database function `place_order_atomic` (creates order, deducts wallet, reserves stock)
+- `src/utils/razorpay.ts` → `initiateRazorpayPayment` / `openRazorpayCheckout` (web) and payment-bridge path (app)
+- Server functions `razorpay-create-order`, `razorpay-verify-payment`, `razorpay-webhook`, `sweep-pending-payments`, shared `_shared/settlePayment.ts`
+- Database trigger `restore_cancelled_order_stock` (runs when an order becomes cancelled)
+- Order screens showing "Paid from wallet / Charged online": `OrderDetailPage.tsx` (app), `Dashboard.tsx` (web), `admin/Orders.tsx`
 
-**No failure was ever recorded for this number.** Every login attempt the server actually received for him succeeded. Across the whole log there has never been a single "account not found" result for anyone — not once, for any number.
+## 2. Current checkout sequence
+```text
+Tap "Place order"
+ └─ place_order_atomic (one database step)
+     - checks stock, coupon, shipping
+     - DEDUCTS wallet immediately (₹500), writes "Wallet payment for order …"
+     - INSERTS the order: status=pending, payment_status=pending (₹635 left)
+     - reserves stock
+ └─ browser opens Razorpay for ₹635 (razorpay-create-order)
+     ├─ paid → razorpay-verify-payment / webhook → payment_status=completed
+     │        → confirmation email, cart cleared
+     ├─ closed / failed (browser still open) → browser sets order cancelled
+     │        → stock returned by trigger; WALLET NOT RETURNED
+     └─ browser closed, app killed, network lost → nothing happens;
+              order stays pending forever, wallet stays deducted
+```
 
-**But many codes were sent and never used.** Codes went out on 10, 17 (x3), 18, 19, 21 (x3) and 22 Sep (x3) with no matching login attempt on the server at all. So on those occasions he entered the code and the request never reached us.
+## 3. Why Murali's order exists while unpaid
+The order row is created **before** Razorpay is even opened — by design, so stock and wallet are held during payment. For ELA20261003-15369, the Razorpay step never completed and no "payment started" record was saved, so the payment screen probably never opened or was dropped. The clean-up only runs inside the customer's browser, so nothing cancelled the order. It remains pending/pending, with ₹500 of wallet money still deducted.
 
-## What this means
+## 4. Expected or bug?
+Creating the order first is intentional. Three things are real bugs:
+- An unpaid order looks like a normal order to admins and customers. New-order alerts fire when it is created, not when it is paid.
+- Cancelling an unpaid order returns stock but **never returns the wallet money**. Customers lose wallet balance on every failed or abandoned payment.
+- Nothing on the server tidies up abandoned unpaid orders. That depends only on the customer's browser.
 
-The wording he sees — "Account not found. Please contact admin to be added." — no longer exists as a server reply. It only exists in the **older version of the website** that his browser is still loading from cache. In the current version that same situation shows a connection message instead.
+## 5. Is the wording misleading?
+Yes. "Charged online ₹635" only shows the amount still to be paid. It never checks whether a payment went through. Same problem on all 3 screens.
 
-So the most likely cause is: his browser/app is running a stale copy of the site, and his verify request is failing before it reaches the server (connection drop, cached old code), while the old copy mislabels that as "account not found".
+## 6. Safest fix (proposed, not applied)
+1. **Wording only (no risk):** show "Charged online" only when the payment is complete. Otherwise show "Awaiting online payment ₹635" or "Payment not completed". Mark these orders "Payment pending" on admin and customer lists.
+2. **Hide unpaid orders from fulfilment:** admin order list, delivery assignment and new-order alerts treat orders as real only once fully paid (or fully paid by wallet). Unpaid ones go under a separate "Awaiting payment" filter.
+3. **Return wallet money on cancel:** when an order that used wallet money is cancelled before it is paid, the server automatically returns the wallet money to the same balances it came from. This happens once only, with a refund line in wallet history.
+4. **Server-side tidy-up:** the existing hourly sweep also cancels orders left unpaid for more than ~30 minutes. Before cancelling, it asks Razorpay whether a payment was actually captured. If yes, it marks the order paid instead. Cancelling then returns stock and wallet money (step 3).
+5. Stays the same: prices, coupons, stock rules, paid orders, fully-wallet orders, guest checkout, registration payments, the webhook and verification.
 
-This is consistent, not proven — no server-side trace exists for the failed attempts, by definition.
+Murali's order is not touched automatically. Once fixes 3–4 are live, the tidy-up would cancel it and return his ₹500. If you'd rather handle it by hand, I can leave it out.
 
-## Proposed fix (nothing done yet — awaiting confirmation)
+## 7. What it touches
+- UI wording/filters: yes (steps 1–2)
+- Wallet handling: yes — new automatic return on cancel (step 3)
+- Order creation: **no change**
+- Razorpay verification/webhook: **no change**; only the sweep is extended (step 4)
 
-1. **Force stale browsers to pick up the current site.** Serve the entry page as never-cached and bump the build marker, so a returning visitor always loads the latest version instead of a months-old one. This touches only hosting/caching config and the build marker — not the login path.
-2. **Record failures that never reach the server.** When the verify call fails with no reply from the server, write one log row (number, platform, HTTP status, message) so the next occurrence names its own cause instead of leaving a blank. Best-effort and non-blocking.
-3. **Ask him to do one hard refresh** (or reinstall the app) and try once; then read the new log row if it fails again.
-
-No changes to `src/pages/Auth.tsx`, `src/pages/Signup.tsx`, `src/pages/MLMLogin.tsx`, `supabase/functions/verify-otp-login`, or `supabase/functions/msg91-send-otp` — the recently fixed files stay untouched. If you prefer, step 2 can be dropped and only the cache fix applied.
-
-## Explicitly unchanged
-
-Accounts, orders, wallets, transactions, referrals, registrations, roles, pricing, guest checkout — none touched. This is read-only diagnosis plus, if approved, caching and logging only.
-
-## Technical notes
-
-- `otp_send_log`: 160 `session:SUCCESS`, 6 `session:OTP_REJECTED`, 6 `session:SIGNIN_FAILED` (all test numbers, "Email not confirmed"), zero `session:NO_AUTH_USER` ever.
-- `AuthContext.createSessionForPhone` already prefers the server message and falls back to "Could not sign in. Please check your connection and try again." — the "Account not found" string is only in the deployed old bundle and the server's `NO_AUTH_USER` branch, which has never fired.
-- Cache fix: add `Cache-Control: no-store` headers for `/` and `/index.html` in `vercel.json`, bump `src/buildMark.ts`.
-- Logging: new small helper called from the failure branch of `createSessionForPhone`, writing `session:CLIENT_INVOKE_FAILED` to `otp_send_log`.
+You can approve every step, or only some — for example step 1 by itself as a zero-risk first change.
