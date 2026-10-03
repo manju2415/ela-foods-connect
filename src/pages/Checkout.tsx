@@ -966,9 +966,14 @@ const Checkout = () => {
                       : !pickupStoreId)
                   }
                 >
-                  {placing ? "Placing Order..." : "Place Order"}
+                  {placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)} & Place Order` : "Place Order"}
                 </Button>
 
+                {finalAmount > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Payment is required to place your order.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground text-center">
                   By placing this order, you agree to our Terms & Conditions
                 </p>
