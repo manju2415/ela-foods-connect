@@ -82,6 +82,9 @@ const Auth = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
+  // Registration OFF: optional invite code on the login form. A brand-new
+  // number logging in with it is linked to the inviter.
+  const [inviteCode, setInviteCode] = useState("");
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
@@ -127,6 +130,7 @@ const Auth = () => {
     const ref = new URLSearchParams(location.search).get("ref")?.trim();
     if (ref) {
       signupForm.setValue("referralCode", ref.toUpperCase());
+      setInviteCode(ref.toUpperCase());
       validateReferralCode(ref);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,6 +280,14 @@ const Auth = () => {
 
   // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
+    if (!registrationEnabled && inviteCode.trim() && checkingCode) {
+      toast({ title: "Still checking invite code", description: "Please wait a moment and try again." });
+      return;
+    }
+    if (!registrationEnabled && inviteCode.trim() && referralCodeValid === false) {
+      toast({ title: "Invalid invite code", description: "Remove it or enter a valid code to continue.", variant: "destructive" });
+      return;
+    }
     dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
@@ -384,7 +396,8 @@ const Auth = () => {
       const { error, isNewUser } = await createSessionForPhone(
         phoneNumber,
         otpCode,
-        pendingSignupRef.current || undefined
+        pendingSignupRef.current || undefined,
+        !registrationEnabled && inviteCode.trim() ? inviteCode.trim().toUpperCase() : undefined
       );
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
@@ -537,6 +550,25 @@ const Auth = () => {
                   <p className="text-sm text-destructive">{loginForm.formState.errors.phone.message}</p>
                 )}
               </div>
+
+              {!registrationEnabled && (
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode">Invite Code (optional)</Label>
+                  <Input
+                    id="inviteCode"
+                    placeholder="Enter invite code if you have one"
+                    value={inviteCode}
+                    className={inviteCode.trim() && referralCodeValid === true ? "border-green-500" : inviteCode.trim() && referralCodeValid === false ? "border-destructive" : ""}
+                    onChange={(e) => {
+                      setInviteCode(e.target.value.toUpperCase());
+                      debouncedValidateReferralCode(e.target.value);
+                    }}
+                  />
+                  {inviteCode.trim() && checkingCode && <p className="text-sm text-muted-foreground">Checking code...</p>}
+                  {inviteCode.trim() && referralCodeValid === true && <p className="text-sm text-green-600">Valid invite code!</p>}
+                  {inviteCode.trim() && referralCodeValid === false && <p className="text-sm text-destructive">Invalid or inactive invite code</p>}
+                </div>
+              )}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

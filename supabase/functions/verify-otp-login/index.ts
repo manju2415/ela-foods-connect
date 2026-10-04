@@ -48,6 +48,38 @@ const detectPlatform = (req: Request, claimed?: unknown): string => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Registration-OFF invites: link a brand-new customer to whoever invited them.
+ * The inviter's referral bonus and the invitee's welcome bonus are paid by the
+ * on_order_invite_reward trigger on the invitee's first paid order. Best-effort
+ * — a bad or missing code never blocks the login.
+ */
+const linkInvite = async (admin: SupabaseClient, userId: string, rawCode: unknown) => {
+  if (typeof rawCode !== "string" || rawCode.trim().length < 3) return;
+  try {
+    const { data: codeRow } = await admin
+      .from("referral_codes")
+      .select("id, user_id")
+      .eq("code", rawCode.trim().toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!codeRow?.user_id || codeRow.user_id === userId) return;
+    await admin.from("profiles").update({ referred_by: codeRow.user_id }).eq("id", userId).is("referred_by", null);
+    await admin.from("referrals").upsert(
+      {
+        referrer_id: codeRow.user_id,
+        referred_id: userId,
+        referral_code_id: codeRow.id,
+        incentive_paid: false,
+        reward_on_first_order: true,
+      },
+      { onConflict: "referred_id", ignoreDuplicates: true },
+    );
+  } catch (e) {
+    console.error("[verify-otp-login] invite link failed:", e);
+  }
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -242,6 +274,7 @@ Deno.serve(async (req) => {
             { id: created.user.id, email: mockEmail, phone: `+91${last10}` },
             { onConflict: "id" },
           );
+          await linkInvite(admin, created.user.id, body?.referral_code);
         } else if (createErr && !createErr.message?.toLowerCase().includes("already")) {
           console.error("[verify-otp-login] customer account creation failed:", createErr);
         }

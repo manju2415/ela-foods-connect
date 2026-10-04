@@ -735,7 +735,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                         <Skeleton className="h-12 w-full" />
                         <Skeleton className="h-12 w-full" />
                       </div>
-                    ) : !isPaymentComplete ? (
+                    ) : !isPaymentComplete && registrationEnabled ? (
                       <p className="text-muted-foreground">
                         Your referral code will be available after your membership payment is complete.
                       </p>

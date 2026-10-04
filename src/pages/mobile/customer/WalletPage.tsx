@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty } from "@/lib/email";
 import { toast } from "sonner";
+import { InviteCodeCard } from "@/components/InviteCodeCard";
 
 interface WalletData {
   balance: number;
@@ -243,6 +244,8 @@ export default function CustomerWalletPage() {
               <span className="text-sm">Withdraw</span>
             </Button>
           </div>
+
+          {user && <InviteCodeCard userId={user.id} />}
 
           {/* Transactions */}
           <Card>

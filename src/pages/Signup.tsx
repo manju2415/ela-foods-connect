@@ -154,7 +154,8 @@ export default function Signup() {
       title: "Registrations are closed",
       description: "Just log in with your mobile number to start shopping.",
     });
-    navigate("/auth", { replace: true });
+    // Keep ?ref= so the invite code is prefilled on the login form.
+    navigate(`/auth${locationRoute.search}`, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [registrationEnabled, registrationSettingLoading, step]);
 

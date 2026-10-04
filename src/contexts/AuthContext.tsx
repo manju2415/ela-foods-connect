@@ -53,7 +53,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   /** Create a Supabase session for a phone, re-verifying the OTP server-side atomically with session creation. */
-  createSessionForPhone: (phone: string, otp: string, signupData?: { fullName: string; referralCode: string }) => Promise<{ error: Error | null; isNewUser?: boolean }>;
+  createSessionForPhone: (phone: string, otp: string, signupData?: { fullName: string; referralCode: string }, inviteCode?: string) => Promise<{ error: Error | null; isNewUser?: boolean }>;
   signOut: () => Promise<void>;
   suppressAuthChanges: (suppress: boolean) => void;
 }
@@ -152,11 +152,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * Existing users sign in directly; walk-ins are created server-side first.
    * No client-side signUp — all onboarding goes through server-side admin.createUser flows.
    * Supplying `signupData` activates the open-registration flow.
+   * `inviteCode` is only used while registration is switched off: a brand-new
+   * number is linked to that inviter when its customer account is created.
    */
   const createSessionForPhone = async (
     phone: string,
     otp: string,
-    signupData?: { fullName: string; referralCode: string }
+    signupData?: { fullName: string; referralCode: string },
+    inviteCode?: string
   ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
     let isNewUser = false;
     if (signupData) {
@@ -175,7 +178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const { data, error } = await supabase.functions.invoke("verify-otp-login", {
-      body: { phone, otp, platform: Capacitor.getPlatform() },
+      body: { phone, otp, platform: Capacitor.getPlatform(), ...(inviteCode ? { referral_code: inviteCode } : {}) },
     });
 
     if (error || !data?.success || !data?.access_token || !data?.refresh_token) {
@@ -212,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("id", sessionData.user.id);
     }
 
-    return { error: null, isNewUser };
+    return { error: null, isNewUser: isNewUser || data.is_new_user === true };
   };
 
   const signOut = async () => {
