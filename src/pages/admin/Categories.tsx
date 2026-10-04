@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { untypedSupabase } from "@/lib/untypedSupabase";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminMobileCard, AdminMobileField } from "@/components/admin/AdminMobileCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +94,7 @@ const initialFormData: CategoryFormData = {
 // Saved separately from the main category fields so that a missing
 // delivery_weekdays column can never block editing a category.
 async function saveDeliveryWeekdays(categoryId: string, weekdays: number[]) {
-  const { error } = await (supabase as any)
+  const { error } = await untypedSupabase
     .from("categories")
     .update({ delivery_weekdays: weekdays.length > 0 ? [...weekdays].sort() : null })
     .eq("id", categoryId);

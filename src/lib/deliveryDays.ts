@@ -1,5 +1,6 @@
 import { addDays, format, startOfToday } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { untypedSupabase } from "@/lib/untypedSupabase";
 
 // Delivery-day rules: a category may be limited to certain weekdays
 // (categories.delivery_weekdays, 0 = Sunday), and admins can close or open
@@ -94,8 +95,8 @@ export async function loadDeliveryRules(productIds: string[]): Promise<DeliveryR
       productIds.length > 0
         ? supabase.from("products").select("id, category_id").in("id", productIds)
         : Promise.resolve({ data: [], error: null }),
-      (supabase as any).from("categories").select("id, name, parent_id, delivery_weekdays"),
-      (supabase as any)
+      untypedSupabase.from("categories").select("id, name, parent_id, delivery_weekdays"),
+      untypedSupabase
         .from("delivery_date_overrides")
         .select("override_date, category_id, is_available")
         .gte("override_date", today)

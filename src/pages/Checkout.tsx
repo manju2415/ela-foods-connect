@@ -418,7 +418,7 @@ const Checkout = () => {
               preferred_delivery_date: deliveryDate,
               preferred_delivery_slot_id: selectedDeliverySlotId,
             },
-          } as any,
+          },
           prefill: { name: selectedAddress?.full_name || user.user_metadata?.full_name || "", contact: selectedAddress?.phone || user.phone || "", email: validEmail },
           onSuccess: async (response) => {
             // The server created the order while verifying; look it up by payment id.
@@ -426,7 +426,7 @@ const Checkout = () => {
             for (let i = 0; i < 10 && !order; i++) {
               const { data: found } = await supabase.from("orders").select("id, order_number, total_amount")
                 .eq("user_id", user.id).eq("idempotency_key", `rzp:${response.razorpay_payment_id}`).maybeSingle();
-              if (found) order = found as any;
+              if (found) order = found;
               else await new Promise((r) => setTimeout(r, 1500));
             }
             if (order) {

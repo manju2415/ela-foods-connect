@@ -47,6 +47,9 @@ export interface PaymentAttemptContext {
   guest_details?: Record<string, unknown> | null;
   coupon_code?: string | null;
   discount_amount?: number;
+  // Payment-first member checkout: the full cart, quoted server-side by
+  // razorpay-create-order and stored so the order is created after payment.
+  checkout?: Record<string, unknown>;
 }
 
 export interface RazorpayPaymentOptions {
