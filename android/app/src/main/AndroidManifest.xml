@@ -47,4 +47,9 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- @capacitor-community/contacts requests READ+WRITE together (its "contacts"
+         alias) for both getContacts and pickContact; Capacitor rejects the request
+         outright if either isn't declared here. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
 </manifest>
