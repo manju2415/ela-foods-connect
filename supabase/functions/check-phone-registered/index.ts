@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +53,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Registration switched off by super admin: anyone can log in and shop —
+    // verify-otp-login creates a plain customer account for a new number.
+    if (!(await isRegistrationEnabled(supabase))) {
+      return json(200, { ok: true, registered: true, open_login: true });
+    }
 
     // Check profiles table to see if the user exists in our system
     const { data: profileMatch } = await supabase

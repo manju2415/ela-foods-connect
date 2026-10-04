@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
@@ -19,11 +20,12 @@ export default function MemberApp() {
   const navigate = useNavigate();
   const { hideSplash } = useSplashScreen('member');
   const { isLoading: onboardingLoading, isFullyOnboarded, isProfileComplete, isPaymentComplete, isDeliveryPartner } = useOnboardingStatus(user?.id);
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
   
   // Set up app-specific manifest
   useAppManifest('member');
 
-  const isLoading = authLoading || onboardingLoading;
+  const isLoading = authLoading || onboardingLoading || registrationSettingLoading;
 
   useEffect(() => {
     if (authLoading) return;
@@ -37,7 +39,14 @@ export default function MemberApp() {
   // Redirect based on onboarding status (delivery partners and fully onboarded users skip this)
   useEffect(() => {
     if (isLoading || !user || isDeliveryPartner || isFullyOnboarded) return;
-    
+
+    // Registration switched off by super admin: an account that never
+    // finished registering shops in the customer app instead.
+    if (!registrationEnabled) {
+      navigate("/customer-app", { replace: true });
+      return;
+    }
+
     if (!isProfileComplete) {
       navigate("/complete-registration", { replace: true });
       return;
@@ -47,7 +56,7 @@ export default function MemberApp() {
       navigate("/registration-payment", { replace: true });
       return;
     }
-  }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate]);
+  }, [isLoading, user, isProfileComplete, isPaymentComplete, isDeliveryPartner, isFullyOnboarded, navigate, registrationEnabled]);
 
   // Hide splash screen when app is ready
   useEffect(() => {

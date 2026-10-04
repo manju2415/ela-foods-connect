@@ -5,6 +5,7 @@
 // only ever be obtained by actually passing OTP verification (real MSG91 check, or the
 // test-account bypass below for QA phones).
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -220,6 +221,39 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Registration switched off by super admin: a new number simply logs in.
+    // The OTP has already been verified above, so create a plain customer
+    // account (no referrer, no member role, no fee) — name and delivery
+    // address are taken at checkout.
+    let isNewUser = false;
+    if ((linkError || !linkData?.user) && !(await isRegistrationEnabled(admin))) {
+      const last10 = cleanPhone.replace(/\D/g, "").slice(-10);
+      if (last10.length === 10) {
+        const { data: created, error: createErr } = await admin.auth.admin.createUser({
+          email: mockEmail,
+          password: crypto.randomUUID() + crypto.randomUUID(),
+          email_confirm: true,
+          phone_confirm: true,
+          user_metadata: { phone: `91${last10}` },
+        });
+        if (created?.user) {
+          isNewUser = true;
+          await admin.from("profiles").upsert(
+            { id: created.user.id, email: mockEmail, phone: `+91${last10}` },
+            { onConflict: "id" },
+          );
+        } else if (createErr && !createErr.message?.toLowerCase().includes("already")) {
+          console.error("[verify-otp-login] customer account creation failed:", createErr);
+        }
+        // Created now, or by a concurrent request a moment ago — either way
+        // the account exists under the phone email.
+        ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+          type: "magiclink",
+          email: mockEmail,
+        }));
+      }
+    }
+
     if (linkError || !linkData?.user) {
       await logAttempt("NO_AUTH_USER", linkError?.message || "generateLink returned no user");
       return json(404, {
@@ -262,6 +296,7 @@ Deno.serve(async (req) => {
       await logAttempt(attempt === 1 ? "SUCCESS" : "SUCCESS_AFTER_RETRY", attempt === 1 ? null : lastError);
       return json(200, {
         success: true,
+        is_new_user: isNewUser,
         access_token: signInData.session.access_token,
         refresh_token: signInData.session.refresh_token,
       });

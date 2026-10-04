@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +85,15 @@ serve(async (req) => {
       if (quoteErr || !quote?.success) return json({ error: quote?.error || "Could not check your cart. Please try again." }, 400);
       chargeAmount = Number(quote.total_amount);
       if (!(chargeAmount > 0)) return json({ error: "Nothing to pay online", code: "NO_ONLINE_AMOUNT" }, 400);
+    }
+
+    // Registration switched off by super admin: no new registration fees are
+    // taken. Payments already captured still settle via webhook/sweep.
+    if (purpose === "registration") {
+      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+      if (!(await isRegistrationEnabled(admin))) {
+        return json({ error: "New registrations are closed right now. You can still shop as a customer.", code: "REGISTRATION_CLOSED" }, 403);
+      }
     }
 
     if (!chargeAmount || chargeAmount <= 0) {

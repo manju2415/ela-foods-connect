@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
+import { fetchRegistrationEnabled, useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 // Test accounts bypass real SMS for QA. Real users always go through MSG91.
 const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006", "8888888888"];
@@ -87,6 +88,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast, dismiss } = useToast();
+  const { registrationEnabled } = useRegistrationEnabled();
 
   const redirectTo = useMemo(() => {
     const redirectParam = new URLSearchParams(location.search).get("redirect")?.trim();
@@ -224,7 +226,11 @@ const Auth = () => {
       return;
     }
 
-    if (isNewUser) {
+    // Registration switched off by super admin: logging in is enough — no
+    // details form or registration fee; the address is taken at checkout.
+    const registrationEnabled = await fetchRegistrationEnabled();
+
+    if (isNewUser && registrationEnabled) {
       navigate("/complete-registration");
       return;
     }
@@ -249,12 +255,12 @@ const Auth = () => {
     const isProfileComplete = !!profileData?.phone && !!profileData?.accepted_agreement_at;
     const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
 
-    if (!isAdmin && !isProfileComplete) {
+    if (registrationEnabled && !isAdmin && !isProfileComplete) {
       navigate("/complete-registration", { replace: true });
       return;
     }
 
-    if (!isAdmin && !isPaymentComplete) {
+    if (registrationEnabled && !isAdmin && !isPaymentComplete) {
       navigate("/registration-payment", { replace: true });
       return;
     }
@@ -537,10 +543,16 @@ const Auth = () => {
                 <Phone className="mr-2 h-4 w-4" />
                 Send OTP
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                New to Elabazar?{" "}
-                <Link to={`/signup${location.search}`} className="text-primary hover:underline">Create an account</Link>
-              </p>
+              {registrationEnabled ? (
+                <p className="text-center text-sm text-muted-foreground">
+                  New to Elabazar?{" "}
+                  <Link to={`/signup${location.search}`} className="text-primary hover:underline">Create an account</Link>
+                </p>
+              ) : (
+                <p className="text-center text-sm text-muted-foreground">
+                  New to Elabazar? Just enter your mobile number to start shopping.
+                </p>
+              )}
             </form>
           ) : (
             <form onSubmit={signupForm.handleSubmit(handleSendSignupOtp)} className="space-y-4">
@@ -602,7 +614,7 @@ const Auth = () => {
             </form>
           )}
 
-          <div className="mt-6 text-center">
+          {(registrationEnabled || !isLogin) && <div className="mt-6 text-center">
             <span className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
             </span>
@@ -622,7 +634,7 @@ const Auth = () => {
             >
               {isLogin ? "Sign up" : "Log in"}
             </button>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

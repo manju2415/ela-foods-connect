@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 /** Routes where we never interrupt the user with an onboarding redirect. */
 const EXEMPT_PREFIXES = [
@@ -41,7 +42,7 @@ export default function OnboardingGate() {
     let cancelled = false;
 
     (async () => {
-      const [roleRes, profileRes] = await Promise.all([
+      const [roleRes, profileRes, registrationEnabled] = await Promise.all([
         supabase
           .from("user_roles")
           .select("role")
@@ -51,6 +52,7 @@ export default function OnboardingGate() {
           .select("phone, accepted_agreement_at, registration_fee_paid")
           .eq("id", user.id)
           .maybeSingle(),
+        fetchRegistrationEnabled(),
       ]);
 
       if (cancelled) return;
@@ -63,6 +65,9 @@ export default function OnboardingGate() {
       const isMemberish = roles.some((r) => ["member", "founding_member"].includes(r));
 
       if (isAdminish || !isMemberish) return;
+      // Registration switched off by super admin: nobody is sent to the
+      // details form or the registration fee.
+      if (!registrationEnabled) return;
 
       const profile = profileRes.data;
       if (!profile) return;

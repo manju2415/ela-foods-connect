@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
 import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 
 interface RegistrationSettings {
@@ -43,6 +44,13 @@ const RegistrationPayment = () => {
   useEffect(() => {
     preloadRazorpayScript();
   }, []);
+
+  // Registration switched off by super admin: there is nothing to complete —
+  // send them back to shopping (the address is taken at checkout).
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
+  useEffect(() => {
+    if (!registrationSettingLoading && !registrationEnabled) navigate("/", { replace: true });
+  }, [registrationEnabled, registrationSettingLoading, navigate]);
 
   useEffect(() => {
     if (!user) {

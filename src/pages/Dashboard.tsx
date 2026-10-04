@@ -69,6 +69,7 @@ import {
 } from "lucide-react";
 import CartSheet from "@/components/CartSheet";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { copyToClipboard } from "@/lib/clipboard";
 
 interface Profile {
@@ -172,6 +173,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     isPaymentComplete,
     isDeliveryPartner,
   } = useOnboardingStatus(user?.id);
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
@@ -228,7 +230,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   }, [isAdmin, isMLMAdmin, isSuperAdmin, navigate, roleLoading]);
 
   useEffect(() => {
-    if (authLoading || onboardingLoading) return;
+    if (authLoading || onboardingLoading || registrationSettingLoading) return;
 
     if (!user) {
       navigate("/auth");
@@ -239,8 +241,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       return;
     }
 
-    // Redirect users who haven't completed registration
-    if (!isFullyOnboarded && !isDeliveryPartner) {
+    // Redirect users who haven't completed registration — unless a super
+    // admin has switched registration off.
+    if (registrationEnabled && !isFullyOnboarded && !isDeliveryPartner) {
       if (!isProfileComplete) {
         navigate("/complete-registration", { replace: true });
         return;
@@ -265,6 +268,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     isSuperAdmin,
     isMLMAdmin,
     isAdmin,
+    registrationEnabled,
+    registrationSettingLoading,
   ]);
 
   useEffect(() => {

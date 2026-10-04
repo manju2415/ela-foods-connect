@@ -31,6 +31,7 @@ import { UserAgreementDialog } from "@/components/UserAgreementDialog";
 
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 const DEMO_PHONES = [
   "8888888888",
@@ -109,6 +110,7 @@ export default function Signup() {
   const locationRoute = useLocation();
   const [searchParams] = useSearchParams();
   const isFounderSignup = locationRoute.pathname === "/founder-signup";
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
 
   const form = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
@@ -140,9 +142,21 @@ export default function Signup() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (user && step === "form")
+    if (user && step === "form" && registrationEnabled)
       navigate("/complete-registration", { replace: true });
-  }, [user, step, navigate]);
+  }, [user, step, navigate, registrationEnabled]);
+
+  // Registration switched off by super admin: there is nothing to sign up
+  // for — new shoppers just log in with their mobile number.
+  useEffect(() => {
+    if (registrationSettingLoading || registrationEnabled || step !== "form") return;
+    toast({
+      title: "Registrations are closed",
+      description: "Just log in with your mobile number to start shopping.",
+    });
+    navigate("/auth", { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrationEnabled, registrationSettingLoading, step]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
