@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { completeRegistration } from "../_shared/completeRegistration.ts";
+import { settlePayment, fetchRazorpayPayment } from "../_shared/settlePayment.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -82,7 +83,45 @@ serve(async (req) => {
     const { data: isAdmin } = await admin.rpc("is_any_admin", { _user_id: caller.id });
     if (!isAdmin) return json({ error: "Admin access required" }, 403);
 
-    const { attempt_id, action } = await req.json();
+    const { attempt_id, action, payment_id: lookupPaymentId } = await req.json();
+
+    // Admin pastes a raw Razorpay payment id (from the Razorpay dashboard) —
+    // look it up, confirm it's actually captured, and settle it through the
+    // exact same shared logic the webhook and sweep use. Covers the case
+    // where even the "initiated" row was never created (payment made before
+    // this system existed, or the create-order intent write itself failed).
+    if (action === "settle_by_payment_id") {
+      if (!lookupPaymentId || typeof lookupPaymentId !== "string") {
+        return json({ error: "payment_id is required" }, 400);
+      }
+
+      const { ok, data: paymentData } = await fetchRazorpayPayment(lookupPaymentId.trim());
+      if (!ok || !paymentData) {
+        return json({ error: "Could not find this payment in Razorpay" }, 404);
+      }
+
+      const isCaptured = paymentData.status === "captured" || paymentData.status === "authorized";
+      if (!isCaptured) {
+        return json({ error: `Razorpay reports this payment as "${paymentData.status}", not captured` }, 400);
+      }
+
+      const result = await settlePayment(admin, {
+        razorpayPaymentId: paymentData.id,
+        razorpayOrderId: paymentData.order_id ?? null,
+        capturedAmountPaise: Number(paymentData.amount || 0),
+      });
+
+      if (!result.success) {
+        return json({ error: result.error || "Could not settle this payment" }, 400);
+      }
+
+      return json({
+        success: true,
+        already_settled: result.already_settled ?? false,
+        amount: Number(paymentData.amount || 0) / 100,
+        razorpay_order_id: paymentData.order_id ?? null,
+      });
+    }
 
     // Registration payments that were verified but never finished (welcome
     // bonus missing) — usually because the app never regained control after

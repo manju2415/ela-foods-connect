@@ -1,4 +1,5 @@
 import { lazy, ComponentType } from "react";
+import { isOnSensitivePage } from "@/pwa/sw-guard";
 
 const RETRY_FLAG = "lazy-retry-reload";
 
@@ -29,6 +30,14 @@ export function lazyWithRetry<T extends ComponentType<any>>(
       markRecovered();
       return mod;
     } catch (error) {
+      // Never force a reload mid checkout/payment — that would wipe unsaved
+      // input or interrupt a live Razorpay iframe. Fall through to throw and
+      // let the page's own error boundary handle it instead; the retry stays
+      // available for the next failure once the user is off that page.
+      if (isOnSensitivePage()) {
+        throw error;
+      }
+
       let alreadyRetried = false;
       try {
         alreadyRetried = sessionStorage.getItem(RETRY_FLAG) === "1";

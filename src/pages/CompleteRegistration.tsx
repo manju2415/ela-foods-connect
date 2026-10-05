@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserAgreementDialog } from "@/components/UserAgreementDialog";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { Loader2, MapPin, User, Phone, CheckCircle2 } from "lucide-react";
 
 
@@ -103,6 +104,13 @@ const CompleteRegistration = () => {
       postal_code: "",
     },
   });
+
+  // Registration switched off by super admin: there is nothing to complete —
+  // send them back to shopping (the address is taken at checkout).
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
+  useEffect(() => {
+    if (!registrationSettingLoading && !registrationEnabled) navigate("/", { replace: true });
+  }, [registrationEnabled, registrationSettingLoading, navigate]);
 
   useEffect(() => {
     if (authLoading) return;

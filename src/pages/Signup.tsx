@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useNavigate,
   Link,
@@ -31,6 +31,7 @@ import { UserAgreementDialog } from "@/components/UserAgreementDialog";
 
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 const DEMO_PHONES = [
   "8888888888",
@@ -94,6 +95,9 @@ export default function Signup() {
   );
   const [referralCode, setReferralCode] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // React's disabled state is rendered asynchronously. Block a second tap
+  // immediately so two session requests cannot rotate the same password.
+  const verificationInFlight = useRef(false);
   const [cooldown, setCooldown] = useState(0);
   const [agreed, setAgreed] = useState(false);
   // Real server-side reason for the last failed attempt, kept on screen so the
@@ -101,11 +105,12 @@ export default function Signup() {
   const [lastError, setLastError] = useState<string | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const navigate = useNavigate();
   const locationRoute = useLocation();
   const [searchParams] = useSearchParams();
   const isFounderSignup = locationRoute.pathname === "/founder-signup";
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
 
   const form = useForm<SignupData>({
     resolver: zodResolver(signupSchema),
@@ -137,9 +142,22 @@ export default function Signup() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (user && step === "form")
+    if (user && step === "form" && registrationEnabled)
       navigate("/complete-registration", { replace: true });
-  }, [user, step, navigate]);
+  }, [user, step, navigate, registrationEnabled]);
+
+  // Registration switched off by super admin: there is nothing to sign up
+  // for — new shoppers just log in with their mobile number.
+  useEffect(() => {
+    if (registrationSettingLoading || registrationEnabled || step !== "form") return;
+    toast({
+      title: "Registrations are closed",
+      description: "Just log in with your mobile number to start shopping.",
+    });
+    // Keep ?ref= so the invite code is prefilled on the login form.
+    navigate(`/auth${locationRoute.search}`, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrationEnabled, registrationSettingLoading, step]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -176,6 +194,8 @@ export default function Signup() {
 
   const handleResend = async () => {
     if (cooldown > 0 || !phoneNumber) return;
+    dismiss(); // clear any leftover toast from a previous attempt
+    setLastError(null); // clear any leftover inline error from a previous attempt
     setSubmitting(true);
     const r = await sendOtp(phoneNumber);
     setSubmitting(false);
@@ -188,11 +208,17 @@ export default function Signup() {
       return;
     }
     setCooldown(RESEND_COOLDOWN);
+    // A resend invalidates the previous code on the provider's side — clear
+    // whatever digits were typed so a stale, now-rejected code can't be
+    // submitted by mistake.
+    setOtp("");
     toast({ title: "OTP Resent" });
   };
 
   const handleVerify = async () => {
-    if (otp.length !== 6) return;
+    if (otp.length !== 6 || verificationInFlight.current) return;
+    verificationInFlight.current = true;
+    dismiss(); // clear any leftover toast from a previous attempt
     setSubmitting(true);
     setLastError(null);
     try {
@@ -210,8 +236,10 @@ export default function Signup() {
       );
 
       if (createErr || !created?.success) {
+        const context = (createErr as { context?: Response } | null)?.context;
+        const response = await context?.clone().json().catch(() => null);
         const msg =
-          created?.error || createErr?.message || "Could not create account.";
+          response?.error || created?.error || createErr?.message || "Could not create account.";
         setLastError(msg);
         toast({ title: "Signup failed", description: msg, variant: "destructive" });
         return;
@@ -245,6 +273,7 @@ export default function Signup() {
       setLastError(err instanceof Error ? err.message : "Network error. Please try again.");
       toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
     } finally {
+      verificationInFlight.current = false;
       setSubmitting(false);
     }
   };

@@ -8,7 +8,7 @@ interface FoundingMember {
 }
 
 // Curated list — no contact details are exposed publicly.
-export const FOUNDING_MEMBERS: FoundingMember[] = [
+const FOUNDING_MEMBERS: FoundingMember[] = [
   { name: "Shyju V M", role: "Founding Member" },
   { name: "Sudevan P M", role: "Founding Member" },
   { name: "Manoj Kumar", role: "Founding Member" },

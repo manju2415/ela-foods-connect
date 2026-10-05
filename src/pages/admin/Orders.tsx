@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { InvoiceButton } from "@/components/InvoiceButton";
+import { orderPaymentMethodLabel, orderValue } from "@/lib/paymentMethod";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
 type PaymentStatus = Database["public"]["Enums"]["payment_status"];
@@ -50,6 +51,7 @@ interface Order {
   subtotal: number;
   discount_amount: number;
   wallet_amount_used?: number | null;
+  is_cod?: boolean | null;
   shipping_amount: number;
   shipping_address: {
     full_name?: string;
@@ -296,6 +298,7 @@ export default function Orders() {
                       <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
+                      <TableHead>Payment Method</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -318,7 +321,7 @@ export default function Orders() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell>₹{Number(order.total_amount).toFixed(2)}</TableCell>
+                        <TableCell>₹{orderValue(order).toFixed(2)}</TableCell>
                         <TableCell>
                           <Select
                             value={order.status}
@@ -361,6 +364,7 @@ export default function Orders() {
                             </SelectContent>
                           </Select>
                         </TableCell>
+                        <TableCell>{orderPaymentMethodLabel(order)}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)}>
                             <Eye className="h-4 w-4" />
@@ -388,7 +392,7 @@ export default function Orders() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <AdminMobileField label="Date">{format(new Date(order.created_at), "MMM d, yyyy")}</AdminMobileField>
-                      <AdminMobileField label="Total">₹{Number(order.total_amount).toFixed(2)}</AdminMobileField>
+                      <AdminMobileField label="Total">₹{orderValue(order).toFixed(2)}</AdminMobileField>
                     </div>
                     <AdminMobileField label="Status">
                       <Select value={order.status} onValueChange={(value: OrderStatus) => updateStatusMutation.mutate({ orderId: order.id, status: value })}>
@@ -402,6 +406,7 @@ export default function Orders() {
                         <SelectContent>{PAYMENT_STATUSES.map((status) => <SelectItem key={status} value={status}>{status.charAt(0).toUpperCase() + status.slice(1)}</SelectItem>)}</SelectContent>
                       </Select>
                     </AdminMobileField>
+                    <AdminMobileField label="Payment Method">{orderPaymentMethodLabel(order)}</AdminMobileField>
                   </AdminMobileCard>
                 ))}
               </div>
@@ -499,6 +504,10 @@ export default function Orders() {
 
                 <div className="border-t pt-4 space-y-2">
                   <div className="flex justify-between">
+                    <span>Payment Method</span>
+                    <span className="font-medium">{orderPaymentMethodLabel(selectedOrder)}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span>₹{Number(selectedOrder.subtotal).toFixed(2)}</span>
                   </div>
@@ -510,17 +519,22 @@ export default function Orders() {
                     <span>Discount</span>
                     <span>-₹{Number(selectedOrder.discount_amount || 0).toFixed(2)}</span>
                   </div>
+                  <div className="flex justify-between font-bold text-lg">
+                    <span>Order Value</span>
+                    <span>₹{orderValue(selectedOrder).toFixed(2)}</span>
+                  </div>
                   {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Paid from wallet</span>
-                      <span>-₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
+                      <span>₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
                     </div>
                   )}
-
-                  <div className="flex justify-between font-bold text-lg">
-                    <span>Total</span>
-                    <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
-                  </div>
+                  {Number(selectedOrder.total_amount || 0) > 0 && Number(selectedOrder.wallet_amount_used || 0) > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{selectedOrder.payment_status === "completed" ? "Charged online" : selectedOrder.status === "cancelled" ? "Online payment not completed" : "Awaiting online payment"}</span>
+                      <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
                 <InvoiceButton orderId={selectedOrder.id} />
 

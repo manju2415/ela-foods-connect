@@ -5,7 +5,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "android", "ios"] },
+  // supabase/functions is Deno code, linted by `deno lint` (its files carry
+  // deno-lint-ignore directives), not by this browser-app config.
+  { ignores: ["dist", "android", "ios", "supabase/functions"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -19,7 +21,27 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        {
+          allowConstantExport: true,
+          // Hooks and variant helpers intentionally exported next to their
+          // provider/component (context hooks, shadcn/ui variants).
+          allowExportNames: [
+            "useAuth",
+            "useCart",
+            "useWishlist",
+            "useLayoutOverride",
+            "useFormField",
+            "useSidebar",
+            "badgeVariants",
+            "buttonVariants",
+            "toggleVariants",
+            "navigationMenuTriggerStyle",
+            "toast",
+          ],
+        },
+      ],
       "@typescript-eslint/no-unused-vars": "off",
     },
   },

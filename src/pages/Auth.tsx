@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +14,7 @@ import { Loader2, ArrowLeft, Phone } from "lucide-react";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
+import { fetchRegistrationEnabled, useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 // Test accounts bypass real SMS for QA. Real users always go through MSG91.
 const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006", "8888888888"];
@@ -59,24 +60,6 @@ const getOtpSentDescription = (phone: string, result: { requestId?: string; mobi
   return `A 6-digit code was accepted by MSG91 for ${phone}.${details}`;
 };
 
-const verifyOtpViaMsg91 = async (phone: string, otp: string) => {
-  if (isTestPhone(phone)) {
-    if (otp === TEST_OTP) return { success: true as const };
-    return { success: false as const, error: "Invalid OTP" };
-  }
-  const { data, error } = await supabase.functions.invoke("msg91-verify-otp", { body: { phone, otp } });
-  console.log("[Auth] msg91-verify-otp response:", { data, error });
-  if (error) {
-    const ctx = (error as { context?: { text?: () => Promise<string> } }).context;
-    let body: { error?: string } | null = null;
-    try { body = ctx && typeof ctx.text === "function" ? JSON.parse(await ctx.text()) : null; } catch { /* body wasn't valid JSON — fall back to the generic error message below */ }
-    console.error("[Auth] msg91-verify-otp error body:", body);
-    return { success: false as const, error: body?.error || error.message || "Invalid OTP" };
-  }
-  if (!data?.success) return { success: false as const, error: data?.error || "Invalid OTP" };
-  return { success: true as const };
-};
-
 const phoneSchema = z.object({
   phone: z.string().regex(/^\d{10}$/, "Enter a valid 10-digit mobile number"),
 });
@@ -99,12 +82,16 @@ const Auth = () => {
   const [resendCooldown, setResendCooldown] = useState(0);
   const [referralCodeValid, setReferralCodeValid] = useState<boolean | null>(null);
   const [checkingCode, setCheckingCode] = useState(false);
+  // Registration OFF: optional invite code on the login form. A brand-new
+  // number logging in with it is linked to the inviter.
+  const [inviteCode, setInviteCode] = useState("");
   const pendingSignupRef = useRef<{ fullName: string; referralCode: string } | null>(null);
 
   const { user, createSessionForPhone, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
+  const { registrationEnabled } = useRegistrationEnabled();
 
   const redirectTo = useMemo(() => {
     const redirectParam = new URLSearchParams(location.search).get("redirect")?.trim();
@@ -143,6 +130,7 @@ const Auth = () => {
     const ref = new URLSearchParams(location.search).get("ref")?.trim();
     if (ref) {
       signupForm.setValue("referralCode", ref.toUpperCase());
+      setInviteCode(ref.toUpperCase());
       validateReferralCode(ref);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -220,8 +208,16 @@ const Auth = () => {
     // Wait for auth session + RLS context to fully propagate before querying
     await new Promise(r => setTimeout(r, 800));
 
-    const { data: { user: verifiedUser } } = await supabase.auth.getUser();
-    if (!verifiedUser) return;
+    // getUser() is a fresh network round-trip; on a flaky mobile connection it
+    // can come back empty even though the session was just stored. Fall back
+    // to that stored session instead of silently stopping here, which left a
+    // successfully signed-in user stuck on the OTP screen.
+    const { data: { user: fetchedUser } } = await supabase.auth.getUser();
+    const verifiedUser = fetchedUser ?? (await supabase.auth.getSession()).data.session?.user;
+    if (!verifiedUser) {
+      toast({ title: "Could not finish signing in", description: "Please try again.", variant: "destructive" });
+      return;
+    }
 
     const { data: partnerData } = await supabase
       .from("delivery_partners")
@@ -234,7 +230,11 @@ const Auth = () => {
       return;
     }
 
-    if (isNewUser) {
+    // Registration switched off by super admin: logging in is enough — no
+    // details form or registration fee; the address is taken at checkout.
+    const registrationEnabled = await fetchRegistrationEnabled();
+
+    if (isNewUser && registrationEnabled) {
       navigate("/complete-registration");
       return;
     }
@@ -259,12 +259,12 @@ const Auth = () => {
     const isProfileComplete = !!profileData?.phone && !!profileData?.accepted_agreement_at;
     const isPaymentComplete = (profileData?.registration_fee_paid || 0) > 0;
 
-    if (!isAdmin && !isProfileComplete) {
+    if (registrationEnabled && !isAdmin && !isProfileComplete) {
       navigate("/complete-registration", { replace: true });
       return;
     }
 
-    if (!isAdmin && !isPaymentComplete) {
+    if (registrationEnabled && !isAdmin && !isPaymentComplete) {
       navigate("/registration-payment", { replace: true });
       return;
     }
@@ -280,6 +280,15 @@ const Auth = () => {
 
   // ── Send OTP (Login) ──
   const handleSendLoginOtp = async (data: PhoneFormData) => {
+    if (!registrationEnabled && inviteCode.trim() && checkingCode) {
+      toast({ title: "Still checking invite code", description: "Please wait a moment and try again." });
+      return;
+    }
+    if (!registrationEnabled && inviteCode.trim() && referralCodeValid === false) {
+      toast({ title: "Invalid invite code", description: "Remove it or enter a valid code to continue.", variant: "destructive" });
+      return;
+    }
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
@@ -331,6 +340,7 @@ const Auth = () => {
       return;
     }
 
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     setHasAttemptedLogin(true);
     hasAttemptedLoginRef.current = true;
@@ -356,6 +366,7 @@ const Auth = () => {
 
   const handleResendOtp = async () => {
     if (resendCooldown > 0 || !phoneNumber) return;
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     const result = await sendOtpViaMsg91(phoneNumber);
     setIsSubmitting(false);
@@ -364,37 +375,48 @@ const Auth = () => {
       return;
     }
     setResendCooldown(RESEND_COOLDOWN_SECONDS);
+    // A resend invalidates the previous code on the provider's side — clear
+    // whatever digits were typed so a stale, now-rejected code can't be
+    // submitted by mistake.
+    setOtpCode("");
     toast({ title: "OTP Resent", description: getOtpSentDescription(phoneNumber, result) });
   };
 
   // ── Verify OTP ──
+  // The code is verified once, server-side, inside createSessionForPhone
+  // (verify-otp-login) — no separate client-side pre-check. Checking it
+  // twice against MSG91 consumed the code before session creation and made
+  // slow devices fail signup/login (same bug already fixed in Signup.tsx).
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) return;
 
+    dismiss(); // clear any leftover error from a previous attempt
     setIsSubmitting(true);
     try {
-      const verify = await verifyOtpViaMsg91(phoneNumber, otpCode);
-
-      if (!verify.success) {
-        toast({ title: "Verification failed", description: verify.error, variant: "destructive" });
-        setOtpCode("");
-        return;
-      }
-
       const { error, isNewUser } = await createSessionForPhone(
         phoneNumber,
         otpCode,
-        pendingSignupRef.current || undefined
+        pendingSignupRef.current || undefined,
+        !registrationEnabled && inviteCode.trim() ? inviteCode.trim().toUpperCase() : undefined
       );
-      pendingSignupRef.current = null;
-
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
         return;
       }
 
+      pendingSignupRef.current = null;
+
       toast({ title: isNewUser ? "Account created!" : "Welcome back!", description: "You have logged in successfully." });
-      await handlePostVerifyRedirect(isNewUser || false);
+      try {
+        await handlePostVerifyRedirect(isNewUser || false);
+      } catch (redirectErr) {
+        // Already signed in — only working out where to send them failed.
+        // Hand off to the same role-based redirect used when a logged-in user
+        // opens /auth, rather than leaving them on the OTP screen.
+        console.error("[Auth] post-login redirect failed:", redirectErr);
+        hasAttemptedLoginRef.current = false;
+        setHasAttemptedLogin(false);
+      }
     } catch (err) {
       // A network hiccup here must never leave the verify button stuck
       // spinning forever.
@@ -529,15 +551,40 @@ const Auth = () => {
                 )}
               </div>
 
+              {!registrationEnabled && (
+                <div className="space-y-2">
+                  <Label htmlFor="inviteCode">Invite Code (optional)</Label>
+                  <Input
+                    id="inviteCode"
+                    placeholder="Enter invite code if you have one"
+                    value={inviteCode}
+                    className={inviteCode.trim() && referralCodeValid === true ? "border-green-500" : inviteCode.trim() && referralCodeValid === false ? "border-destructive" : ""}
+                    onChange={(e) => {
+                      setInviteCode(e.target.value.toUpperCase());
+                      debouncedValidateReferralCode(e.target.value);
+                    }}
+                  />
+                  {inviteCode.trim() && checkingCode && <p className="text-sm text-muted-foreground">Checking code...</p>}
+                  {inviteCode.trim() && referralCodeValid === true && <p className="text-sm text-green-600">Valid invite code!</p>}
+                  {inviteCode.trim() && referralCodeValid === false && <p className="text-sm text-destructive">Invalid or inactive invite code</p>}
+                </div>
+              )}
+
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 <Phone className="mr-2 h-4 w-4" />
                 Send OTP
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                New to Elabazar?{" "}
-                <a href="/signup" className="text-primary hover:underline">Create an account</a>
-              </p>
+              {registrationEnabled ? (
+                <p className="text-center text-sm text-muted-foreground">
+                  New to Elabazar?{" "}
+                  <Link to={`/signup${location.search}`} className="text-primary hover:underline">Create an account</Link>
+                </p>
+              ) : (
+                <p className="text-center text-sm text-muted-foreground">
+                  New to Elabazar? Just enter your mobile number to start shopping.
+                </p>
+              )}
             </form>
           ) : (
             <form onSubmit={signupForm.handleSubmit(handleSendSignupOtp)} className="space-y-4">
@@ -599,7 +646,7 @@ const Auth = () => {
             </form>
           )}
 
-          <div className="mt-6 text-center">
+          {(registrationEnabled || !isLogin) && <div className="mt-6 text-center">
             <span className="text-sm text-muted-foreground">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
             </span>
@@ -607,6 +654,10 @@ const Auth = () => {
               type="button"
               className="text-sm font-medium text-primary hover:underline"
               onClick={() => {
+                if (isLogin) {
+                  navigate(`/signup${location.search}`);
+                  return;
+                }
                 setIsLogin(!isLogin);
                 loginForm.reset();
                 signupForm.reset();
@@ -615,7 +666,7 @@ const Auth = () => {
             >
               {isLogin ? "Sign up" : "Log in"}
             </button>
-          </div>
+          </div>}
         </CardContent>
       </Card>
     </div>

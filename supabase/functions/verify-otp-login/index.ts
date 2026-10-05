@@ -5,6 +5,7 @@
 // only ever be obtained by actually passing OTP verification (real MSG91 check, or the
 // test-account bypass below for QA phones).
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,38 @@ const detectPlatform = (req: Request, claimed?: unknown): string => {
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Registration-OFF invites: link a brand-new customer to whoever invited them.
+ * The inviter's referral bonus and the invitee's welcome bonus are paid by the
+ * on_order_invite_reward trigger on the invitee's first paid order. Best-effort
+ * — a bad or missing code never blocks the login.
+ */
+const linkInvite = async (admin: SupabaseClient, userId: string, rawCode: unknown) => {
+  if (typeof rawCode !== "string" || rawCode.trim().length < 3) return;
+  try {
+    const { data: codeRow } = await admin
+      .from("referral_codes")
+      .select("id, user_id")
+      .eq("code", rawCode.trim().toUpperCase())
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!codeRow?.user_id || codeRow.user_id === userId) return;
+    await admin.from("profiles").update({ referred_by: codeRow.user_id }).eq("id", userId).is("referred_by", null);
+    await admin.from("referrals").upsert(
+      {
+        referrer_id: codeRow.user_id,
+        referred_id: userId,
+        referral_code_id: codeRow.id,
+        incentive_paid: false,
+        reward_on_first_order: true,
+      },
+      { onConflict: "referred_id", ignoreDuplicates: true },
+    );
+  } catch (e) {
+    console.error("[verify-otp-login] invite link failed:", e);
+  }
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -165,6 +198,18 @@ Deno.serve(async (req) => {
       email: mockEmail,
     });
 
+    // A transient Auth Admin API error here (not "account doesn't exist")
+    // previously surfaced to an existing, correctly-matched account as a
+    // permanent "Account not found" with no retry at all — retry once before
+    // falling through to the phone-based repair/lookup below.
+    if (linkError || !linkData?.user) {
+      await sleep(300);
+      ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+        type: "magiclink",
+        email: mockEmail,
+      }));
+    }
+
     if (linkError || !linkData?.user) {
       // The account may exist but not under the deterministic phone email —
       // e.g. it was created during guest checkout with a random guest_*
@@ -182,23 +227,63 @@ Deno.serve(async (req) => {
 
         if (profile) {
           const { data: userRes } = await admin.auth.admin.getUserById(profile.id);
-          if (userRes?.user && userRes.user.email !== mockEmail) {
-            const { error: repairError } = await admin.auth.admin.updateUserById(profile.id, {
-              email: mockEmail,
-              email_confirm: true,
-            });
-            if (!repairError) {
-              await admin.from("profiles").update({ email: mockEmail, phone: `+91${last10}` }).eq("id", profile.id);
-              ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-                type: "magiclink",
+          if (userRes?.user) {
+            if (userRes.user.email !== mockEmail) {
+              const { error: repairError } = await admin.auth.admin.updateUserById(profile.id, {
                 email: mockEmail,
-              }));
-            } else {
-              console.error("[verify-otp-login] guest-account repair failed:", repairError);
-              await logAttempt("REPAIR_FAILED", repairError.message);
+                email_confirm: true,
+              });
+              if (!repairError) {
+                await admin.from("profiles").update({ email: mockEmail, phone: `+91${last10}` }).eq("id", profile.id);
+              } else {
+                console.error("[verify-otp-login] guest-account repair failed:", repairError);
+                await logAttempt("REPAIR_FAILED", repairError.message);
+              }
             }
+            // The auth user genuinely exists for this phone (repaired just now,
+            // or already correctly linked and the earlier failures were
+            // transient) — retry the link generation once more before
+            // reporting "not found" for an account that clearly exists.
+            ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+              type: "magiclink",
+              email: mockEmail,
+            }));
           }
         }
+      }
+    }
+
+    // Registration switched off by super admin: a new number simply logs in.
+    // The OTP has already been verified above, so create a plain customer
+    // account (no referrer, no member role, no fee) — name and delivery
+    // address are taken at checkout.
+    let isNewUser = false;
+    if ((linkError || !linkData?.user) && !(await isRegistrationEnabled(admin))) {
+      const last10 = cleanPhone.replace(/\D/g, "").slice(-10);
+      if (last10.length === 10) {
+        const { data: created, error: createErr } = await admin.auth.admin.createUser({
+          email: mockEmail,
+          password: crypto.randomUUID() + crypto.randomUUID(),
+          email_confirm: true,
+          phone_confirm: true,
+          user_metadata: { phone: `91${last10}` },
+        });
+        if (created?.user) {
+          isNewUser = true;
+          await admin.from("profiles").upsert(
+            { id: created.user.id, email: mockEmail, phone: `+91${last10}` },
+            { onConflict: "id" },
+          );
+          await linkInvite(admin, created.user.id, body?.referral_code);
+        } else if (createErr && !createErr.message?.toLowerCase().includes("already")) {
+          console.error("[verify-otp-login] customer account creation failed:", createErr);
+        }
+        // Created now, or by a concurrent request a moment ago — either way
+        // the account exists under the phone email.
+        ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+          type: "magiclink",
+          email: mockEmail,
+        }));
       }
     }
 
@@ -244,6 +329,7 @@ Deno.serve(async (req) => {
       await logAttempt(attempt === 1 ? "SUCCESS" : "SUCCESS_AFTER_RETRY", attempt === 1 ? null : lastError);
       return json(200, {
         success: true,
+        is_new_user: isNewUser,
         access_token: signInData.session.access_token,
         refresh_token: signInData.session.refresh_token,
       });

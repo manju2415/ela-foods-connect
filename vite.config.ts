@@ -14,9 +14,18 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
-      // Registration is handled by our own guarded wrapper (src/pwa/sw-guard.ts)
-      // so the plugin never auto-injects a registration script (keeps Lovable preview SW-free).
+      // Registration and updates are handled entirely by our own code
+      // (src/components/pwa/PWABadge.tsx, gated by src/pwa/sw-guard.ts) via a
+      // plain navigator.serviceWorker.register call — we do NOT use
+      // vite-plugin-pwa's generated register module (virtual:pwa-register).
+      // That module's own "prompt" flow attaches its own controllerchange
+      // listener that force-reloads unconditionally once it has seen a
+      // "waiting" worker — bypassing any checkout/payment guard. With
+      // skipWaiting below, the "waiting" state is short-lived enough that
+      // this could fire unpredictably. Registering directly ourselves means
+      // our guarded listener is the only thing reacting to controllerchange.
+      // injectRegister: null also keeps the plugin from auto-injecting any
+      // registration script (needed so Lovable preview stays SW-free).
       injectRegister: null,
       devOptions: {
         enabled: false,
@@ -52,9 +61,53 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        // Precache only the app shell (index.html + its entry JS/CSS) so a new
+        // worker installs in seconds. Precaching every lazy route chunk made
+        // installs download ~166 files one after another (~3+ min on this
+        // host), and until that finished visitors kept getting the old build.
+        // Lazy chunks and icons are cached on first use by the runtime rules
+        // below instead. Keep index.html's script/style references precached:
+        // public/sw-reload-stale-tabs.js treats a shell that references an
+        // un-precached script as stale.
+        globPatterns: [
+          "index.html",
+          "assets/index-*.{js,css}",
+          "sw-reload-stale-tabs.js",
+          "favicon.{ico,png}",
+          "placeholder.svg",
+        ],
+        // skipWaiting + clientsClaim are both required for an already-stuck
+        // visitor to ever recover. skipWaiting makes a newly downloaded
+        // service worker activate itself the moment the browser notices it
+        // changed — which happens on the browser's OWN update schedule
+        // (every navigation, and the spec forces a re-check at least every
+        // 24h regardless of HTTP cache headers), completely independent of
+        // whatever JS is currently loaded on the page. That's essential: a
+        // visitor stuck on a broken/ancient build is running the exact code
+        // that would need to detect and apply an update, so nothing about
+        // that old code can be trusted to fix itself — only the browser's
+        // native, code-independent check can. clientsClaim then hands that
+        // now-active worker control of any already-open tabs immediately
+        // instead of only on their next navigation. The app's own
+        // controllerchange listener (PWABadge.tsx) decides *when* it's safe
+        // to actually reload the visible page (never mid checkout/payment).
+        skipWaiting: true,
+        clientsClaim: true,
+        // On activation, navigate tabs still running an old build (see file).
+        importScripts: ["sw-reload-stale-tabs.js"],
         runtimeCaching: [
           {
+            // Auth, database, edge-function (OTP/payment) and realtime calls
+            // must always hit the network. NetworkFirst would fall back to a
+            // stale cached response on any failed request (e.g. a cached
+            // /auth/v1/user for a dead session, or another user's /rest/v1
+            // data on a shared browser). Listed first: Workbox uses the first
+            // matching route.
+            urlPattern: /^https:\/\/[^/]+\.supabase\.(?:co|in)\/(?:auth|rest|functions|realtime)\/v1\//i,
+            handler: "NetworkOnly",
+          },
+          {
+            // Remaining Supabase traffic (Storage images) keeps its existing behaviour.
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: "NetworkFirst",
             options: {
@@ -65,6 +118,23 @@ export default defineConfig(({ mode }) => ({
               },
               cacheableResponse: {
                 statuses: [0, 200],
+              },
+            },
+          },
+          {
+            // Hashed build chunks (lazy routes, fonts) no longer precached:
+            // filenames change with content, so cache-first is safe.
+            urlPattern: ({ url, sameOrigin }) =>
+              sameOrigin && url.pathname.startsWith("/assets/") && /\.(?:js|css|woff2?)$/.test(url.pathname),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "assets-cache",
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+              },
+              cacheableResponse: {
+                statuses: [200],
               },
             },
           },

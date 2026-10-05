@@ -13,6 +13,7 @@ import { OrderStatusTimeline, type OrderStatus } from "@/components/OrderStatusT
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import { Package, MapPin, RotateCcw } from "lucide-react";
 import { InvoiceButton } from "@/components/InvoiceButton";
+import { orderPaymentMethodLabel, orderValue } from "@/lib/paymentMethod";
 import { format } from "date-fns";
 
 interface Order {
@@ -204,6 +205,10 @@ export default function CustomerOrderDetailPage() {
                 {/* Order Summary */}
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payment Method</span>
+                    <span className="font-medium">{orderPaymentMethodLabel(order)}</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
                     <span>₹{order.subtotal.toFixed(2)}</span>
                   </div>
@@ -217,18 +222,23 @@ export default function CustomerOrderDetailPage() {
                       <span>-₹{order.discount_amount.toFixed(2)}</span>
                     </div>
                   )}
+                  <Separator />
+                  <div className="flex justify-between font-semibold text-base">
+                    <span>Order Value</span>
+                    <span>₹{orderValue(order).toFixed(2)}</span>
+                  </div>
                   {order.wallet_amount_used && order.wallet_amount_used > 0 && (
                     <div className="flex justify-between text-green-600">
                       <span>Paid from wallet</span>
-                      <span>-₹{Number(order.wallet_amount_used).toFixed(2)}</span>
+                      <span>₹{Number(order.wallet_amount_used).toFixed(2)}</span>
                     </div>
                   )}
-
-                  <Separator />
-                  <div className="flex justify-between font-semibold text-base">
-                    <span>Total</span>
-                    <span>₹{order.total_amount.toFixed(2)}</span>
-                  </div>
+                  {order.total_amount > 0 && order.wallet_amount_used && order.wallet_amount_used > 0 && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>{order.payment_status === "completed" ? "Charged online" : order.status === "cancelled" ? "Online payment not completed" : "Awaiting online payment"}</span>
+                      <span>₹{order.total_amount.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

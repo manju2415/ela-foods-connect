@@ -87,12 +87,26 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
     fetchCategories();
   }, []);
 
-  // Wait for categories to load before fetching products: fetchProducts
-  // resolves a ?category= slug to its category id by looking it up in
-  // `categories`, which is still empty on the very first render — firing
-  // both fetches at once silently dropped the category filter.
+  // With a ?category= filter, wait for categories to load before fetching
+  // products: fetchProducts resolves the slug to its category id by looking
+  // it up in `categories`, which is still empty on the very first render —
+  // firing both fetches at once silently dropped the category filter.
+  // Without that filter the product query doesn't use `categories` at all,
+  // so it runs alongside the category fetch instead of after it.
+  const earlyFetchKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!categoriesLoaded) return;
+    const paramsKey = searchParams.toString();
+    if (!categoriesLoaded) {
+      if (searchParams.get("category")) return;
+      earlyFetchKeyRef.current = paramsKey;
+      fetchProducts();
+      return;
+    }
+    // Categories just finished loading and this exact query was already
+    // fetched above — don't fetch it a second time.
+    const alreadyFetched = earlyFetchKeyRef.current === paramsKey;
+    earlyFetchKeyRef.current = null;
+    if (alreadyFetched) return;
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCategory, searchParams, categoriesLoaded]);

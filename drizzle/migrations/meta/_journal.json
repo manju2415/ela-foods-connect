@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791013296762,
+      "tag": "0000_refund_wallet_on_unpaid_cancel_and_notify_on_paid",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791016210636,
+      "tag": "0001_payment_first_member_checkout",
+      "breakpoints": true
+    }
+  ]
+}

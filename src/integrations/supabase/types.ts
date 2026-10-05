@@ -248,6 +248,7 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          delivery_weekdays: number[] | null
           description: string | null
           display_order: number | null
           exchange_enabled: boolean | null
@@ -263,6 +264,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_weekdays?: number[] | null
           description?: string | null
           display_order?: number | null
           exchange_enabled?: boolean | null
@@ -278,6 +280,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_weekdays?: number[] | null
           description?: string | null
           display_order?: number | null
           exchange_enabled?: boolean | null
@@ -357,6 +360,44 @@ export type Database = {
           valid_until?: string | null
         }
         Relationships: []
+      }
+      delivery_date_overrides: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_available: boolean
+          override_date: string
+          reason: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_available?: boolean
+          override_date: string
+          reason?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_available?: boolean
+          override_date?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_date_overrides_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       delivery_partners: {
         Row: {
@@ -1013,12 +1054,14 @@ export type Database = {
       payment_attempts: {
         Row: {
           amount: number
+          checkout_payload: Json | null
           coupon_code: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
           discount_amount: number
+          expected_amount: number | null
           guest_details: Json | null
           id: string
           items: Json
@@ -1033,12 +1076,14 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          checkout_payload?: Json | null
           coupon_code?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
+          expected_amount?: number | null
           guest_details?: Json | null
           id?: string
           items?: Json
@@ -1053,12 +1098,14 @@ export type Database = {
         }
         Update: {
           amount?: number
+          checkout_payload?: Json | null
           coupon_code?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
           discount_amount?: number
+          expected_amount?: number | null
           guest_details?: Json | null
           id?: string
           items?: Json
@@ -2174,6 +2221,7 @@ export type Database = {
         Returns: string
       }
       get_homepage_product_sections: { Args: never; Returns: Json }
+      get_my_member_network: { Args: never; Returns: Json }
       get_network_admin_stats: { Args: never; Returns: Json }
       get_network_roots: {
         Args: never
@@ -2289,6 +2337,15 @@ export type Database = {
         }
         Returns: Json
       }
+      place_paid_order: {
+        Args: {
+          p_captured_amount: number
+          p_payload: Json
+          p_payment_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       process_mlm_referral: {
         Args: {
           p_referral_code: string
@@ -2310,6 +2367,20 @@ export type Database = {
           p_payment_reference?: string
           p_request_id: string
           p_status: string
+        }
+        Returns: Json
+      }
+      quote_checkout: {
+        Args: {
+          p_coupon_code?: string
+          p_fulfillment_type?: string
+          p_items: Json
+          p_pickup_store_id?: string
+          p_preferred_delivery_date?: string
+          p_preferred_delivery_slot_id?: string
+          p_shipping_address: Json
+          p_use_wallet?: boolean
+          p_user_id: string
         }
         Returns: Json
       }

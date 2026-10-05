@@ -27,12 +27,33 @@ const isInactiveTooLong = (): boolean => {
   }
 };
 
+// Records a verify-otp-login call that never got a parseable reply from the
+// server at all — the server-side log (written by the function itself) has
+// no row for these by definition, so without this a customer's "it just
+// doesn't work" leaves no trace anywhere. Best-effort and non-blocking: a
+// failure here must never affect the login flow it's reporting on. Runs with
+// no session yet (a login attempt is, by definition, not yet logged in), so
+// this goes through the anon client — see the otp_send_log INSERT policy,
+// scoped to only this exact outcome value.
+const logClientInvokeFailure = async (phone: string, message?: string) => {
+  try {
+    await supabase.from("otp_send_log").insert({
+      phone,
+      outcome: "session:CLIENT_INVOKE_FAILED",
+      provider_request_id: Capacitor.getPlatform(),
+      error: message ? message.slice(0, 500) : null,
+    });
+  } catch {
+    // Best-effort — never let logging failure mask or block the real error.
+  }
+};
+
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
   /** Create a Supabase session for a phone, re-verifying the OTP server-side atomically with session creation. */
-  createSessionForPhone: (phone: string, otp: string, signupData?: { fullName: string; referralCode: string }) => Promise<{ error: Error | null; isNewUser?: boolean }>;
+  createSessionForPhone: (phone: string, otp: string, signupData?: { fullName: string; referralCode: string }, inviteCode?: string) => Promise<{ error: Error | null; isNewUser?: boolean }>;
   signOut: () => Promise<void>;
   suppressAuthChanges: (suppress: boolean) => void;
 }
@@ -82,6 +103,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+    }).catch(() => {
+      // getSession() rejected (e.g. storage/lock failure). Don't touch stored
+      // auth data — supabase-js already removes a session only when the
+      // server says it is invalid — just make sure the app doesn't hang on
+      // the loading state; onAuthStateChange will still deliver any session.
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -125,11 +152,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
    * Existing users sign in directly; walk-ins are created server-side first.
    * No client-side signUp — all onboarding goes through server-side admin.createUser flows.
    * Supplying `signupData` activates the open-registration flow.
+   * `inviteCode` is only used while registration is switched off: a brand-new
+   * number is linked to that inviter when its customer account is created.
    */
   const createSessionForPhone = async (
     phone: string,
     otp: string,
-    signupData?: { fullName: string; referralCode: string }
+    signupData?: { fullName: string; referralCode: string },
+    inviteCode?: string
   ): Promise<{ error: Error | null; isNewUser?: boolean }> => {
     let isNewUser = false;
     if (signupData) {
@@ -148,7 +178,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const { data, error } = await supabase.functions.invoke("verify-otp-login", {
-      body: { phone, otp, platform: Capacitor.getPlatform() },
+      body: { phone, otp, platform: Capacitor.getPlatform(), ...(inviteCode ? { referral_code: inviteCode } : {}) },
     });
 
     if (error || !data?.success || !data?.access_token || !data?.refresh_token) {
@@ -158,6 +188,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Prefer whatever the server actually said; the old catch-all text is only
       // used when no server message came back at all (e.g. a network failure).
       const serverMessage = body?.error || data?.error || error?.message;
+      if (error && !body) {
+        // The invoke failed before any parseable server reply came back at all
+        // (dropped connection, CORS block, a stale cached bundle hitting a
+        // removed/renamed endpoint) — the server never got a chance to log
+        // this attempt itself. Record it client-side, best-effort, so the
+        // next occurrence names its own cause instead of leaving no trace.
+        void logClientInvokeFailure(phone, error.message);
+      }
       return { error: new Error(serverMessage || "Could not sign in. Please check your connection and try again.") };
     }
 
@@ -177,7 +215,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("id", sessionData.user.id);
     }
 
-    return { error: null, isNewUser };
+    return { error: null, isNewUser: isNewUser || data.is_new_user === true };
   };
 
   const signOut = async () => {

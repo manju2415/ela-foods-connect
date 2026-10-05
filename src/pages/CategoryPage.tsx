@@ -98,6 +98,10 @@ const CategoryPage = () => {
       if (parentData) {
         setParentCategory(parentData);
       }
+      // Leaf category: clear any subcategory list left over from a
+      // previously-viewed parent category (this component stays mounted
+      // across /category/:slug -> /category/:slug/:subSlug navigation).
+      setSubCategories([]);
     } else {
       setParentCategory(null);
 

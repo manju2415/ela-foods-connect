@@ -45,7 +45,8 @@ import {
 import { Search, Plus, Pencil, Trash2, Package, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { compressImages } from "@/utils/imageCompression";
-import { VariantsEditor, VariantDraft, emptyVariant } from "@/components/admin/VariantsEditor";
+import { VariantsEditor, VariantDraft } from "@/components/admin/VariantsEditor";
+import { emptyVariant } from "@/lib/variantDraft";
 
 interface Product {
   id: string;

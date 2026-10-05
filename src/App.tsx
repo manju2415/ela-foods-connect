@@ -22,15 +22,20 @@ import OnboardingGate from "@/components/OnboardingGate";
 import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
-import { MLMAdminLayout } from "./components/mlm-admin/MLMAdminLayout";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
-import Auth from "./pages/Auth";
 import Products from "./pages/Products";
 
 // Lazy-loaded pages
+// Auth brings its own form/validation libraries that no other startup page
+// uses, and the MLM admin layout brings the admin sidebar — neither is needed
+// to show the storefront, so both load on demand like the other routes.
+const Auth = lazy(() => import("./pages/Auth"));
+const MLMAdminLayout = lazy(() =>
+  import("./components/mlm-admin/MLMAdminLayout").then((m) => ({ default: m.MLMAdminLayout }))
+);
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Signup = lazy(() => import("./pages/Signup"));
 const UserAgreementPage = lazy(() => import("./pages/UserAgreement"));
@@ -62,6 +67,7 @@ const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminProducts = lazy(() => import("./pages/admin/Products"));
 const ProductDisplaySettings = lazy(() => import("./pages/admin/ProductDisplaySettings"));
 const AdminCategories = lazy(() => import("./pages/admin/Categories"));
+const AdminDeliveryCalendar = lazy(() => import("./pages/admin/DeliveryCalendar"));
 const AdminCoupons = lazy(() => import("./pages/admin/Coupons"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const AdminDeliveryPartners = lazy(() => import("./pages/admin/DeliveryPartners"));
@@ -158,6 +164,37 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Native app only. Root cause (confirmed in
+    // node_modules/@capacitor/app's AppPlugin.java handleOnBackPressed): with
+    // no JS "backButton" listener registered, Capacitor's own default handler
+    // only ever calls webView.goBack() when canGoBack() is true — when it's
+    // false (nothing left to go back to) it does *nothing at all*, silently
+    // swallowing the press instead of exiting. That's the exact bug: the
+    // system Back button appears to do nothing once you're back at a root
+    // screen. Registering our own listener lets us handle both cases
+    // explicitly, using the same canGoBack flag Capacitor already computes
+    // from the WebView's own navigation stack.
+    if (!Capacitor.isNativePlatform()) return;
+
+    const listenerPromise = CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (canGoBack) {
+        // Goes through the SPA's own history (React Router listens for
+        // popstate), so this correctly steps back through in-app navigation
+        // rather than bypassing it.
+        window.history.back();
+      } else {
+        // Nothing left to go back to — close the app instead of leaving the
+        // back press silently swallowed.
+        CapacitorApp.exitApp();
+      }
+    });
+
+    return () => {
+      listenerPromise.then((listener) => listener.remove());
+    };
+  }, []);
+
+  useEffect(() => {
     let lastToastAt = 0;
 
     const notify = (message: string) => {
@@ -231,6 +268,7 @@ function App() {
                         <Route path="/admin/products" element={<AdminProducts />} />
                         <Route path="/admin/product-display" element={<SuperAdminGuard><ProductDisplaySettings /></SuperAdminGuard>} />
                         <Route path="/admin/categories" element={<AdminCategories />} />
+                        <Route path="/admin/delivery-calendar" element={<AdminDeliveryCalendar />} />
                         <Route path="/admin/coupons" element={<AdminCoupons />} />
                         <Route path="/admin/settings" element={<AdminSettings />} />
                         <Route path="/admin/delivery-partners" element={<AdminDeliveryPartners />} />
@@ -266,6 +304,7 @@ function App() {
                         <Route path="/policies" element={<Policies />} />
                         <Route path="/stores" element={<StoreLocator />} />
                         <Route path="/policies/:slug" element={<Policies />} />
+                        <Route path="/privacy-policy" element={<Navigate to="/policies/privacy" replace />} />
                         <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
                         <Route path="/user-agreement" element={<UserAgreementPage />} />
                         <Route path="/complete-registration" element={<CompleteRegistration />} />

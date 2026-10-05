@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Store, Truck, Receipt, Save, Gift, Wallet } from "lucide-react";
+import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
+import { REGISTRATION_ENABLED_QUERY_KEY } from "@/hooks/useRegistrationEnabled";
 
 interface StoreSettings {
   store_name: string;
@@ -95,6 +96,7 @@ export default function Settings() {
   const [taxSettings, setTaxSettings] = useState<TaxSettings>(defaultTaxSettings);
   const [referralSettings, setReferralSettings] = useState<ReferralSettings>(defaultReferralSettings);
   const [walletSettings, setWalletSettings] = useState<WalletSettings>(defaultWalletSettings);
+  const [registrationEnabled, setRegistrationEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
@@ -122,6 +124,8 @@ export default function Settings() {
           setReferralSettings({ ...defaultReferralSettings, ...(setting.value as unknown as ReferralSettings) });
         } else if (setting.key === "wallet_settings" && setting.value) {
           setWalletSettings({ ...defaultWalletSettings, ...(setting.value as unknown as WalletSettings) });
+        } else if (setting.key === "registration_settings" && setting.value) {
+          setRegistrationEnabled((setting.value as { registration_enabled?: unknown }).registration_enabled !== false);
         }
       });
     }
@@ -172,6 +176,29 @@ export default function Settings() {
     },
     onError: (error) => {
       toast.error("Failed to save settings: " + error.message);
+    },
+  });
+
+  // Saved the moment it is flipped (not via "Save All") — it changes what
+  // every new visitor sees, so it should never wait on an unrelated save.
+  const registrationMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      await saveSetting(
+        "registration_settings",
+        { registration_enabled: enabled },
+        "Member registration on/off (super admin)",
+      );
+      return enabled;
+    },
+    onMutate: (enabled) => setRegistrationEnabled(enabled),
+    onSuccess: (enabled) => {
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: REGISTRATION_ENABLED_QUERY_KEY });
+      toast.success(enabled ? "Registration turned ON" : "Registration turned OFF");
+    },
+    onError: (error, enabled) => {
+      setRegistrationEnabled(!enabled);
+      toast.error("Failed to update registration: " + error.message);
     },
   });
 
@@ -230,6 +257,9 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="wallet" className="flex items-center gap-2">
               <Wallet className="h-4 w-4" /> Wallet
+            </TabsTrigger>
+            <TabsTrigger value="registration" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" /> Registration
             </TabsTrigger>
           </TabsList>
 
@@ -591,6 +621,55 @@ export default function Settings() {
                       Maximum balance a user can hold
                     </p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Registration Tab */}
+          <TabsContent value="registration">
+            <Card>
+              <CardHeader>
+                <CardTitle>Member Registration</CardTitle>
+                <CardDescription>
+                  Turn the member registration process on or off for new users. Changes apply immediately.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="registration_enabled">Registration</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {registrationEnabled ? "ON" : "OFF"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="registration_enabled"
+                    checked={registrationEnabled}
+                    disabled={registrationMutation.isPending}
+                    onCheckedChange={(checked) => registrationMutation.mutate(checked)}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="font-medium">ON</p>
+                    <p className="text-muted-foreground">
+                      Mobile Login → OTP → Delivery Address → Registration Fee Payment → Browse Products → Cart → Checkout → Order Payment → Order Complete
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium">OFF</p>
+                    <p className="text-muted-foreground">
+                      Mobile Login → OTP → Browse Products → Cart → Checkout → Delivery Address → Payment → Order Complete
+                    </p>
+                  </div>
+                  <p className="text-muted-foreground">
+                    While OFF, any mobile number can log in and shop as a customer, signup pages are hidden and no
+                    registration fee is taken. Existing members, founders, admins and delivery partners are not affected.
+                  </p>
                 </div>
               </CardContent>
             </Card>

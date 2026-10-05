@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { MapPin, Plus, Wallet, CreditCard, Ticket, X, Check, Store } from "lucide-react";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
@@ -89,6 +89,7 @@ const Checkout = () => {
   const [couponError, setCouponError] = useState("");
   const [selectedDeliveryDate, setSelectedDeliveryDate] = useState<Date | null>(null);
   const [selectedDeliverySlotId, setSelectedDeliverySlotId] = useState<string | null>(null);
+  const [hasDeliveryDate, setHasDeliveryDate] = useState(true);
   const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "store_pickup">("delivery");
   const [pickupStoreId, setPickupStoreId] = useState<string | null>(null);
   const [pickupStores, setPickupStores] = useState<Tables<"stores">[]>([]);
@@ -121,6 +122,11 @@ const Checkout = () => {
     postal_code: "",
     label: "Home",
   });
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -346,6 +352,10 @@ const Checkout = () => {
       toast({ title: "Select Store", description: "Please select a store for pickup.", variant: "destructive" });
       return;
     }
+    if (!hasDeliveryDate) {
+      toast({ title: "No delivery date", description: "No delivery date is available for all the items in your cart.", variant: "destructive" });
+      return;
+    }
     if (!user) return;
 
     let validEmail = "";
@@ -370,69 +380,113 @@ const Checkout = () => {
     } : selectedAddress ? { ...selectedAddress, email: validEmail } : {};
 
     setPlacing(true);
-    const idempotencyKey = crypto.randomUUID();
+    const cartItems = items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity }));
+    const deliveryDate = selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null;
+
+    const finishOrder = async (title: string, orderId: string, orderNumber: string, amount: number) => {
+      try { await supabase.functions.invoke("send-order-confirmation", { body: { order_id: orderId } }); } catch (emailError) { console.error("Confirmation email error:", emailError); }
+      await clearCart();
+      toast({ title, description: `Order ${orderNumber} placed successfully.` });
+      setOrderPlaced({ orderNumber, amount });
+      setPlacing(false);
+    };
+
+    // Payment first: nothing is written to orders, wallet or stock until the
+    // server has verified the Razorpay payment — the server then creates the
+    // order itself (also via webhook / hourly sweep if this screen is closed).
+    if (finalAmount > 0) {
+      try {
+        await initiateRazorpayPayment({
+          amount: finalAmount,
+          purpose: "member_order",
+          notes: { description: "Ela Bazar order" },
+          attemptContext: {
+            purpose: "member_order",
+            user_id: user.id,
+            customer_name: selectedAddress?.full_name || user.user_metadata?.full_name || "",
+            customer_phone: selectedAddress?.phone || user.phone || "",
+            customer_email: validEmail,
+            items: cartItems,
+            coupon_code: appliedCoupon?.code || null,
+            checkout: {
+              items: cartItems,
+              shipping_address: shippingAddress,
+              fulfillment_type: fulfillmentType,
+              pickup_store_id: fulfillmentType === "store_pickup" ? pickupStoreId : null,
+              coupon_code: appliedCoupon?.code || null,
+              use_wallet: useWallet,
+              preferred_delivery_date: deliveryDate,
+              preferred_delivery_slot_id: selectedDeliverySlotId,
+            },
+          },
+          prefill: { name: selectedAddress?.full_name || user.user_metadata?.full_name || "", contact: selectedAddress?.phone || user.phone || "", email: validEmail },
+          onSuccess: async (response) => {
+            // The server created the order while verifying; look it up by payment id.
+            let order: { id: string; order_number: string; total_amount: number } | null = null;
+            for (let i = 0; i < 10 && !order; i++) {
+              const { data: found } = await supabase.from("orders").select("id, order_number, total_amount")
+                .eq("user_id", user.id).eq("idempotency_key", `rzp:${response.razorpay_payment_id}`).maybeSingle();
+              if (found) order = found;
+              else await new Promise((r) => setTimeout(r, 1500));
+            }
+            if (order) {
+              await finishOrder("Payment Successful!", order.id, order.order_number, Number(order.total_amount));
+            } else {
+              await clearCart();
+              toast({ title: "Payment received", description: "Your order is being confirmed. It will appear in My Orders shortly." });
+              setPlacing(false);
+              navigate("/dashboard");
+            }
+          },
+          onFailure: async (paymentError) => {
+            console.error("Payment failed:", paymentError);
+            if (isPaymentCancelled(paymentError)) {
+              toast({ title: "Payment cancelled", description: "No order was placed and nothing was charged. You can try again." });
+            } else {
+              toast({ title: "Payment not completed", description: paymentError?.message || "No order was placed. Please try again.", variant: "destructive" });
+            }
+            await fetchData();
+            setPlacing(false);
+          },
+        });
+      } catch (paymentError) {
+        toast({ title: "Could not start payment", description: paymentError instanceof Error ? paymentError.message : "No order was placed. Please try again.", variant: "destructive" });
+        await fetchData();
+        setPlacing(false);
+      }
+      return;
+    }
+
+    // Fully covered by wallet — no online payment, so the order is placed directly.
     const { data, error } = await supabase.rpc("place_order_atomic", {
       p_user_id: user.id,
-      p_items: items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity })),
+      p_items: cartItems,
       p_shipping_address: shippingAddress,
       p_fulfillment_type: fulfillmentType,
       p_pickup_store_id: fulfillmentType === "store_pickup" ? pickupStoreId : null,
       p_coupon_code: appliedCoupon?.code || null,
       p_use_wallet: useWallet,
       p_payment_method: paymentMethod,
-      p_preferred_delivery_date: selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null,
+      p_preferred_delivery_date: deliveryDate,
       p_preferred_delivery_slot_id: selectedDeliverySlotId,
-      p_idempotency_key: idempotencyKey,
+      p_idempotency_key: crypto.randomUUID(),
     });
-    const result = data as {
-      success: boolean;
-      error?: string;
-      code?: string;
-      order_id?: string;
-      order_number?: string;
-      total_amount?: number;
-    } | null;
+    const result = data as { success: boolean; error?: string; code?: string; order_id?: string; order_number?: string; total_amount?: number } | null;
     if (error || !result?.success) {
       toast({ title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : "Order failed", description: result?.error || error?.message || "Please try again.", variant: "destructive" });
       await fetchData();
       setPlacing(false);
       return;
     }
-
-    const finishOrder = async (title: string) => {
-      try { await supabase.functions.invoke("send-order-confirmation", { body: { order_id: result.order_id } }); } catch (emailError) { console.error("Confirmation email error:", emailError); }
-      await clearCart();
-      toast({ title, description: `Order ${result.order_number} placed successfully.` });
-      setOrderPlaced({ orderNumber: result.order_number, amount: Number(result.total_amount) });
-      setPlacing(false);
-    };
-
     if (Number(result.total_amount) > 0) {
-      try {
-        await initiateRazorpayPayment({
-          amount: Number(result.total_amount), receipt: result.order_number,
-          notes: { description: `Order ${result.order_number}`, order_id: result.order_id }, orderId: result.order_id,
-          prefill: { name: selectedAddress?.full_name || user.user_metadata?.full_name || "", contact: selectedAddress?.phone || user.phone || "", email: validEmail },
-          onSuccess: async () => { await finishOrder("Payment Successful!"); },
-          onFailure: async (paymentError) => {
-            console.error("Payment failed:", paymentError);
-            await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id);
-            if (isPaymentCancelled(paymentError)) {
-              toast({ title: "Payment cancelled", description: "The order was cancelled and reserved stock was restored." });
-            } else {
-              toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
-            }
-            setPlacing(false);
-          },
-        });
-      } catch (paymentError) {
-        await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id);
-        toast({ title: "Payment Failed", description: "The order was cancelled and reserved stock was restored.", variant: "destructive" });
-        setPlacing(false);
-      }
+      // Wallet balance changed since the page loaded; undo and ask to pay online.
+      await supabase.from("orders").update({ status: "cancelled", payment_status: "failed" }).eq("id", result.order_id!);
+      toast({ title: "Wallet balance changed", description: "Please review the amount and pay online.", variant: "destructive" });
+      await fetchData();
+      setPlacing(false);
       return;
     }
-    await finishOrder("Order Placed!");
+    await finishOrder("Order Placed!", result.order_id!, result.order_number!, 0);
   };
 
   if (!user) {
@@ -669,6 +723,8 @@ const Checkout = () => {
               selectedSlotId={selectedDeliverySlotId}
               onDateChange={setSelectedDeliveryDate}
               onSlotChange={setSelectedDeliverySlotId}
+              productIds={items.map((item) => item.product_id)}
+              onAvailabilityChange={setHasDeliveryDate}
             />
 
             {/* Payment Options */}
@@ -904,14 +960,20 @@ const Checkout = () => {
                   onClick={handlePlaceOrder}
                   disabled={
                     placing ||
+                    !hasDeliveryDate ||
                     (fulfillmentType === "delivery"
                       ? !selectedAddressId || pickupOnlyItems.length > 0
                       : !pickupStoreId)
                   }
                 >
-                  {placing ? "Placing Order..." : "Place Order"}
+                  {placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)} & Place Order` : "Place Order"}
                 </Button>
 
+                {finalAmount > 0 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Payment is required to place your order.
+                  </p>
+                )}
                 <p className="text-xs text-muted-foreground text-center">
                   By placing this order, you agree to our Terms & Conditions
                 </p>

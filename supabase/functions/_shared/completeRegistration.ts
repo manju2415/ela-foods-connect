@@ -234,9 +234,18 @@ export async function completeRegistration(
         .from("user_roles")
         .select("user_id")
         .eq("role", "founding_member");
-      const founderIds = (founderRoles || [])
+      const candidateIds = (founderRoles || [])
         .map((role: { user_id: string }) => role.user_id)
         .filter((id: string) => id !== userId);
+      // Only paid founders can hold a referral code, so only place under them.
+      const { data: paidFounders } = candidateIds.length > 0
+        ? await supabase
+          .from("profiles")
+          .select("id")
+          .in("id", candidateIds)
+          .gt("registration_fee_paid", 0)
+        : { data: [] };
+      const founderIds = (paidFounders || []).map((p: { id: string }) => p.id);
       if (founderIds.length > 0) {
         const randomBytes = new Uint32Array(1);
         crypto.getRandomValues(randomBytes);
@@ -270,15 +279,20 @@ export async function completeRegistration(
         p_registration_fee: registrationAmount,
       });
       if (mlmError) console.error("MLM referral processing error:", mlmError);
-    } else {
-      const { error: codeError } = await supabase.rpc("generate_user_referral_code", { p_user_id: userId });
-      if (codeError) console.error("Referral code generation error:", codeError);
     }
   }
 
   await supabase
     .from("user_roles")
     .upsert({ user_id: userId, role: "member" }, { onConflict: "user_id,role" });
+
+  // Invited users already have a pending referral record. Issue their code
+  // independently of referral processing, including on payment retries.
+  const { data: ownCode, error: codeError } = await supabase.rpc("generate_user_referral_code", { p_user_id: userId });
+  if (codeError || !ownCode) {
+    console.error("Referral code generation error:", codeError);
+    return { success: false, error: "Membership payment recorded, but referral code creation failed. Please retry." };
+  }
 
   return {
     success: true,

@@ -47,6 +47,9 @@ export interface PaymentAttemptContext {
   guest_details?: Record<string, unknown> | null;
   coupon_code?: string | null;
   discount_amount?: number;
+  // Payment-first member checkout: the full cart, quoted server-side by
+  // razorpay-create-order and stored so the order is created after payment.
+  checkout?: Record<string, unknown>;
 }
 
 export interface RazorpayPaymentOptions {
@@ -102,9 +105,28 @@ const loadRazorpayScript = (): Promise<void> => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    script.onerror = () => {
+      // Drop the failed tag so the next attempt injects a fresh one instead
+      // of waiting on a tag whose error event has already fired.
+      script.remove();
+      reject(new Error("Failed to load Razorpay SDK"));
+    };
     document.head.appendChild(script);
   });
+};
+
+/**
+ * Starts downloading Razorpay's checkout script in the background. The script
+ * is no longer loaded on every page from index.html, so pages that can take a
+ * payment call this when they open — it is then already there by the time the
+ * customer taps Pay. Purely a head start: openRazorpayCheckout still waits
+ * for the script itself, so a failure here is harmless. Skipped in the native
+ * app, which never opens checkout in its own WebView (see
+ * initiateRazorpayPayment below).
+ */
+export const preloadRazorpayScript = () => {
+  if (Capacitor.isNativePlatform()) return;
+  loadRazorpayScript().catch(() => {});
 };
 
 /**
@@ -124,12 +146,17 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   // Only send real customer emails to Razorpay (never internal placeholders)
   const customerEmail = realEmailOrEmpty(options.prefill?.email);
 
-  // Step 1: Create Razorpay order via edge function
+  // Step 1: Create Razorpay order via edge function — also records a
+  // "payment started" row server-side, before the customer sees the payment
+  // sheet, so the payment is never untraceable even if they never come back.
   const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
     body: {
       amount: options.amount,
       receipt: options.receipt || `rcpt_${Date.now()}`,
       notes: { ...(options.notes || {}), ...(customerEmail ? { email: customerEmail } : {}) },
+      purpose: options.purpose,
+      orderId: options.orderId,
+      attemptContext: options.attemptContext,
     },
   });
 
@@ -176,7 +203,11 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
         );
 
         if (verifyError || !verifyData?.verified) {
-          options.onFailure(new Error("Payment verification failed"));
+          options.onFailure(new Error(
+            verifyData?.needs_refund
+              ? `Payment received, but the order could not be completed (${verifyData?.error || "unknown reason"}). Our team will refund you or contact you.`
+              : "Payment verification failed",
+          ));
           return;
         }
 

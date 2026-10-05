@@ -13,8 +13,10 @@ type ProfileUpdateWithPushToken = Database['public']['Tables']['profiles']['Upda
   push_token_updated_at?: string | null;
 };
 
-// FCM Server Key should be stored in Supabase secrets as FCM_SERVER_KEY
-// This is used by edge functions to send push notifications
+// The Firebase service account JSON (FCM HTTP v1) is stored in Supabase
+// secrets as FIREBASE_SERVICE_ACCOUNT and used server-side, by the
+// send-push-notification edge function, to obtain OAuth2 access tokens —
+// nothing Firebase-credential-related is needed on this client.
 
 interface FCMNotificationPayload {
   to: string; // FCM token

@@ -155,7 +155,7 @@ export const UserTreeView = ({ userId }: UserTreeViewProps) => {
                           </div>
                         </div>
                         <Badge className={getLevelBadgeColor(user.user_level)}>
-                          {user.user_level}
+                          {user.user_level || "No role"}
                         </Badge>
                       </div>
                     ))}

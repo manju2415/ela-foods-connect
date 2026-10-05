@@ -18,6 +18,19 @@
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<!-- Deep link the Razorpay payment bridge (opened in an in-app browser tab so
+			     UPI app detection works) uses to hand control back to this app. -->
+			<key>CFBundleURLName</key>
+			<string>com.shyju.Elabazar.payment</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>elabazarpay</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
@@ -26,6 +39,8 @@
 	<true/>
 	<key>NSContactsUsageDescription</key>
 	<string>We use your contacts so you can quickly add a member by picking their number.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Ela Bazar uses the camera to capture package and delivery proof photos.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Loader2 } from "lucide-react";
@@ -65,7 +66,9 @@ const Newsletter = () => {
           </form>
 
           <p className="text-primary-foreground/60 text-xs mt-4">
-            By subscribing, you agree to our Privacy Policy and consent to receive updates.
+            By subscribing, you agree to our{" "}
+            <Link to="/policies/privacy" className="underline hover:text-foreground">Privacy Policy</Link>{" "}
+            and consent to receive updates.
           </p>
         </div>
       </div>

@@ -10,12 +10,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Package, Clock, MapPin, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
+import { orderValue } from "@/lib/paymentMethod";
 
 interface Order {
   id: string;
   order_number: string;
   status: string;
   total_amount: number;
+  wallet_amount_used: number | null;
   created_at: string;
   shipping_address: {
     city?: string;
@@ -34,7 +36,7 @@ export default function CustomerOrdersPage() {
     
     const { data } = await supabase
       .from("orders")
-      .select("id, order_number, status, total_amount, created_at, shipping_address")
+      .select("id, order_number, status, total_amount, wallet_amount_used, created_at, shipping_address")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     
@@ -145,7 +147,7 @@ export default function CustomerOrdersPage() {
                     </div>
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <span className="font-medium text-foreground">
-                        ₹{order.total_amount.toFixed(2)}
+                        ₹{orderValue(order).toFixed(2)}
                       </span>
                       <ChevronRight className="h-4 w-4" />
                     </div>

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useImagePreload } from "@/hooks/useImagePreload";
-import { getOptimizedImageUrl } from "@/utils/imageUrl";
+import { getImageRequestScale, getOptimizedImageUrl } from "@/utils/imageUrl";
 
 
 const HERO_BANNER_CACHE_KEY = "ela_hero_banner";
@@ -44,7 +44,7 @@ const HeroSection = () => {
         .eq("is_active", true)
         .order("display_order", { ascending: true })
         .limit(1)
-        .single();
+        .maybeSingle();
       if (error && error.code !== "PGRST116") throw error;
       try {
         if (data) localStorage.setItem(HERO_BANNER_CACHE_KEY, JSON.stringify(data));
@@ -69,8 +69,8 @@ const HeroSection = () => {
   // preload fetches a different asset than the one rendered and wastes it.
   const heroPreloadSrc = heroImage
     ? getOptimizedImageUrl(heroImage, {
-        width: Math.round(1920 * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)),
-        height: Math.round(1080 * (typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1)),
+        width: Math.round(1920 * getImageRequestScale(1920)),
+        height: Math.round(1080 * getImageRequestScale(1920)),
         quality: 90,
       })
     : "";
@@ -132,7 +132,7 @@ const HeroSection = () => {
                 <ArrowRight className="h-5 w-5" />
               </Button>
             </Link>
-            <Link to="/products">
+            <Link to="/categories">
               <Button variant="heroOutline" size="xl">
                 Explore Categories
               </Button>

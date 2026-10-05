@@ -252,18 +252,18 @@ const NetworkAnalytics = () => {
                 ) : (
                   <div className="space-y-4">
                     {topReferrers.map((referrer, index) => (
-                      <div key={referrer.id} className="flex items-center justify-between p-3 rounded-lg border">
-                        <div className="flex items-center gap-4">
-                          <span className="text-lg font-bold text-muted-foreground w-6">#{index + 1}</span>
-                          <div className="flex items-center gap-2">
-                            {getLevelIcon(referrer.user_level || "associate")}
-                            <div>
-                              <p className="font-medium">{referrer.full_name || "N/A"}</p>
-                              <p className="text-sm text-muted-foreground">{referrer.email}</p>
+                      <div key={referrer.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="text-lg font-bold text-muted-foreground w-6 shrink-0">#{index + 1}</span>
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <span className="shrink-0">{getLevelIcon(referrer.user_level || "associate")}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{referrer.full_name || "N/A"}</p>
+                              <p className="text-sm text-muted-foreground truncate">{referrer.email}</p>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3 shrink-0">
                           <div className="text-right">
                             <p className="text-xl font-bold text-primary">{referrer.referral_count}</p>
                             <p className="text-xs text-muted-foreground">referrals</p>
@@ -271,6 +271,7 @@ const NetworkAnalytics = () => {
                           <Button
                             variant="outline"
                             size="icon"
+                            className="shrink-0"
                             onClick={() => handleViewUser(referrer.id)}
                           >
                             <Eye className="h-4 w-4" />

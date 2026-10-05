@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
-import { initiateRazorpayPayment, isPaymentCancelled } from "@/utils/razorpay";
+import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 
 interface RegistrationSettings {
@@ -38,6 +39,18 @@ const RegistrationPayment = () => {
   const [emailError, setEmailError] = useState<string | null>(null);
 
 
+
+  // Start fetching Razorpay's script now so it is ready when Pay is tapped.
+  useEffect(() => {
+    preloadRazorpayScript();
+  }, []);
+
+  // Registration switched off by super admin: there is nothing to complete —
+  // send them back to shopping (the address is taken at checkout).
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
+  useEffect(() => {
+    if (!registrationSettingLoading && !registrationEnabled) navigate("/", { replace: true });
+  }, [registrationEnabled, registrationSettingLoading, navigate]);
 
   useEffect(() => {
     if (!user) {
@@ -479,7 +492,8 @@ const RegistrationPayment = () => {
               </div>
 
               <p className="text-xs text-center text-muted-foreground">
-                By completing payment, you agree to our Terms of Service and Privacy Policy
+                By completing payment, you agree to our Terms of Service and{" "}
+                <Link to="/policies/privacy" target="_blank" className="underline">Privacy Policy</Link>
               </p>
             </CardContent>
           </Card>

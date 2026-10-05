@@ -80,7 +80,8 @@ export function ContactPickerDialog({ open, onOpenChange, onSelect }: ContactPic
     [fetchRegistered]
   );
 
-  // Fallback: the OS contact chooser needs no READ_CONTACTS permission.
+  // Fallback: the OS contact chooser. Note the Android plugin still asks for
+  // the contacts permission before opening it (see AndroidManifest.xml).
   const useSystemPicker = useCallback(async () => {
     if (!isNativeContacts()) return;
     setSystemPicking(true);

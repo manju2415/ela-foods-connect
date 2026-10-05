@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { invoicePaymentMethodLabel } from "@/lib/paymentMethod";
 
 interface InvoiceButtonProps {
   orderId?: string;
@@ -119,9 +120,10 @@ function buildPrintHtml(invoice: Invoice) {
   }<div class="grand"><span>Total</span><span>${money(
     invoice.total_amount
   )}</span></div></div>
-  <p class="muted">Payment: ${invoice.payment_method || "—"}${
-    invoice.payment_reference ? ` · Ref: ${invoice.payment_reference}` : ""
-  }</p></body></html>`;
+  <p class="muted">Payment Method: ${invoicePaymentMethodLabel(
+    invoice.payment_method,
+    invoice.wallet_amount
+  )}${invoice.payment_reference ? ` · Ref: ${invoice.payment_reference}` : ""}</p></body></html>`;
 }
 
 function printInvoiceHtml(invoice: Invoice) {
@@ -265,7 +267,7 @@ async function downloadInvoicePdf(invoice: Invoice) {
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
   doc.text(
-    `Payment: ${invoice.payment_method || "-"}${
+    `Payment Method: ${invoicePaymentMethodLabel(invoice.payment_method, invoice.wallet_amount)}${
       invoice.payment_reference ? ` · Ref: ${invoice.payment_reference}` : ""
     }`,
     left,
@@ -363,6 +365,14 @@ export function InvoiceButton({
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Payment Method</span>
+                <span className="font-medium">
+                  {invoicePaymentMethodLabel(invoice.payment_method, invoice.wallet_amount)}
+                  {invoice.payment_reference ? ` · Ref: ${invoice.payment_reference}` : ""}
+                </span>
               </div>
 
               <div className="ml-auto w-full max-w-xs space-y-1">

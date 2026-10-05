@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { getOptimizedImageUrl } from "@/utils/imageUrl";
+import { getImageRequestScale, getOptimizedImageUrl } from "@/utils/imageUrl";
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -47,10 +47,10 @@ const OptimizedImage = ({
   // pixel ratio (capped at 2x) so the resized image still looks sharp on
   // retina screens, without fetching full-resolution originals everywhere.
   const optimizedSrc = useMemo(() => {
-    const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, 2) : 1;
+    const scale = getImageRequestScale(displayWidth);
     return getOptimizedImageUrl(src, {
-      width: displayWidth ? Math.round(displayWidth * dpr) : undefined,
-      height: displayHeight ? Math.round(displayHeight * dpr) : undefined,
+      width: displayWidth ? Math.round(displayWidth * scale) : undefined,
+      height: displayHeight ? Math.round(displayHeight * scale) : undefined,
       quality: qualityMap[quality],
     });
   }, [src, displayWidth, displayHeight, quality]);

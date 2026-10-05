@@ -1,6 +1,7 @@
 // Open signup: creates a Supabase auth user for a phone-verified signup.
 // Idempotent — if the user already exists, returns success so the client can sign in normally.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,19 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+
+    // Super admin has switched registration off: shoppers just log in
+    // (verify-otp-login creates a plain customer account), so no member
+    // signups — including from older installed app builds.
+    if (!(await isRegistrationEnabled(supabase))) {
+      return new Response(JSON.stringify({
+        error: "New registrations are closed right now. Please log in with your mobile number to shop.",
+        code: "REGISTRATION_CLOSED",
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const cleanPhone = phone.replace(/\+/g, "");
     const email = `${cleanPhone}@elabazar.local`;

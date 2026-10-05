@@ -16,6 +16,7 @@ import { ReferralSection } from "@/components/dashboard/ReferralSection";
 import { WithdrawalSection } from "@/components/dashboard/WithdrawalSection";
 import { AddUserDialog } from "@/components/AddUserDialog";
 import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
+import { orderPaymentMethodLabel, orderValue } from "@/lib/paymentMethod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Card,
@@ -68,6 +69,7 @@ import {
 } from "lucide-react";
 import CartSheet from "@/components/CartSheet";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { copyToClipboard } from "@/lib/clipboard";
 
 interface Profile {
@@ -97,6 +99,7 @@ interface Order {
   shipping_amount: number | null;
   discount_amount: number | null;
   wallet_amount_used?: number | null;
+  is_cod?: boolean | null;
   shipping_address: {
     full_name?: string;
     phone?: string;
@@ -170,6 +173,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     isPaymentComplete,
     isDeliveryPartner,
   } = useOnboardingStatus(user?.id);
+  const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<WalletData | null>(null);
@@ -226,7 +230,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
   }, [isAdmin, isMLMAdmin, isSuperAdmin, navigate, roleLoading]);
 
   useEffect(() => {
-    if (authLoading || onboardingLoading) return;
+    if (authLoading || onboardingLoading || registrationSettingLoading) return;
 
     if (!user) {
       navigate("/auth");
@@ -237,8 +241,9 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
       return;
     }
 
-    // Redirect users who haven't completed registration
-    if (!isFullyOnboarded && !isDeliveryPartner) {
+    // Redirect users who haven't completed registration — unless a super
+    // admin has switched registration off.
+    if (registrationEnabled && !isFullyOnboarded && !isDeliveryPartner) {
       if (!isProfileComplete) {
         navigate("/complete-registration", { replace: true });
         return;
@@ -263,6 +268,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
     isSuperAdmin,
     isMLMAdmin,
     isAdmin,
+    registrationEnabled,
+    registrationSettingLoading,
   ]);
 
   useEffect(() => {
@@ -316,7 +323,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
           .from("orders")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id),
-        supabase.from("referral_codes").select("*").eq("user_id", user.id),
+        supabase.from("referral_codes").select("*").eq("user_id", user.id).eq("is_active", true),
         supabase.rpc("is_founding_member", { _user_id: user.id }),
       ]);
 
@@ -728,6 +735,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                         <Skeleton className="h-12 w-full" />
                         <Skeleton className="h-12 w-full" />
                       </div>
+                    ) : !isPaymentComplete && registrationEnabled ? (
+                      <p className="text-muted-foreground">
+                        Your referral code will be available after your membership payment is complete.
+                      </p>
                     ) : referralCodes.length === 0 ? (
                       <p className="text-muted-foreground">
                         No referral codes available. Contact support to get one.
@@ -802,7 +813,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">₹{Number(order.total_amount).toFixed(2)}</p>
+                          <p className="font-semibold">₹{orderValue(order).toFixed(2)}</p>
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
                           </Badge>
@@ -875,7 +886,7 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                                 .replace(/\b\w/g, (l) => l.toUpperCase())}
                             </Badge>
                             <p className="font-bold text-lg">
-                              ₹{Number(order.total_amount).toFixed(2)}
+                              ₹{orderValue(order).toFixed(2)}
                             </p>
                             <Button
                               variant="outline"
@@ -1115,8 +1126,8 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
           {/* Network Tab (Referrals & Downline) */}
           <TabsContent value="network" className="space-y-6">
-            <ReferralSection userId={user.id} />
-            <NetworkTreeVisual userId={user.id} />
+            <ReferralSection key={user.id} userId={user.id} />
+            <NetworkTreeVisual key={user.id} userId={user.id} />
           </TabsContent>
 
           {/* Settings Tab */}
@@ -1395,6 +1406,10 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
               {/* Order Summary */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
+                  <span>Payment Method</span>
+                  <span className="font-medium">{orderPaymentMethodLabel(selectedOrder)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
                   <span>Subtotal</span>
                   <span>₹{Number(selectedOrder.subtotal).toFixed(2)}</span>
                 </div>
@@ -1413,20 +1428,23 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
                       </span>
                     </div>
                   )}
+                <Separator />
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Order Value</span>
+                  <span>₹{orderValue(selectedOrder).toFixed(2)}</span>
+                </div>
                 {Number(selectedOrder.wallet_amount_used || 0) > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Paid from wallet</span>
-                    <span>
-                      -₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}
-                    </span>
+                    <span>₹{Number(selectedOrder.wallet_amount_used).toFixed(2)}</span>
                   </div>
                 )}
-
-                <Separator />
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
-                </div>
+                {Number(selectedOrder.total_amount || 0) > 0 && Number(selectedOrder.wallet_amount_used || 0) > 0 && (
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{selectedOrder.payment_status === "completed" ? "Charged online" : selectedOrder.status === "cancelled" ? "Online payment not completed" : "Awaiting online payment"}</span>
+                    <span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
               {/* Return Request Button - only show for delivered orders */}

@@ -5,7 +5,6 @@ import HomepageProductSections from "@/components/HomepageProductSections";
 import CategoriesSection from "@/components/CategoriesSection";
 import WhyChooseUs from "@/components/WhyChooseUs";
 import ReferralBanner from "@/components/ReferralBanner";
-import FoundingMembersSection from "@/components/FoundingMembersSection";
 import Newsletter from "@/components/Newsletter";
 import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 
@@ -25,7 +24,6 @@ const Index = ({ hideChrome = false }: IndexProps) => {
         <CategoriesSection />
         <ReferralBanner />
         <WhyChooseUs />
-        <FoundingMembersSection />
         <AdvertisementBanner placement="home_bottom" />
         <Newsletter />
       </main>

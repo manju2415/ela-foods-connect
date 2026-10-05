@@ -6,6 +6,7 @@ import { useSplashScreen } from "@/hooks/useSplashScreen";
 import { useAppManifest } from "@/hooks/useAppManifest";
 import { MobileAppLayout } from "@/components/mobile/MobileAppLayout";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { fetchRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
 import Index from "./Index";
 
@@ -42,6 +43,12 @@ export default function CustomerApp() {
           .maybeSingle();
 
         if (roleData) {
+          return;
+        }
+
+        // Registration switched off by super admin: logged-in customers shop
+        // straight away; the address is taken at checkout.
+        if (!(await fetchRegistrationEnabled())) {
           return;
         }
 

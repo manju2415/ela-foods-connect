@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, User, Menu, X, Search, LogOut, Shield, Truck } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,8 +22,6 @@ const Header = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isDeliveryPartner, setIsDeliveryPartner] = useState(false);
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
@@ -37,22 +36,30 @@ const Header = () => {
     { name: "Contact", href: "/contact" },
   ];
 
-  useEffect(() => {
-    const checkRoles = async () => {
-      if (user) {
-        const [adminRes, partnerRes] = await Promise.all([
-          supabase.rpc("is_admin", { _user_id: user.id }),
-          supabase.from("delivery_partners").select("id").eq("user_id", user.id).maybeSingle(),
-        ]);
-        setIsAdmin(!!adminRes.data);
-        setIsDeliveryPartner(!!partnerRes.data);
-      } else {
-        setIsAdmin(false);
-        setIsDeliveryPartner(false);
-      }
-    };
-    checkRoles();
-  }, [user]);
+  // The header remounts on every page, so the role lookup is cached per user
+  // id for a few minutes instead of being repeated on each navigation. These
+  // flags only decide which menu links are shown — the admin and driver
+  // pages run their own access checks, and the database enforces access
+  // regardless. Keyed by user id, so logging out or switching accounts never
+  // reuses another user's result; a lookup that errored is never cached.
+  const { data: roles } = useQuery({
+    queryKey: ["header-roles", user?.id],
+    enabled: !!user,
+    staleTime: (query) => (query.state.data?.hadError ? 0 : 5 * 60 * 1000),
+    queryFn: async () => {
+      const [adminRes, partnerRes] = await Promise.all([
+        supabase.rpc("is_admin", { _user_id: user!.id }),
+        supabase.from("delivery_partners").select("id").eq("user_id", user!.id).maybeSingle(),
+      ]);
+      return {
+        isAdmin: !!adminRes.data,
+        isDeliveryPartner: !!partnerRes.data,
+        hadError: !!adminRes.error || !!partnerRes.error,
+      };
+    },
+  });
+  const isAdmin = !!user && !!roles?.isAdmin;
+  const isDeliveryPartner = !!user && !!roles?.isDeliveryPartner;
 
   const handleSignOut = async () => {
     await signOut();

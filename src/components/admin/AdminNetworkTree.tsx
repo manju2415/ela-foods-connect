@@ -1,3 +1,4 @@
+import { memberLevelLabel } from "@/lib/memberLevel";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Users, ChevronRight, ChevronDown, Crown, Shield, UserCircle, Search, Eye } from "lucide-react";
-import { displayContact } from "@/components/dashboard/NetworkTreeVisual";
+import { displayContact } from "@/lib/displayContact";
 
 interface NetworkUser {
   user_id: string;
@@ -132,7 +133,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
     setSearching(true);
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, full_name, user_level, referral_count, referred_by")
+      .select("id, email, full_name, user_level, registration_fee_paid, referral_count, referred_by")
       .or(`email.ilike.%${searchQuery}%,full_name.ilike.%${searchQuery}%`)
       .limit(10);
     
@@ -141,7 +142,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
         user_id: p.id,
         email: p.email,
         full_name: p.full_name,
-        user_level: p.user_level || "associate",
+        user_level: memberLevelLabel(p.user_level, p.registration_fee_paid).toLowerCase(),
         referral_count: p.referral_count || 0,
         referred_by: p.referred_by
       })));
@@ -219,7 +220,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
               <p className="text-xs text-muted-foreground truncate">{displayContact(user.email)}</p>
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className={`text-xs ${getLevelColor(user.user_level)}`}>
-                  {user.user_level}
+                  {user.user_level || "No role"}
                 </Badge>
                 <Badge variant="secondary" className="text-xs">
                   L{user.level_depth}
@@ -285,7 +286,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Badge className={getLevelColor(user.user_level)}>
-              {user.user_level}
+              {user.user_level || "No role"}
             </Badge>
             <Badge variant="outline">
               {user.referral_count} referrals
@@ -374,7 +375,7 @@ export const AdminNetworkTree = ({ onViewUser }: AdminNetworkTreeProps) => {
                     <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                   </div>
                   <Badge variant="outline" className={getLevelColor(user.user_level)}>
-                    {user.user_level}
+                    {user.user_level || "No role"}
                   </Badge>
                   <Button
                     variant="outline"

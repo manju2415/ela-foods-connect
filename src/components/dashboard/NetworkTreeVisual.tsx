@@ -1,9 +1,11 @@
+import { memberLevelLabel } from "@/lib/memberLevel";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { displayContact } from "@/lib/displayContact";
 import {
   Sheet,
   SheetContent,
@@ -31,52 +33,56 @@ interface NetworkTreeVisualProps {
   userId: string;
 }
 
-// Login ids are stored as {phone}@elabazar.local — show the readable phone instead.
-export const displayContact = (email: string) => {
-  const local = (email || "").split("@")[0];
-  if (/^\d{10,14}$/.test(local)) {
-    const digits = local.length > 10 ? local.slice(-10) : local;
-    return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-  }
-  return email;
-};
-
 export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
   const [downline, setDownline] = useState<DownlineUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
-  const [rootUser, setRootUser] = useState<{ email: string; full_name: string | null; user_level: string } | null>(null);
+  const [rootUser, setRootUser] = useState<{ email: string; full_name: string | null; user_level: string; registration_fee_paid: number | null } | null>(null);
   const [previewUser, setPreviewUser] = useState<DownlineUser | null>(null);
 
-  useEffect(() => {
-    fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  const [invitations, setInvitations] = useState<Pick<DownlineUser, "user_id" | "email" | "full_name">[]>([]);
+  const [error, setError] = useState(false);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    
-    // Fetch user profile and downline in parallel
-    const [profileRes, downlineRes] = await Promise.all([
-      supabase.from("profiles").select("email, full_name, user_level").eq("id", userId).single(),
-      supabase.rpc("get_user_downline", { p_user_id: userId })
-    ]);
-    
-    if (profileRes.data) {
-      setRootUser(profileRes.data);
-    }
-    
-    if (!downlineRes.error && downlineRes.data) {
-      setDownline(downlineRes.data as DownlineUser[]);
-      // Auto-expand first level
-      const firstLevelIds = (downlineRes.data as DownlineUser[])
-        .filter(u => u.level_depth === 1)
-        .map(u => u.user_id);
-      setExpandedNodes(new Set(firstLevelIds));
-    }
-    
-    setLoading(false);
-  };
+    setDownline([]);
+    setInvitations([]);
+    setRootUser(null);
+    setPreviewUser(null);
+    setError(false);
+    const fetchData = async () => {
+      try {
+        const { data: session } = await supabase.auth.getUser();
+        if (session.user?.id !== userId) throw new Error("Account changed");
+        const [profileRes, networkRes] = await Promise.all([
+          supabase.from("profiles").select("email, full_name, user_level, registration_fee_paid").eq("id", userId).single(),
+          supabase.rpc("get_my_member_network")
+        ]);
+        if (profileRes.error || networkRes.error) throw new Error("Unable to load network");
+        if (cancelled) return;
+        const network = networkRes.data as unknown as {
+          members: DownlineUser[];
+          invitations: Pick<DownlineUser, "user_id" | "email" | "full_name">[];
+        };
+        setRootUser(profileRes.data);
+        setDownline(network.members);
+        setInvitations(network.invitations);
+        setExpandedNodes(new Set(network.members.filter(u => u.level_depth === 1).map(u => u.user_id)));
+      } catch {
+        if (!cancelled) setError(true);
+      } finally {
+        if (!cancelled) {
+          setLoadedFor(userId);
+          setLoading(false);
+        }
+      }
+    };
+    void fetchData();
+    return () => { cancelled = true; };
+  }, [userId, revision]);
 
   const toggleNode = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
@@ -206,7 +212,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
     );
   };
 
-  if (loading) {
+  if (loading || loadedFor !== userId) {
     return (
       <Card>
         <CardHeader>
@@ -225,6 +231,11 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
       </Card>
     );
   }
+
+  if (error) return <Card><CardContent className="p-6 space-y-3">
+    <p>Unable to load your network. Please try again.</p>
+    <Button onClick={() => setRevision(value => value + 1)}>Retry</Button>
+  </CardContent></Card>;
 
   const tree = buildTree(downline, userId);
   const stats = {
@@ -278,7 +289,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
         {downline.length === 0 ? (
           <div className="text-center py-12">
             <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Referrals Yet</h3>
+            <h3 className="text-lg font-medium mb-2">No Paid Referrals Yet</h3>
             <p className="text-muted-foreground max-w-md mx-auto">
               Share your referral code to start building your network and earn bonuses.
             </p>
@@ -297,7 +308,7 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
                     {displayContact(rootUser.email)}
                   </p>
                   <Badge className={`${getLevelColor(rootUser.user_level)} w-fit`}>
-                    {rootUser.user_level}
+                    {memberLevelLabel(rootUser.user_level, rootUser.registration_fee_paid)}
                   </Badge>
                 </div>
               </div>
@@ -325,6 +336,18 @@ export const NetworkTreeVisual = ({ userId }: NetworkTreeVisualProps) => {
             </div>
           </div>
         )}
+
+        <div className="mt-6 border-t pt-6 space-y-3">
+          <h3 className="text-lg font-semibold">Invitations sent ({invitations.length})</h3>
+          <p className="text-sm text-muted-foreground">People you directly invited who have not paid their membership fee.</p>
+          {invitations.length === 0 ? <p className="text-sm text-muted-foreground">No pending invitations.</p> : invitations.map(invitee => (
+            <div key={invitee.user_id} className="rounded-lg border p-3 space-y-1">
+              <p className="font-medium break-words">{invitee.full_name || "Unnamed"}</p>
+              <p className="text-sm text-muted-foreground">{displayContact(invitee.email)}</p>
+              <Badge variant="secondary">No role ? Awaiting membership payment</Badge>
+            </div>
+          ))}
+        </div>
 
         {/* Member preview */}
         <Sheet open={!!previewUser} onOpenChange={(open) => !open && setPreviewUser(null)}>

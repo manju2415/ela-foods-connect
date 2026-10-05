@@ -18,26 +18,38 @@ const CategoriesSection = () => {
 
   useEffect(() => {
     const fetchCategories = async () => {
-      // Fetch categories - only parent categories for homepage display
-      const { data: categoriesData, error: catError } = await supabase
-        .from("categories")
-        .select("id, name, slug, image_url, parent_id")
-        .eq("is_active", true)
-        .is("parent_id", null) // Only get parent categories
-        .order("display_order");
+      // The three lookups below don't depend on each other, so run them
+      // together instead of one after another.
+      const [
+        { data: categoriesData, error: catError },
+        { data: subcategories },
+        { data: products, error: prodError },
+      ] = await Promise.all([
+        // Fetch categories - only parent categories for homepage display
+        supabase
+          .from("categories")
+          .select("id, name, slug, image_url, parent_id")
+          .eq("is_active", true)
+          .is("parent_id", null) // Only get parent categories
+          .order("display_order"),
+        // Fetch all subcategory IDs for parent categories to count their products too
+        supabase
+          .from("categories")
+          .select("id, parent_id")
+          .eq("is_active", true)
+          .not("parent_id", "is", null),
+        // Fetch product counts per category (including subcategories)
+        supabase
+          .from("products")
+          .select("category_id")
+          .eq("is_active", true),
+      ]);
 
       if (catError) {
         console.error("Error fetching categories:", catError);
         setLoading(false);
         return;
       }
-
-      // Fetch all subcategory IDs for parent categories to count their products too
-      const { data: subcategories } = await supabase
-        .from("categories")
-        .select("id, parent_id")
-        .eq("is_active", true)
-        .not("parent_id", "is", null);
 
       // Create a map of parent_id -> subcategory ids
       const subcategoryMap = new Map<string, string[]>();
@@ -47,12 +59,6 @@ const CategoriesSection = () => {
           subcategoryMap.set(sub.parent_id, [...existing, sub.id]);
         }
       });
-
-      // Fetch product counts per category (including subcategories)
-      const { data: products, error: prodError } = await supabase
-        .from("products")
-        .select("category_id")
-        .eq("is_active", true);
 
       if (prodError) {
         console.error("Error fetching products:", prodError);
