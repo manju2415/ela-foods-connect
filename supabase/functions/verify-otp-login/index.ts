@@ -341,6 +341,13 @@ Deno.serve(async (req) => {
       if (signInError || !signInData.session) {
         lastError = `SIGNIN_FAILED: ${signInError?.message || "no session returned"}`;
         console.error("[verify-otp-login] sign-in after rotation failed:", signInError);
+        // Last line of defence for an unconfirmed account the check above
+        // didn't catch: the OTP has proven the phone, so confirm it and retry.
+        if (attempt === 1 && signInError?.message?.toLowerCase().includes("not confirmed")) {
+          const { error: confirmErr } = await admin.auth.admin.updateUserById(authUserId, { email_confirm: true });
+          if (confirmErr) console.error("[verify-otp-login] confirm on sign-in retry failed:", confirmErr);
+          else isNewUser = true;
+        }
         if (attempt === 1) { await sleep(400); continue; }
         await logAttempt("SIGNIN_FAILED", lastError);
         return json(500, { success: false, code: "SIGNIN_FAILED", error: "Could not sign in. Please try again." });

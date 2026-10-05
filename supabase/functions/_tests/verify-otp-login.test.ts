@@ -153,3 +153,26 @@ Deno.test("missing phone/OTP is a bad request", async () => {
   assertEquals(r.status, 400);
   assertEquals(r.body.code, "BAD_REQUEST");
 });
+
+Deno.test("unconfirmed account missed by the lookup check is confirmed at sign-in", async () => {
+  setup(true);
+  const stray = seedUser(EMAIL, { confirmed: false, phone: PHONE });
+  // Simulate the lookup reporting the account as confirmed when it isn't.
+  const { createClient } = await import("./fake_supabase.ts");
+  const admin = createClient("", "").auth.admin;
+  const original = admin.generateLink;
+  admin.generateLink = async (args: { type: string; email: string }) => {
+    const res = await original(args);
+    if (res.data.user) res.data.user.email_confirmed_at = "2020-01-01T00:00:00Z";
+    return res;
+  };
+  try {
+    const r = await login({ phone: PHONE, otp: "123456" });
+    assertEquals(r.status, 200);
+    assertEquals(r.body.access_token, `at-${stray.id}`);
+    assert(userByEmail(EMAIL)!.email_confirmed_at);
+    assertEquals(db.users.length, 1);
+  } finally {
+    admin.generateLink = original;
+  }
+});
