@@ -12,13 +12,15 @@ import {
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { useStoreSettings } from "@/hooks/useStoreSettings";
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
+import { AppShoppingNav } from "@/components/mobile/AppShoppingNav";
 
 interface FooterCategory {
   name: string;
   slug: string;
 }
 
-const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
+const WebsiteFooter = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   ({ className, ...props }, ref) => {
     const { storeSettings } = useStoreSettings();
     const [categories, setCategories] = React.useState<FooterCategory[]>([]);
@@ -203,6 +205,14 @@ const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
       </footer>
     );
   },
+);
+
+WebsiteFooter.displayName = "WebsiteFooter";
+
+// Inside the installed app the website footer is replaced by the app's bottom
+// tabs on shopping screens (nothing elsewhere); the website keeps the footer.
+const Footer = React.forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>((props, ref) =>
+  Capacitor.isNativePlatform() ? <AppShoppingNav /> : <WebsiteFooter ref={ref} {...props} />,
 );
 
 Footer.displayName = "Footer";

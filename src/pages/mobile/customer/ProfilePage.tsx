@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, Mail, Phone, MapPin, LogOut, ChevronRight, Heart, Settings, Trash2 } from "lucide-react";
+import { User, Mail, Phone, MapPin, LogOut, ChevronRight, Heart, Settings, Trash2, Package, Wallet } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { toast } from "sonner";
 import { EnableNotificationsButton } from "@/components/mobile/EnableNotificationsButton";
 
@@ -200,6 +201,27 @@ export default function CustomerProfilePage() {
           {/* Quick Links */}
           <Card>
             <CardContent className="p-0 divide-y">
+              {/* Installed app: Orders and Wallet moved off the bottom tabs, so they live here. */}
+              {Capacitor.isNativePlatform() && (
+                <>
+                  <button
+                    onClick={() => navigate("/customer-app/orders")}
+                    className="flex items-center gap-3 p-4 w-full text-left"
+                  >
+                    <Package className="h-5 w-5 text-muted-foreground" />
+                    <span className="flex-1">My Orders</span>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </button>
+                  <button
+                    onClick={() => navigate("/customer-app/wallet")}
+                    className="flex items-center gap-3 p-4 w-full text-left"
+                  >
+                    <Wallet className="h-5 w-5 text-muted-foreground" />
+                    <span className="flex-1">Wallet</span>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => navigate("/customer-app/addresses")}
                 className="flex items-center gap-3 p-4 w-full text-left"

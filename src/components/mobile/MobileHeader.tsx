@@ -10,14 +10,17 @@ interface MobileHeaderProps {
   rightAction?: React.ReactNode;
   className?: string;
   showLogin?: boolean;
+  /** Custom back action; defaults to going back one step in history. */
+  onBack?: () => void;
 }
 
-export function MobileHeader({ 
-  title, 
-  showBack = false, 
+export function MobileHeader({
+  title,
+  showBack = false,
   rightAction,
   className,
   showLogin = false,
+  onBack,
 }: MobileHeaderProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -28,20 +31,20 @@ export function MobileHeader({
       className
     )}>
       <div className="flex items-center justify-between h-14 px-4">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           {showBack && (
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+              onClick={() => (onBack ? onBack() : navigate(-1))}
               className="-ml-2"
               aria-label="Go back"
             >
               <ChevronLeft className="h-6 w-6" />
             </Button>
           )}
-          <h1 className="text-lg font-semibold">{title}</h1>
+          <h1 className="text-lg font-semibold truncate">{title}</h1>
         </div>
         <div className="flex items-center gap-2">
           {showLogin && !user && (

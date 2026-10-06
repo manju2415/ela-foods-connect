@@ -16,8 +16,10 @@ import {
 import CartSheet from "@/components/CartSheet";
 import { NotificationBell } from "@/components/NotificationBell";
 import elaLogo from "@/assets/ela-foods-logo.png";
+import { Capacitor } from "@capacitor/core";
+import { AppTopBar } from "@/components/mobile/AppTopBar";
 
-const Header = () => {
+const WebsiteHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -268,5 +270,9 @@ const Header = () => {
     </>
   );
 };
+
+// Inside the installed app the website header is replaced by a slim app bar
+// (back arrow + page title); the website keeps the full header.
+const Header = () => (Capacitor.isNativePlatform() ? <AppTopBar /> : <WebsiteHeader />);
 
 export default Header;
