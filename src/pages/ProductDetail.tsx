@@ -23,7 +23,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap, Flame, Sparkles } from "lucide-react";
+import { ShoppingCart, Minus, Plus, ChevronLeft, ChevronRight, Package, Heart, Zap, Flame, Sparkles, ZoomIn } from "lucide-react";
+import { ImageZoomViewer } from "@/components/ImageZoomViewer";
 import { toast } from "sonner";
 import { buildVariantOptions, type GroupableProduct, type GroupableVariant } from "@/lib/variantOptions";
 import { isNewArrival } from "@/utils/isNewArrival";
@@ -65,6 +66,7 @@ export default function ProductDetail() {
   const memberPricing = useMemberPricing();
   const { registrationEnabled } = useRegistrationEnabled();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isBuyingNow, setIsBuyingNow] = useState(false);
@@ -340,7 +342,19 @@ export default function ProductDetail() {
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
             {/* Image Gallery */}
             <div className="space-y-4">
-              <div className="relative mx-auto h-64 w-full max-w-md overflow-hidden rounded-lg bg-muted sm:h-72 md:h-[28rem]">
+              <div
+                className="relative mx-auto h-64 w-full max-w-md cursor-zoom-in overflow-hidden rounded-lg bg-muted sm:h-72 md:h-[28rem]"
+                role="button"
+                tabIndex={0}
+                aria-label="Open photo to zoom"
+                onClick={() => setIsZoomOpen(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setIsZoomOpen(true);
+                  }
+                }}
+              >
                 <OptimizedImage
                   src={images[selectedImageIndex]}
                   alt={product.name}
@@ -356,7 +370,11 @@ export default function ProductDetail() {
                       variant="secondary"
                       size="icon"
                       className="absolute left-2 top-1/2 -translate-y-1/2"
-                      onClick={prevImage}
+                      aria-label="Previous photo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        prevImage();
+                      }}
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -364,7 +382,11 @@ export default function ProductDetail() {
                       variant="secondary"
                       size="icon"
                       className="absolute right-2 top-1/2 -translate-y-1/2"
-                      onClick={nextImage}
+                      aria-label="Next photo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        nextImage();
+                      }}
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -375,7 +397,18 @@ export default function ProductDetail() {
                     {discount}% OFF
                   </Badge>
                 )}
+                <span className="pointer-events-none absolute bottom-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm">
+                  <ZoomIn className="h-4 w-4" />
+                </span>
               </div>
+              <ImageZoomViewer
+                images={images}
+                index={selectedImageIndex}
+                alt={product.name}
+                open={isZoomOpen}
+                onClose={() => setIsZoomOpen(false)}
+                onIndexChange={setSelectedImageIndex}
+              />
               {images.length > 1 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {images.map((img, index) => (
