@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useMemberPricing } from "@/hooks/useMemberPricing";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import Header from "@/components/Header";
@@ -68,11 +69,12 @@ const Checkout = () => {
   const { user } = useAuth();
   const { items, totalPrice, memberTotalPrice, clearCart } = useCart();
   const { isMember } = useUserRole();
+  const memberPricing = useMemberPricing();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  // Use member price for members, MRP for normal users
-  const effectiveTotalPrice = isMember ? memberTotalPrice : totalPrice;
+
+  // Member price for members (and for everyone while registration is off), MRP otherwise
+  const effectiveTotalPrice = memberPricing ? memberTotalPrice : totalPrice;
   const { calculateShipping } = useShippingSettings();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
@@ -885,7 +887,7 @@ const Checkout = () => {
                         </p>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                         <p className="text-sm font-semibold">
-                          ₹{((isMember
+                          ₹{((memberPricing
                             ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price || item.product.price))
                             : (item.variant?.price ?? item.product.price)) * item.quantity).toFixed(2)}
                         </p>

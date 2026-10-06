@@ -17,6 +17,7 @@ import {
 import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
 interface Coupon {
@@ -46,6 +47,7 @@ const GuestCheckout = () => {
   const { toast } = useToast();
   const { items, totalPrice, updateQuantity, removeFromCart } = useCart();
   const { calculateShipping } = useShippingSettings();
+  const { registrationEnabled } = useRegistrationEnabled();
 
   const [step, setStep] = useState<Step>("details");
   const [placing, setPlacing] = useState(false);
@@ -118,7 +120,7 @@ const GuestCheckout = () => {
       setCouponLoading(false);
       return;
     }
-    if (data.min_order_amount && totalPrice < data.min_order_amount) {
+    if (data.min_order_amount && subtotal < data.min_order_amount) {
       setCouponError(`Minimum order amount is ₹${data.min_order_amount}`);
       setCouponLoading(false);
       return;
@@ -160,28 +162,33 @@ const GuestCheckout = () => {
     setCouponError("");
   };
 
-  const calculateDiscount = () => {
-    if (!appliedCoupon) return 0;
-    let discount =
-      appliedCoupon.discount_type === "percentage"
-        ? (totalPrice * appliedCoupon.discount_value) / 100
-        : appliedCoupon.discount_value;
-    if (appliedCoupon.max_discount_amount) {
-      discount = Math.min(discount, appliedCoupon.max_discount_amount);
-    }
-    return Math.min(discount, totalPrice);
-  };
-
-  const discountAmount = calculateDiscount();
   const memberSubtotal = items.reduce((sum, item) => {
     const memberUnitPrice = item.variant
       ? (item.variant.member_price ?? item.variant.price)
       : (item.product.member_price ?? item.product.price);
     return sum + memberUnitPrice * item.quantity;
   }, 0);
-  const membershipSavings = Math.max(0, totalPrice - memberSubtotal);
-  const shippingAmount = calculateShipping(totalPrice);
-  const finalAmount = totalPrice - discountAmount + shippingAmount;
+  // Registration switched off: nobody can become a member, so guests pay the
+  // member price too (place-guest-order charges the same).
+  const memberPricing = !registrationEnabled;
+  const subtotal = memberPricing ? memberSubtotal : totalPrice;
+
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0;
+    let discount =
+      appliedCoupon.discount_type === "percentage"
+        ? (subtotal * appliedCoupon.discount_value) / 100
+        : appliedCoupon.discount_value;
+    if (appliedCoupon.max_discount_amount) {
+      discount = Math.min(discount, appliedCoupon.max_discount_amount);
+    }
+    return Math.min(discount, subtotal);
+  };
+
+  const discountAmount = calculateDiscount();
+  const membershipSavings = memberPricing ? 0 : Math.max(0, totalPrice - memberSubtotal);
+  const shippingAmount = calculateShipping(subtotal);
+  const finalAmount = subtotal - discountAmount + shippingAmount;
 
   // ──── Place Order ────
   const handlePlaceOrder = async () => {
@@ -393,7 +400,7 @@ const GuestCheckout = () => {
                     const mrp = item.variant?.price ?? item.product.price;
                     return memberUnitPrice < mrp ? (
                       <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
-                        Member Price: ₹{(memberUnitPrice * item.quantity).toFixed(2)}
+                        {memberPricing ? "Discount Price" : "Member Price"}: ₹{(memberUnitPrice * item.quantity).toFixed(2)}
                       </p>
                     ) : null;
                   })()}
@@ -455,7 +462,7 @@ const GuestCheckout = () => {
       {/* Price breakdown */}
       <Card>
         <CardContent className="pt-6 space-y-2">
-          <div className="flex justify-between text-sm"><span className="text-muted-foreground">Subtotal (MRP)</span><span>₹{totalPrice.toFixed(2)}</span></div>
+          <div className="flex justify-between text-sm"><span className="text-muted-foreground">{memberPricing ? "Subtotal (Discount Price)" : "Subtotal (MRP)"}</span><span>₹{subtotal.toFixed(2)}</span></div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Delivery</span>
             {shippingAmount === 0 ? (
@@ -554,7 +561,7 @@ const GuestCheckout = () => {
         </p>
         <div className="flex gap-3 justify-center">
           <Button onClick={() => navigate("/products")}>Continue Shopping</Button>
-          <Button variant="outline" onClick={() => navigate("/auth")}>Sign Up for Member Prices</Button>
+          <Button variant="outline" onClick={() => navigate("/auth")}>{memberPricing ? "Sign Up" : "Sign Up for Member Prices"}</Button>
         </div>
       </div>
       <div className="max-w-5xl mx-auto px-1">
@@ -587,7 +594,7 @@ const GuestCheckout = () => {
           <div className="mb-4">
             <h1 className="text-2xl font-bold text-foreground">Guest Checkout</h1>
             <p className="text-sm text-muted-foreground">
-              <Button variant="link" className="p-0 h-auto text-sm" onClick={() => navigate("/auth")}>Sign in</Button> for member prices &amp; order tracking!
+              <Button variant="link" className="p-0 h-auto text-sm" onClick={() => navigate("/auth")}>Sign in</Button> {memberPricing ? "for order tracking!" : <>for member prices &amp; order tracking!</>}
             </p>
           </div>
         )}

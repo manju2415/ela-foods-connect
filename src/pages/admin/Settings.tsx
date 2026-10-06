@@ -230,19 +230,19 @@ export default function Settings() {
     <SuperAdminGuard>
       <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Platform Settings</h1>
-            <p className="text-muted-foreground">Configure your store, referral incentives, and wallet settings (Super Admin only)</p>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Platform Settings</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">Configure your store, referral incentives, and wallet settings (Super Admin only)</p>
           </div>
-          <Button onClick={handleSaveAll} disabled={isSaving || saveMutation.isPending}>
+          <Button className="w-full shrink-0 sm:w-auto" onClick={handleSaveAll} disabled={isSaving || saveMutation.isPending}>
             <Save className="mr-2 h-4 w-4" />
             {isSaving ? "Saving..." : "Save All Settings"}
           </Button>
         </div>
 
         <Tabs defaultValue="store" className="space-y-6">
-          <TabsList className="flex-wrap">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:flex sm:w-auto sm:flex-wrap sm:justify-start">
             <TabsTrigger value="store" className="flex items-center gap-2">
               <Store className="h-4 w-4" /> Store Info
             </TabsTrigger>
@@ -270,7 +270,7 @@ export default function Settings() {
                 <CardDescription>Basic information about your store</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="store_name">Store Name</Label>
                     <Input
@@ -290,7 +290,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="store_phone">Store Phone</Label>
                     <Input
@@ -339,7 +339,7 @@ export default function Settings() {
                 <CardDescription>Configure shipping rates and free shipping thresholds</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Free Shipping</Label>
                     <p className="text-sm text-muted-foreground">
@@ -356,7 +356,7 @@ export default function Settings() {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="flat_rate">Flat Shipping Rate (₹)</Label>
                     <Input
@@ -399,7 +399,7 @@ export default function Settings() {
                 <CardDescription>Configure tax rates and calculation methods</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Tax</Label>
                     <p className="text-sm text-muted-foreground">Apply tax to orders</p>
@@ -412,7 +412,7 @@ export default function Settings() {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="tax_name">Tax Name</Label>
                     <Input
@@ -437,7 +437,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Tax Included in Price</Label>
                     <p className="text-sm text-muted-foreground">
@@ -464,7 +464,7 @@ export default function Settings() {
                 <CardDescription>Configure referral bonuses for founding members</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Referral Bonus</Label>
                     <p className="text-sm text-muted-foreground">
@@ -481,7 +481,7 @@ export default function Settings() {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="referral_bonus_amount">Referral Bonus Amount (₹)</Label>
                     <Input
@@ -523,7 +523,7 @@ export default function Settings() {
 
                 <Separator />
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Welcome Bonus</Label>
                     <p className="text-sm text-muted-foreground">
@@ -569,7 +569,7 @@ export default function Settings() {
                 <CardDescription>Configure wallet rules and limits</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Wallet Payments</Label>
                     <p className="text-sm text-muted-foreground">
@@ -586,7 +586,7 @@ export default function Settings() {
 
                 <Separator />
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="min_wallet_topup">Minimum Top-up Amount (₹)</Label>
                     <Input

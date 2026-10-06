@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useMemberPricing } from "@/hooks/useMemberPricing";
+import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ProductReviews from "@/components/ProductReviews";
@@ -61,7 +62,8 @@ export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { addToCart, buyNow } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { isMember } = useUserRole();
+  const memberPricing = useMemberPricing();
+  const { registrationEnabled } = useRegistrationEnabled();
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -429,7 +431,7 @@ export default function ProductDetail() {
               <div className="space-y-3">
                 {/* MRP Price */}
                 <div className="flex items-baseline gap-3">
-                  <span className={`font-bold ${isMember ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
+                  <span className={`font-bold ${memberPricing ? 'text-xl text-muted-foreground line-through' : 'text-3xl'}`}>
                     MRP: ₹{Number(basePrice).toFixed(2)}
                   </span>
                   {product.compare_at_price && product.compare_at_price > product.price && (
@@ -443,15 +445,15 @@ export default function ProductDetail() {
                 </div>
                 {/* Member Price - Always shown */}
                 <div className="flex items-baseline gap-3 p-3 bg-green-200 dark:bg-green-900/70 rounded-lg border border-green-400 dark:border-green-700 shadow-sm">
-                  <span className={`font-bold ${isMember ? 'text-3xl text-green-600' : 'text-2xl text-green-600'}`}>
-                    Member Price: ₹{Number(effectiveMemberPrice).toFixed(2)}
+                  <span className={`font-bold ${memberPricing ? 'text-3xl text-green-600' : 'text-2xl text-green-600'}`}>
+                    {registrationEnabled ? "Member Price" : "Discount Price"}: ₹{Number(effectiveMemberPrice).toFixed(2)}
                   </span>
                   {memberDiscount > 0 && (
                     <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
                       {memberDiscount}% OFF
                     </Badge>
                   )}
-                  {isMember ? (
+                  {memberPricing ? (
                     <Badge className="bg-green-600 text-white">Your Price</Badge>
                   ) : (
                     <span className="text-sm text-green-600">Become a member to save!</span>

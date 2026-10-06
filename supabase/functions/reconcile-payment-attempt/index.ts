@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { completeRegistration } from "../_shared/completeRegistration.ts";
 import { settlePayment, fetchRazorpayPayment } from "../_shared/settlePayment.ts";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -23,6 +24,7 @@ interface RecoveredProduct {
   id: string;
   name: string;
   price: number;
+  member_price: number | null;
   stock_quantity: number;
 }
 
@@ -211,21 +213,24 @@ serve(async (req) => {
     const productIds = items.map((i) => i.product_id);
     const { data: products } = await admin
       .from("products")
-      .select("id, name, price, stock_quantity")
+      .select("id, name, price, member_price, stock_quantity")
       .in("id", productIds);
 
     const productMap = new Map((products as RecoveredProduct[] || []).map((p) => [p.id, p]));
+    // Registration switched off: everyone was charged the member price.
+    const memberPricing = !(await isRegistrationEnabled(admin));
     let subtotal = 0;
     const orderItems: RecoveredOrderItem[] = [];
     for (const item of items) {
       const product = productMap.get(item.product_id);
       if (!product) continue;
-      const totalPrice = Number(product.price) * Number(item.quantity);
+      const unitPrice = Number(memberPricing ? (product.member_price ?? product.price) : product.price);
+      const totalPrice = unitPrice * Number(item.quantity);
       subtotal += totalPrice;
       orderItems.push({
         product_id: product.id,
         product_name: product.name,
-        product_price: product.price,
+        product_price: unitPrice,
         quantity: item.quantity,
         total_price: totalPrice,
       });

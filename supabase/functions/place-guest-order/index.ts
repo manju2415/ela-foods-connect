@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  member_price: number | null;
 }
 
 interface ProductVariant {
@@ -23,6 +25,7 @@ interface ProductVariant {
   product_id: string;
   label: string;
   price: number;
+  member_price: number | null;
   stock_quantity: number;
   is_active: boolean;
 }
@@ -130,7 +133,7 @@ serve(async (req) => {
     const variantIds = (items as GuestOrderItem[]).map((i) => i.variant_id).filter(Boolean);
     const { data: products, error: prodErr } = await supabase
       .from("products")
-      .select("id, name, price")
+      .select("id, name, price, member_price")
       .in("id", productIds);
 
     if (prodErr || !products) {
@@ -144,7 +147,7 @@ serve(async (req) => {
     const { data: variants, error: variantErr } = variantIds.length
       ? await supabase
           .from("product_variants")
-          .select("id, product_id, label, price, stock_quantity, is_active")
+          .select("id, product_id, label, price, member_price, stock_quantity, is_active")
           .in("id", variantIds)
       : { data: [], error: null };
 
@@ -154,6 +157,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Registration switched off: nobody can become a member, so everyone pays
+    // the member price (same rule as place_order_atomic).
+    const memberPricing = !(await isRegistrationEnabled(supabase));
 
     const variantMap = new Map((variants as ProductVariant[] || []).map((variant) => [variant.id, variant]));
     let subtotal = 0;
@@ -175,7 +182,9 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const unitPrice = variant?.price ?? product.price;
+      const unitPrice = memberPricing
+        ? Number(variant ? (variant.member_price ?? variant.price) : (product.member_price ?? product.price))
+        : (variant?.price ?? product.price);
       const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
       orderItems.push({

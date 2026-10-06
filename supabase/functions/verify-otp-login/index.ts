@@ -193,10 +193,13 @@ Deno.serve(async (req) => {
     const cleanPhone = phone.replace(/\+/g, "");
     const mockEmail = `${cleanPhone}@elabazar.local`;
 
-    let { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email: mockEmail,
-    });
+    // Looks up the auth user for the phone email. Must be "recovery", never
+    // "magiclink": for an unknown email Supabase turns a magiclink into a
+    // signup and creates an unconfirmed user (who can never sign in), whereas
+    // recovery just reports "not found". For an existing user both do the same.
+    const findAuthUser = () => admin.auth.admin.generateLink({ type: "recovery", email: mockEmail });
+
+    let { data: linkData, error: linkError } = await findAuthUser();
 
     // A transient Auth Admin API error here (not "account doesn't exist")
     // previously surfaced to an existing, correctly-matched account as a
@@ -204,10 +207,7 @@ Deno.serve(async (req) => {
     // falling through to the phone-based repair/lookup below.
     if (linkError || !linkData?.user) {
       await sleep(300);
-      ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email: mockEmail,
-      }));
+      ({ data: linkData, error: linkError } = await findAuthUser());
     }
 
     if (linkError || !linkData?.user) {
@@ -244,10 +244,7 @@ Deno.serve(async (req) => {
             // or already correctly linked and the earlier failures were
             // transient) — retry the link generation once more before
             // reporting "not found" for an account that clearly exists.
-            ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-              type: "magiclink",
-              email: mockEmail,
-            }));
+            ({ data: linkData, error: linkError } = await findAuthUser());
           }
         }
       }
@@ -280,10 +277,33 @@ Deno.serve(async (req) => {
         }
         // Created now, or by a concurrent request a moment ago — either way
         // the account exists under the phone email.
-        ({ data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-          type: "magiclink",
-          email: mockEmail,
-        }));
+        ({ data: linkData, error: linkError } = await findAuthUser());
+      }
+    }
+
+    // An unconfirmed account under the phone email was left behind by the old
+    // magiclink lookup (every real creation path confirms the email, and an
+    // unconfirmed account can never sign in). The OTP above proves the phone,
+    // so finish it as the new customer it should have been — same account, no
+    // duplicate — instead of failing every login with "Email not confirmed".
+    if (!linkError && linkData?.user && !linkData.user.email_confirmed_at && linkData.user.email === mockEmail) {
+      const last10 = cleanPhone.replace(/\D/g, "").slice(-10);
+      const strayId = linkData.user.id;
+      const { error: confirmErr } = await admin.auth.admin.updateUserById(strayId, {
+        email_confirm: true,
+        ...(last10.length === 10 ? { user_metadata: { ...linkData.user.user_metadata, phone: `91${last10}` } } : {}),
+      });
+      if (confirmErr) {
+        console.error("[verify-otp-login] confirming unconfirmed account failed:", confirmErr);
+        await logAttempt("CONFIRM_FAILED", confirmErr.message);
+      } else {
+        isNewUser = true;
+        if (last10.length === 10) {
+          await admin.from("profiles").update({ phone: `+91${last10}` }).eq("id", strayId).is("phone", null);
+        }
+        if (!(await isRegistrationEnabled(admin))) {
+          await linkInvite(admin, strayId, body?.referral_code);
+        }
       }
     }
 
@@ -321,6 +341,13 @@ Deno.serve(async (req) => {
       if (signInError || !signInData.session) {
         lastError = `SIGNIN_FAILED: ${signInError?.message || "no session returned"}`;
         console.error("[verify-otp-login] sign-in after rotation failed:", signInError);
+        // Last line of defence for an unconfirmed account the check above
+        // didn't catch: the OTP has proven the phone, so confirm it and retry.
+        if (attempt === 1 && signInError?.message?.toLowerCase().includes("not confirmed")) {
+          const { error: confirmErr } = await admin.auth.admin.updateUserById(authUserId, { email_confirm: true });
+          if (confirmErr) console.error("[verify-otp-login] confirm on sign-in retry failed:", confirmErr);
+          else isNewUser = true;
+        }
         if (attempt === 1) { await sleep(400); continue; }
         await logAttempt("SIGNIN_FAILED", lastError);
         return json(500, { success: false, code: "SIGNIN_FAILED", error: "Could not sign in. Please try again." });
