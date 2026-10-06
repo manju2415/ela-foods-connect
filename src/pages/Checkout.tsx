@@ -23,6 +23,8 @@ import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { PostOrderProducts } from "@/components/PostOrderProducts";
 
 import { useShippingSettings } from "@/hooks/useShippingSettings";
+import { Capacitor } from "@capacitor/core";
+import { hapticSuccess } from "@/lib/haptics";
 import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 import {
   Dialog,
@@ -98,6 +100,13 @@ const Checkout = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderPlaced, setOrderPlaced] = useState<{ orderNumber: string; amount: number } | null>(null);
+  const isNativeApp = Capacitor.isNativePlatform();
+
+  // Installed app: success haptic once the order is confirmed (observes the
+  // existing state only — the payment flow itself is untouched).
+  useEffect(() => {
+    if (orderPlaced) hapticSuccess();
+  }, [orderPlaced]);
 
   // Store-pickup stock (store_inventory) is tracked separately from each
   // product's central stock_quantity, and the product listing/cart now
@@ -546,12 +555,22 @@ const Checkout = () => {
   const totalWalletUsed = purchaseOnlyUsed + withdrawableUsed;
   const finalAmount = amountAfterDiscount - totalWalletUsed;
 
+  // Shared by the in-page button and the installed app's sticky pay bar.
+  const payDisabled =
+    placing ||
+    !hasDeliveryDate ||
+    (fulfillmentType === "delivery"
+      ? !selectedAddressId || pickupOnlyItems.length > 0
+      : !pickupStoreId);
+  const payLabel = placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)} & Place Order` : "Place Order";
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-foreground mb-8">Checkout</h1>
+      <main className={`container mx-auto px-4 ${isNativeApp ? "py-4" : "py-8"}`}>
+        {/* The app shows "Checkout" in its title bar. */}
+        <h1 className={isNativeApp ? "hidden" : "text-3xl font-bold text-foreground mb-8"}>Checkout</h1>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column - Address & Payment */}
@@ -957,18 +976,12 @@ const Checkout = () => {
                 </div>
 
                 <Button
-                  className="w-full"
+                  className={isNativeApp ? "hidden" : "w-full"}
                   size="lg"
                   onClick={handlePlaceOrder}
-                  disabled={
-                    placing ||
-                    !hasDeliveryDate ||
-                    (fulfillmentType === "delivery"
-                      ? !selectedAddressId || pickupOnlyItems.length > 0
-                      : !pickupStoreId)
-                  }
+                  disabled={payDisabled}
                 >
-                  {placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)} & Place Order` : "Place Order"}
+                  {payLabel}
                 </Button>
 
                 {finalAmount > 0 && (
@@ -984,6 +997,24 @@ const Checkout = () => {
           </div>
         </div>
       </main>
+
+      {/* Installed app: the final pay action stays at the bottom of the screen. */}
+      {isNativeApp && (
+        <>
+          <div aria-hidden className="h-24" />
+          <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background px-4 pt-3 safe-area-pb shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            <div className="flex items-center gap-3 pb-3">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{finalAmount > 0 ? "To pay" : "Total"}</p>
+                <p className="text-lg font-extrabold leading-tight">₹{finalAmount.toFixed(2)}</p>
+              </div>
+              <Button className="h-12 flex-1 rounded-xl text-base" onClick={handlePlaceOrder} disabled={payDisabled}>
+                {placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)}` : "Place Order"}
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
 
       <Footer />
     </div>

@@ -1,6 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { ShoppingCart } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { APP_CART_PATH } from "@/lib/appRoutes";
 import { MobileHeader } from "./MobileHeader";
+
+// Shopping screens get a cart shortcut in the top bar.
+const CART_ACTION_ROUTES = [/^\/products\/?$/, /^\/categories\/?$/, /^\/category\//, /^\/product\//];
 
 // Onboarding screens: no back arrow, so users don't step back out of the
 // required registration flow.
@@ -52,6 +58,8 @@ export function AppTopBar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { totalItems } = useCart();
+  const showCart = CART_ACTION_ROUTES.some((route) => route.test(location.pathname));
 
   const showBack = !NO_BACK_PREFIXES.some((prefix) => location.pathname.startsWith(prefix));
 
@@ -71,6 +79,23 @@ export function AppTopBar() {
       showBack={showBack}
       onBack={handleBack}
       className="bg-background supports-[backdrop-filter]:bg-background/95"
+      rightAction={
+        showCart ? (
+          <button
+            type="button"
+            onClick={() => navigate(APP_CART_PATH)}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full"
+            aria-label={totalItems > 0 ? `Cart, ${totalItems} items` : "Cart"}
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {totalItems > 0 && (
+              <span className="absolute right-0.5 top-0.5 min-w-[18px] h-[18px] rounded-full bg-primary px-1 text-[10px] font-semibold leading-[18px] text-primary-foreground text-center">
+                {totalItems > 99 ? "99+" : totalItems}
+              </span>
+            )}
+          </button>
+        ) : undefined
+      }
     />
   );
 }

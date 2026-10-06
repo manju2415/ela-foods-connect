@@ -9,6 +9,8 @@ import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { fetchRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 import { Capacitor } from "@capacitor/core";
 import { AppHomeTopBar } from "@/components/mobile/AppHomeTopBar";
+import { AppPullToRefresh } from "@/components/mobile/AppPullToRefresh";
+import { useQueryClient } from "@tanstack/react-query";
 
 import Index from "./Index";
 
@@ -21,6 +23,7 @@ export default function CustomerApp() {
   const navigate = useNavigate();
   const [checkingRegistration, setCheckingRegistration] = useState(true);
   const { hideSplash } = useSplashScreen('customer');
+  const queryClient = useQueryClient();
   
   useAppManifest('customer');
 
@@ -117,7 +120,9 @@ export default function CustomerApp() {
   return (
     <MobileAppLayout appType="customer">
       {Capacitor.isNativePlatform() && <AppHomeTopBar />}
-      <Index hideChrome />
+      <AppPullToRefresh onRefresh={() => queryClient.refetchQueries({ type: "active" })}>
+        <Index hideChrome />
+      </AppPullToRefresh>
       <InstallPrompt appName="Ela Bazar" appType="customer" themeColor="#f97316" />
     </MobileAppLayout>
   );

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { OptimizedImage } from "@/components/ui/optimized-image";
-import { Heart, Crown, Flame, Star, Clock, Sparkles } from "lucide-react";
+import { Heart, Crown, Flame, Star, Clock, Sparkles, Minus, Plus } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
+import { hapticTap } from "@/lib/haptics";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,8 +60,10 @@ const ProductCard = ({
   variant = "default",
   imagePriority = false,
 }: ProductCardProps) => {
-  const { addToCart } = useCart();
+  const { addToCart, items: cartItems, updateQuantity } = useCart();
   const navigate = useNavigate();
+  const isNativeApp = Capacitor.isNativePlatform();
+  const [cartBusy, setCartBusy] = useState(false);
 
   const options = variantOptions ?? [];
   const hasOptions = options.length > 0;
@@ -122,6 +126,7 @@ const ProductCard = ({
     e.stopPropagation();
     if (activeOption) {
       if (outOfStock) return;
+      hapticTap();
       addToCart(activeOption.productId, 1, activeOption.variantId);
       return;
     }
@@ -129,7 +134,31 @@ const ProductCard = ({
       navigate(`/product/${slug}`);
       return;
     }
+    hapticTap();
     addToCart(id);
+  };
+
+  // Installed app: once this product (selected pack) is in the cart, the Add
+  // button becomes a − qty + stepper driven by the same cart context.
+  const cartItem = isNativeApp
+    ? cartItems.find(
+        (item) =>
+          item.product_id === (activeOption?.productId ?? id) &&
+          (item.variant_id ?? null) === (activeOption?.variantId ?? null),
+      )
+    : undefined;
+
+  const changeCartQuantity = async (e: React.MouseEvent, quantity: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!cartItem || cartBusy) return;
+    setCartBusy(true);
+    hapticTap();
+    try {
+      await updateQuantity(cartItem.id, quantity);
+    } finally {
+      setCartBusy(false);
+    }
   };
 
   const handleToggleWishlist = (e: React.MouseEvent) => {
@@ -168,7 +197,11 @@ const ProductCard = ({
           variant="ghost"
           size="icon"
           className={`absolute top-1 right-1 h-7 w-7 bg-card/80 hover:bg-card transition-opacity ${
-            inWishlist ? "opacity-100 text-destructive" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
+            inWishlist
+              ? "opacity-100 text-destructive"
+              : isNativeApp
+                ? "opacity-100 text-muted-foreground" // no hover on touch: always show the heart in the app
+                : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary"
           }`}
           onClick={handleToggleWishlist}
         >
@@ -279,14 +312,41 @@ const ProductCard = ({
             </>
           )}
 
-          <Button
-            size="sm"
-            className="w-full h-8 min-h-[32px] text-xs font-semibold mt-1"
-            onClick={handleAddToCart}
-            disabled={outOfStock}
-          >
-            {outOfStock ? "Sold Out" : "Add"}
-          </Button>
+          {cartItem && !outOfStock ? (
+            <div
+              className={`mt-1 flex h-8 min-h-[32px] w-full items-center justify-between rounded-md bg-primary text-primary-foreground ${cartBusy ? "opacity-70" : ""}`}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            >
+              <button
+                type="button"
+                className="flex h-full w-9 items-center justify-center"
+                onClick={(e) => changeCartQuantity(e, cartItem.quantity - 1)}
+                disabled={cartBusy}
+                aria-label={`Decrease ${name}`}
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="text-sm font-bold" aria-live="polite">{cartItem.quantity}</span>
+              <button
+                type="button"
+                className="flex h-full w-9 items-center justify-center"
+                onClick={(e) => changeCartQuantity(e, cartItem.quantity + 1)}
+                disabled={cartBusy}
+                aria-label={`Increase ${name}`}
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full h-8 min-h-[32px] text-xs font-semibold mt-1"
+              onClick={handleAddToCart}
+              disabled={outOfStock}
+            >
+              {outOfStock ? "Sold Out" : "Add"}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

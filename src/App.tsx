@@ -23,6 +23,7 @@ import RoleBasedRedirect from "@/components/RoleBasedRedirect";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
+import { NativeAppShell, NativePageSkeleton } from "@/components/mobile/NativeAppShell";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
@@ -104,6 +105,7 @@ const CustomerOrderDetailPage = lazy(() => import("./pages/mobile/customer/Order
 const CustomerWalletPage = lazy(() => import("./pages/mobile/customer/WalletPage"));
 const CustomerProfilePage = lazy(() => import("./pages/mobile/customer/ProfilePage"));
 const CustomerAddressesPage = lazy(() => import("./pages/mobile/customer/AddressesPage"));
+const AppCartPage = lazy(() => import("./pages/mobile/customer/CartPage"));
 const DriverOrdersPage = lazy(() => import("./pages/mobile/driver/OrdersPage"));
 const DriverEarningsPage = lazy(() => import("./pages/mobile/driver/EarningsPage"));
 const DriverProfilePage = lazy(() => import("./pages/mobile/driver/ProfilePage"));
@@ -117,12 +119,15 @@ const MemberInstall = lazy(() => import("./pages/install/MemberInstall"));
 
 const queryClient = new QueryClient();
 
-// Minimal loading fallback
-const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-  </div>
-);
+// Minimal loading fallback (the installed app shows a skeleton instead)
+const PageLoader = () =>
+  Capacitor.isNativePlatform() ? (
+    <NativePageSkeleton />
+  ) : (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
 
 function App() {
   useEffect(() => {
@@ -239,6 +244,7 @@ function App() {
                   <WishlistProvider>
                     <ScrollToTop />
                     <OnboardingGate />
+                    <NativeAppShell>
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
 
@@ -324,6 +330,7 @@ function App() {
                         <Route path="/customer-app/wallet" element={<CustomerWalletPage />} />
                         <Route path="/customer-app/profile" element={<AppErrorBoundary><CustomerProfilePage /></AppErrorBoundary>} />
                         <Route path="/customer-app/addresses" element={<CustomerAddressesPage />} />
+                        <Route path="/customer-app/cart" element={<AppCartPage />} />
                         <Route path="/member-app/addresses" element={<CustomerAddressesPage />} />
                         <Route path="/member-app" element={<MemberApp />} />
                         <Route path="/member-app/shop" element={<MemberShopPage />} />
@@ -338,6 +345,7 @@ function App() {
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </Suspense>
+                    </NativeAppShell>
                   </WishlistProvider>
                 </CartProvider>
               </BrowserRouter>

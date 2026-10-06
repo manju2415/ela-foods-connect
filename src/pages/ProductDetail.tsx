@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
+import { hapticTap } from "@/lib/haptics";
+import { APP_CART_PATH } from "@/lib/appRoutes";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/contexts/CartContext";
@@ -61,7 +64,10 @@ interface Category {
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { addToCart, buyNow } = useCart();
+  const { addToCart, buyNow, items: cartItems, updateQuantity } = useCart();
+  const isNativeApp = Capacitor.isNativePlatform();
+  const navigate = useNavigate();
+  const [cartBusy, setCartBusy] = useState(false);
   const { isInWishlist, toggleWishlist } = useWishlist();
   const memberPricing = useMemberPricing();
   const { registrationEnabled } = useRegistrationEnabled();
@@ -211,6 +217,7 @@ export default function ProductDetail() {
       return;
     }
     setIsAddingToCart(true);
+    hapticTap();
     try {
       await addToCart(activeOption?.productId || product.id, quantity, activeOption?.variantId || null);
       toast.success(`${product.name}${activeOption ? ` (${activeOption.label})` : ""} added to cart`);
@@ -262,6 +269,27 @@ export default function ProductDetail() {
     : 0;
   const memberDiscount = basePrice ? Math.round(((basePrice - effectiveMemberPrice) / basePrice) * 100) : 0;
 
+  // Installed app: the sticky bottom bar shows a − qty + stepper once the
+  // selected product/pack is in the cart (same cart context as everywhere).
+  const cartItem = isNativeApp && product
+    ? cartItems.find(
+        (item) =>
+          item.product_id === (activeOption?.productId || product.id) &&
+          (item.variant_id ?? null) === (activeOption?.variantId || null),
+      )
+    : undefined;
+
+  const changeCartQuantity = async (nextQuantity: number) => {
+    if (!cartItem || cartBusy) return;
+    setCartBusy(true);
+    hapticTap();
+    try {
+      await updateQuantity(cartItem.id, nextQuantity);
+    } finally {
+      setCartBusy(false);
+    }
+  };
+
   if (productLoading) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -307,9 +335,9 @@ export default function ProductDetail() {
     <div className="min-h-screen flex flex-col">
       <Header />
       <main className="flex-1">
-        <div className="container mx-auto px-4 py-8">
-          {/* Breadcrumb */}
-          <Breadcrumb className="mb-6">
+        <div className={`container mx-auto px-4 ${isNativeApp ? "py-4" : "py-8"}`}>
+          {/* Breadcrumb (the app has a title bar instead) */}
+          <Breadcrumb className={isNativeApp ? "hidden" : "mb-6"}>
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
@@ -535,7 +563,19 @@ export default function ProductDetail() {
                 </div>
               )}
 
-              <div className="space-y-3">
+              {/* Installed app: actions live in the sticky bottom bar; keep wishlist here. */}
+              {isNativeApp && (
+                <Button
+                  variant="outline"
+                  onClick={() => toggleWishlist(product.id)}
+                  className={`gap-2 ${isInWishlist(product.id) ? "text-destructive border-destructive" : ""}`}
+                >
+                  <Heart className={`h-4 w-4 ${isInWishlist(product.id) ? "fill-current" : ""}`} />
+                  {isInWishlist(product.id) ? "In wishlist" : "Add to wishlist"}
+                </Button>
+              )}
+
+              <div className={isNativeApp ? "hidden" : "space-y-3"}>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center border rounded-md">
                     <Button
@@ -665,6 +705,73 @@ export default function ProductDetail() {
           <ProductReviews productId={product.id} />
         </div>
       </main>
+
+      {/* Installed app: sticky price + Add to cart / quantity bar above the tabs. */}
+      {isNativeApp && (
+        <>
+          <div aria-hidden className="h-20 md:hidden" />
+          <div
+            className="fixed left-0 right-0 z-40 flex items-center gap-3 border-t bg-background px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.06)] md:hidden"
+            style={{ bottom: "calc(4rem + env(safe-area-inset-bottom, 0px))" }}
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-lg font-extrabold leading-tight">
+                ₹{Number(memberPricing ? effectiveMemberPrice : basePrice).toFixed(2)}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {activeOption ? activeOption.label : memberPricing ? "Your price" : "MRP"}
+                {memberPricing && basePrice > effectiveMemberPrice ? ` · MRP ₹${Number(basePrice).toFixed(2)}` : ""}
+              </p>
+            </div>
+            {effectiveStock === 0 ? (
+              <Button size="lg" disabled className="w-40">Out of Stock</Button>
+            ) : cartItem ? (
+              <>
+                <div className={`flex h-11 items-center rounded-lg bg-primary text-primary-foreground ${cartBusy ? "opacity-70" : ""}`}>
+                  <button
+                    type="button"
+                    className="flex h-full w-10 items-center justify-center"
+                    onClick={() => changeCartQuantity(cartItem.quantity - 1)}
+                    disabled={cartBusy}
+                    aria-label="Decrease quantity"
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <span className="w-7 text-center font-bold" aria-live="polite">{cartItem.quantity}</span>
+                  <button
+                    type="button"
+                    className="flex h-full w-10 items-center justify-center"
+                    onClick={() => changeCartQuantity(cartItem.quantity + 1)}
+                    disabled={cartBusy || cartItem.quantity >= effectiveStock}
+                    aria-label="Increase quantity"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+                <Button size="lg" variant="secondary" className="h-11 px-4" onClick={() => navigate(APP_CART_PATH)}>
+                  View cart
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-11 px-4"
+                  onClick={handleBuyNow}
+                  disabled={isBuyingNow}
+                >
+                  Buy Now
+                </Button>
+                <Button size="lg" className="h-11 px-5" onClick={handleAddToCart} disabled={isAddingToCart}>
+                  <ShoppingCart className="mr-1.5 h-4 w-4" />
+                  Add
+                </Button>
+              </>
+            )}
+          </div>
+        </>
+      )}
       <Footer />
     </div>
   );

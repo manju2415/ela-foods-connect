@@ -5,7 +5,7 @@ import { ChevronDown, MapPin, Search, ShoppingCart, User, X } from "lucide-react
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
-import CartSheet from "@/components/CartSheet";
+import { APP_CART_PATH } from "@/lib/appRoutes";
 
 // Same orange as the customer app's native status bar (useSplashScreen), so
 // the header reads as one block with it.
@@ -15,13 +15,12 @@ const SEARCH_HINTS = ["toor dal", "rice", "wheat flour", "spices", "cooking oil"
 /**
  * Installed-app home top bar: delivery address, product search and cart.
  * Search goes to the existing /products?search= results; the address line
- * opens the existing address manager.
+ * opens the existing address manager; the cart opens the app cart page.
  */
 export function AppHomeTopBar() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { totalItems } = useCart();
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [hintIndex, setHintIndex] = useState(0);
 
@@ -94,7 +93,7 @@ export function AppHomeTopBar() {
           <button
             type="button"
             className={iconButton}
-            onClick={() => setIsCartOpen(true)}
+            onClick={() => navigate(APP_CART_PATH)}
             aria-label={totalItems > 0 ? `Cart, ${totalItems} items` : "Cart"}
           >
             <ShoppingCart className="h-5 w-5" />
@@ -151,7 +150,6 @@ export function AppHomeTopBar() {
           </label>
         </form>
       </header>
-      <CartSheet open={isCartOpen} onOpenChange={setIsCartOpen} />
     </>
   );
 }

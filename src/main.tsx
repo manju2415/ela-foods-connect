@@ -4,8 +4,15 @@ import App from "./App.tsx";
 import "./index.css";
 import { installAuthRecovery } from "./lib/authRecovery";
 import { BUILD_MARK } from "./buildMark";
+import { Capacitor } from "@capacitor/core";
 
 installAuthRecovery();
+
+// Installed app only: enables the app-only styles in index.css (tap feedback,
+// no text selection, no overscroll bounce, screen fade, bottom-sheet dialogs).
+if (Capacitor.isNativePlatform()) {
+  document.documentElement.classList.add("native-app");
+}
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

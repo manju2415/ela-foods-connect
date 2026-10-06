@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigationType, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
+import { Capacitor } from "@capacitor/core";
+import { AppPullToRefresh } from "@/components/mobile/AppPullToRefresh";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { AdvertisementBanner } from "@/components/AdvertisementBanner";
@@ -66,6 +68,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const isNativeApp = Capacitor.isNativePlatform();
 
   // Preserve scroll position across back navigation: save it continuously against
   // this history entry, and restore it once the list has loaded, but only when
@@ -295,9 +298,10 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
     <div className="min-h-screen bg-background">
       {!hideChrome && <Header />}
 
-      <main className={`container mx-auto px-4 py-8 ${hideChrome ? "pb-20" : ""}`}>
-        {/* Page Header */}
-        <div className="mb-8">
+      <AppPullToRefresh onRefresh={fetchProducts}>
+      <main className={`container mx-auto px-4 ${isNativeApp ? "py-4" : "py-8"} ${hideChrome ? "pb-20" : ""}`}>
+        {/* Page Header (the app shows the title in its top bar) */}
+        <div className={isNativeApp ? "hidden" : "mb-8"}>
           <div className="flex items-center gap-3 mb-2">
             <Button
               variant="ghost"
@@ -317,7 +321,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
         </div>
 
         {/* Search and Filter Bar */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className={`flex flex-col sm:flex-row gap-4 ${isNativeApp ? "mb-4" : "mb-8"}`}>
           <form onSubmit={handleSearch} className="flex-1 flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -460,6 +464,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
           </div>
         </div>
       </main>
+      </AppPullToRefresh>
 
       <AdvertisementBanner placement="products_bottom" />
       {!hideChrome && <Footer />}

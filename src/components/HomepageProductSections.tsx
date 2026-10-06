@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ProductCard from "@/components/ProductCard";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,13 +37,31 @@ interface HomepageSection {
   products: HomepageProduct[];
 }
 
+// App home row heading: compact title with an always-visible "See all".
+function AppSectionHeading({ title }: { title: string }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="min-w-0 truncate text-lg font-bold text-foreground">{title}</h2>
+      <Link to="/products" className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-primary">
+        See all <ChevronRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+}
+
 const sectionCopy: Record<HomepageSection["sectionKey"], string> = {
   featured: "Hand-picked products selected by our team.",
   bestSellers: "The products customers are buying most.",
   newArrivals: "Fresh additions to the Ela Bazar collection.",
 };
 
-export default function HomepageProductSections() {
+interface HomepageProductSectionsProps {
+  /** "app": compact rows for the installed app's home screen. */
+  variant?: "default" | "app";
+}
+
+export default function HomepageProductSections({ variant = "default" }: HomepageProductSectionsProps) {
+  const isApp = variant === "app";
   const { data: sections = [], isLoading } = useQuery({
     queryKey: ["homepage-product-sections"],
     staleTime: 5 * 60 * 1000,
@@ -81,6 +99,19 @@ export default function HomepageProductSections() {
   });
   const { data: fallbackStorePickupStockMap } = useStorePickupStockMap(fallbackProducts.map((p) => p.id));
 
+  if (isLoading && isApp) {
+    return (
+      <section className="px-4 py-4">
+        <Skeleton className="mb-3 h-6 w-40" />
+        <div className="flex gap-3 overflow-hidden">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="aspect-[3/4] w-[42%] shrink-0 rounded-xl" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   if (isLoading) {
     return (
       <section className="bg-background py-12 sm:py-16 md:py-20">
@@ -93,6 +124,79 @@ export default function HomepageProductSections() {
           </div>
         </div>
       </section>
+    );
+  }
+
+  if (!sectionsHaveProducts && fallbackProducts.length > 0 && isApp) {
+    return (
+      <section className="px-4 py-4">
+        <AppSectionHeading title="Our Products" />
+        <div className="grid grid-cols-2 gap-3">
+          {fallbackProducts.map((product, productIndex) => (
+            <ProductCard
+              key={product.id}
+              id={product.id}
+              name={product.name}
+              slug={product.slug}
+              price={Number(product.price)}
+              memberPrice={product.member_price == null ? null : Number(product.member_price)}
+              originalPrice={product.compare_at_price == null ? undefined : Number(product.compare_at_price)}
+              image={product.images?.[0] || "/placeholder.svg"}
+              category="General"
+              isFastSelling={product.is_fast_selling}
+              stockQuantity={product.stock_quantity}
+              storePickupStock={fallbackStorePickupStockMap?.get(product.id) ?? 0}
+              unitType={product.unit_type}
+              unitValue={product.unit_value}
+              imagePriority={productIndex < 2}
+              variant="compact"
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (isApp) {
+    return (
+      <>
+        {sections
+          .filter((section) => section.products.length > 0)
+          .map((section, sectionIndex) => (
+            <section key={section.sectionKey} className="py-4">
+              <div className="px-4">
+                <AppSectionHeading title={section.title} />
+              </div>
+              <Carousel opts={{ align: "start", dragFree: true }} className="w-full">
+                <CarouselContent className="-ml-3 px-4">
+                  {section.products.map((product, productIndex) => (
+                    <CarouselItem key={product.id} className="basis-[44%] pl-3 min-[420px]:basis-[38%]">
+                      <ProductCard
+                        id={product.id}
+                        name={product.name}
+                        slug={product.slug}
+                        price={Number(product.price)}
+                        memberPrice={product.member_price == null ? null : Number(product.member_price)}
+                        originalPrice={product.compare_at_price == null ? undefined : Number(product.compare_at_price)}
+                        image={product.images?.[0] || "/placeholder.svg"}
+                        category={product.category_name || "General"}
+                        isNewArrival={section.sectionKey === "newArrivals"}
+                        isBestSeller={section.sectionKey === "bestSellers"}
+                        isFastSelling={product.is_fast_selling}
+                        stockQuantity={product.stock_quantity}
+                        storePickupStock={storePickupStockMap?.get(product.id) ?? 0}
+                        unitType={product.unit_type}
+                        unitValue={product.unit_value}
+                        imagePriority={sectionIndex === 0 && productIndex < 2}
+                        variant="compact"
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </section>
+          ))}
+      </>
     );
   }
 

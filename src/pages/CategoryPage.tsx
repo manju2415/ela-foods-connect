@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
 import { AdvertisementBanner } from "@/components/AdvertisementBanner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Capacitor } from "@capacitor/core";
+import { AppPullToRefresh } from "@/components/mobile/AppPullToRefresh";
 import { ChevronRight, Home } from "lucide-react";
 import { isNewArrival } from "@/utils/isNewArrival";
 import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
@@ -58,6 +60,7 @@ const CategoryPage = () => {
   const [loading, setLoading] = useState(true);
 
   const currentSlug = subSlug || slug;
+  const isNativeApp = Capacitor.isNativePlatform();
   const { data: storePickupStockMap } = useStorePickupStockMap(products.map((p) => p.id));
 
   useEffect(() => {
@@ -167,9 +170,10 @@ const CategoryPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Breadcrumb Navigation */}
-        <Breadcrumb className="mb-6">
+      <AppPullToRefresh onRefresh={fetchCategoryData}>
+      <main className={`container mx-auto px-4 ${isNativeApp ? "py-4" : "py-8"}`}>
+        {/* Breadcrumb Navigation (the app has a title bar instead) */}
+        <Breadcrumb className={isNativeApp ? "hidden" : "mb-6"}>
           <BreadcrumbList>
             <BreadcrumbItem>
               <BreadcrumbLink asChild>
@@ -334,6 +338,7 @@ const CategoryPage = () => {
         </div>
         )}
       </main>
+      </AppPullToRefresh>
 
       <AdvertisementBanner placement="products_bottom" />
       <Footer />
