@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUserRole } from "@/hooks/useUserRole";
+import { useMemberPricing } from "@/hooks/useMemberPricing";
 import { useShippingSettings } from "@/hooks/useShippingSettings";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +22,10 @@ interface CartSheetProps {
 const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
   const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice, memberTotalPrice } = useCart();
   const { user } = useAuth();
-  const { isMember } = useUserRole();
+  const memberPricing = useMemberPricing();
   const navigate = useNavigate();
   const { calculateShipping } = useShippingSettings();
-  const displayTotalPrice = isMember ? memberTotalPrice : totalPrice;
+  const displayTotalPrice = memberPricing ? memberTotalPrice : totalPrice;
   const shippingAmount = calculateShipping(displayTotalPrice);
   const cartTotal = displayTotalPrice + shippingAmount;
 
@@ -107,7 +107,7 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                       <p className="text-xs text-muted-foreground">{item.variant.label}</p>
                     )}
                     <p className="text-primary font-semibold">
-                      ₹{isMember
+                      ₹{memberPricing
                         ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price ?? item.product.price))
                         : (item.variant?.price ?? item.product.price)}
                     </p>
