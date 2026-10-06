@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Gift, LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useHeroBanner, type HeroBanner } from "@/hooks/useHeroBanner";
+import { useHeroBanner, useHomeBanners, type HeroBanner } from "@/hooks/useHeroBanner";
 import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
 import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,20 +92,7 @@ function BannerSlide({ banner, priority }: { banner: HeroBanner | null; priority
 function AppBannerCarousel() {
   // The website's single banner, served instantly from its cache.
   const { data: firstBanner } = useHeroBanner();
-  const { data: banners } = useQuery({
-    queryKey: ["app-home-banners"],
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("banners")
-        .select("*")
-        .eq("location", "home_hero")
-        .eq("is_active", true)
-        .order("display_order", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as HeroBanner[];
-    },
-  });
+  const { data: banners } = useHomeBanners();
 
   const [api, setApi] = useState<CarouselApi>();
   const [selected, setSelected] = useState(0);

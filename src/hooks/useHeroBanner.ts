@@ -53,3 +53,21 @@ export function useHeroBanner() {
     },
   });
 }
+
+/** Every active home hero banner, in display order (website + app carousels). */
+export function useHomeBanners() {
+  return useQuery({
+    queryKey: ["app-home-banners"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("banners")
+        .select("*")
+        .eq("location", "home_hero")
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as HeroBanner[];
+    },
+  });
+}
