@@ -504,6 +504,36 @@ export type Database = {
         }
         Relationships: []
       }
+      goodbox_contact_sync: {
+        Row: {
+          created_at: string
+          error: string | null
+          http_status: number | null
+          mobile_number: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          mobile_number: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          http_status?: number | null
+          mobile_number?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           billing_address: Json
@@ -2281,6 +2311,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      gets_member_price: { Args: { p_user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
