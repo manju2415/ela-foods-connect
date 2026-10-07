@@ -2,6 +2,7 @@
 // Idempotent — if the user already exists, returns success so the client can sign in normally.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
+import { createGoodBoxContact } from "../_shared/goodboxContact.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,6 +139,10 @@ Deno.serve(async (req) => {
         ...(referredBy ? { referred_by: referredBy } : {}),
         ...(founder === true ? { user_level: "founder" } : {}),
       }, { onConflict: "id" });
+
+      // New account saved: hand the number to GoodBox for its WhatsApp
+      // welcome workflow. Best effort, at most once per user.
+      await createGoodBoxContact(supabase, created.user.id);
     }
 
     return new Response(JSON.stringify({ success: true, isNewUser: true }), {

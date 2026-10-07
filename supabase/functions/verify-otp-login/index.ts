@@ -6,6 +6,7 @@
 // test-account bypass below for QA phones).
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
+import { createGoodBoxContact } from "../_shared/goodboxContact.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -272,6 +273,9 @@ Deno.serve(async (req) => {
             { onConflict: "id" },
           );
           await linkInvite(admin, created.user.id, body?.referral_code);
+          // New customer account saved: hand the number to GoodBox for its
+          // WhatsApp welcome workflow. Best effort, at most once per user.
+          await createGoodBoxContact(admin, created.user.id);
         } else if (createErr && !createErr.message?.toLowerCase().includes("already")) {
           console.error("[verify-otp-login] customer account creation failed:", createErr);
         }
