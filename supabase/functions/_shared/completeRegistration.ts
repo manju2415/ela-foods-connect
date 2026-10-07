@@ -12,6 +12,8 @@
 // Safe to run repeatedly: every step is guarded so nothing is credited twice.
 
 // deno-lint-ignore-file no-explicit-any
+import { createGoodBoxContact } from "./goodboxContact.ts";
+
 type Client = any;
 
 const WELCOME_BONUS_DESCRIPTION = "Registration welcome bonus";
@@ -116,6 +118,10 @@ export async function completeRegistration(
       console.error("Profile update error:", profileError);
       return { success: false, error: "Failed to update profile" };
     }
+
+    // Registration fee is now recorded: hand the number to GoodBox for its
+    // WhatsApp welcome workflow. Best effort, at most once per user.
+    await createGoodBoxContact(supabase, userId);
 
     if (isFounder) {
       const { data: existingLog } = await supabase
