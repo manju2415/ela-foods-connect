@@ -18,11 +18,13 @@ import { NotificationBell } from "@/components/NotificationBell";
 import elaLogo from "@/assets/ela-foods-logo.png";
 import { Capacitor } from "@capacitor/core";
 import { AppTopBar } from "@/components/mobile/AppTopBar";
+import { ProductSearchSuggestions } from "@/components/ProductSearchSuggestions";
 
 const WebsiteHeader = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const { user, signOut } = useAuth();
   const { totalItems } = useCart();
   const navigate = useNavigate();
@@ -71,7 +73,13 @@ const WebsiteHeader = () => {
     event.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
+    setShowSuggestions(false);
     navigate(`/products?search=${encodeURIComponent(query)}`);
+  };
+
+  const handlePickSuggestion = (slug: string) => {
+    setShowSuggestions(false);
+    navigate(`/product/${slug}`);
   };
 
   // When a delivery partner is logged in (especially inside the driver app),
@@ -87,7 +95,14 @@ const WebsiteHeader = () => {
       <input
         type="search"
         value={searchQuery}
-        onChange={(event) => setSearchQuery(event.target.value)}
+        onChange={(event) => {
+          setSearchQuery(event.target.value);
+          setShowSuggestions(true);
+        }}
+        onFocus={() => setShowSuggestions(true)}
+        onBlur={() => setShowSuggestions(false)}
+        onKeyDown={(event) => event.key === "Escape" && setShowSuggestions(false)}
+        autoComplete="off"
         placeholder="Search for dals, rice, spices and more"
         aria-label="Search products"
         className="h-full min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-muted-foreground"
@@ -95,11 +110,22 @@ const WebsiteHeader = () => {
       <Button type="submit" size="sm" className="mr-1 h-8 rounded-full px-4" aria-label="Submit product search">
         Search
       </Button>
+      {showSuggestions && (
+        <ProductSearchSuggestions
+          query={searchQuery}
+          onPickProduct={handlePickSuggestion}
+          onSeeAll={() => {
+            const query = searchQuery.trim();
+            setShowSuggestions(false);
+            navigate(`/products?search=${encodeURIComponent(query)}`);
+          }}
+        />
+      )}
     </form>
   );
 
   const searchBoxClass =
-    "flex h-10 items-center rounded-full border border-border bg-background shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20";
+    "relative flex h-10 items-center rounded-full border border-border bg-background shadow-sm transition-colors focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20";
 
   return (
     <>

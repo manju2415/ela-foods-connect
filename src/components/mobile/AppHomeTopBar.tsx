@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { APP_CART_PATH } from "@/lib/appRoutes";
+import { ProductSearchSuggestions } from "@/components/ProductSearchSuggestions";
 
 // Same orange as the customer app's native status bar (useSplashScreen), so
 // the header reads as one block with it.
@@ -23,6 +24,7 @@ export function AppHomeTopBar() {
   const { totalItems } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
   const [hintIndex, setHintIndex] = useState(0);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Rotate the search hint while the box is empty.
   useEffect(() => {
@@ -52,7 +54,18 @@ export function AppHomeTopBar() {
     event.preventDefault();
     const query = searchQuery.trim();
     if (!query) return;
+    setShowSuggestions(false);
     navigate(`/products?search=${encodeURIComponent(query)}`);
+  };
+
+  const showAllResults = () => {
+    setShowSuggestions(false);
+    navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
+  };
+
+  const handlePickSuggestion = (slug: string) => {
+    setShowSuggestions(false);
+    navigate(`/product/${slug}`);
   };
 
   const addressText = address
@@ -116,7 +129,7 @@ export function AppHomeTopBar() {
           </button>
         </div>
 
-        <form onSubmit={handleSearch} className="px-4 pb-4 pt-3" role="search">
+        <form onSubmit={handleSearch} className="relative px-4 pb-4 pt-3" role="search">
           <label className="flex h-12 items-center gap-3 rounded-2xl bg-white px-4 text-foreground shadow-lg">
             <Search className="h-5 w-5 shrink-0" style={{ color: APP_ORANGE }} />
             <span className="relative flex-1 min-w-0 h-full">
@@ -124,7 +137,13 @@ export function AppHomeTopBar() {
                 type="search"
                 enterKeyHint="search"
                 value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                onChange={(event) => {
+                  setSearchQuery(event.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setShowSuggestions(false)}
+                autoComplete="off"
                 aria-label="Search products"
                 className="h-full w-full bg-transparent text-[15px] outline-none [&::-webkit-search-cancel-button]:hidden"
               />
@@ -148,6 +167,14 @@ export function AppHomeTopBar() {
               </button>
             )}
           </label>
+          {showSuggestions && (
+            <ProductSearchSuggestions
+              query={searchQuery}
+              onPickProduct={handlePickSuggestion}
+              onSeeAll={showAllResults}
+              className="left-4 right-4 -mt-2"
+            />
+          )}
         </form>
       </header>
     </>

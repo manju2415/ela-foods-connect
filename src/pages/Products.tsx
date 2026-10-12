@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigationType, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
@@ -26,6 +26,8 @@ import {
 } from "@/lib/variantOptions";
 import { isNewArrival } from "@/utils/isNewArrival";
 import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { matchesProductSearch, productSearchRank } from "@/lib/productSearch";
 
 
 interface Product {
@@ -61,13 +63,17 @@ interface ProductsProps {
 
 const Products = ({ hideChrome = false }: ProductsProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [variants, setVariants] = useState<GroupableVariant[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "");
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "");
   const [categoriesLoaded, setCategoriesLoaded] = useState(false);
+  const categoryParam = searchParams.get("category") || "";
+  const urlSearch = searchParams.get("search") || "";
+  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 250);
+  const typedSearchRef = useRef(urlSearch);
   const isNativeApp = Capacitor.isNativePlatform();
 
   // Preserve scroll position across back navigation: save it continuously against
@@ -97,10 +103,11 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
   // Without that filter the product query doesn't use `categories` at all,
   // so it runs alongside the category fetch instead of after it.
   const earlyFetchKeyRef = useRef<string | null>(null);
+  // Search is filtered locally (below), so only a category change refetches.
   useEffect(() => {
-    const paramsKey = searchParams.toString();
+    const paramsKey = categoryParam;
     if (!categoriesLoaded) {
-      if (searchParams.get("category")) return;
+      if (categoryParam) return;
       earlyFetchKeyRef.current = paramsKey;
       fetchProducts();
       return;
@@ -112,7 +119,28 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
     if (alreadyFetched) return;
     fetchProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory, searchParams, categoriesLoaded]);
+  }, [selectedCategory, categoryParam, categoriesLoaded]);
+
+  // Results update while typing: mirror the typed text into ?search= once it
+  // settles (replacing the history entry, so Back doesn't step through every
+  // keystroke)...
+  useEffect(() => {
+    if (debouncedSearch === urlSearch) return;
+    typedSearchRef.current = debouncedSearch;
+    const params = new URLSearchParams(searchParams);
+    if (debouncedSearch) params.set("search", debouncedSearch);
+    else params.delete("search");
+    setSearchParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  // ...and pick up a search started elsewhere, e.g. the header search box.
+  useEffect(() => {
+    // Our own write above landing late must not undo newer typing.
+    if (urlSearch === typedSearchRef.current) return;
+    typedSearchRef.current = urlSearch;
+    setSearchQuery((current) => (current.trim() === urlSearch ? current : urlSearch));
+  }, [urlSearch]);
 
   const fetchCategories = async () => {
     const { data, error } = await supabase
@@ -179,17 +207,9 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
     if (error) {
       console.error("Error fetching products:", error);
     } else {
-      // Filter by search query client-side for simplicity
-      const searchTerm = searchParams.get("search")?.toLowerCase() || "";
-      const filtered = searchTerm
-        ? data?.filter(
-            (p) =>
-              p.name.toLowerCase().includes(searchTerm) ||
-              p.categories?.name.toLowerCase().includes(searchTerm)
-          )
-        : data;
-      const list = (filtered || []) as Product[];
-      setProducts(list);
+      // Search text is applied client-side (see `products` below)
+      const list = (data || []) as Product[];
+      setAllProducts(list);
 
       // Load pack/quantity variants for the listed products
       if (list.length > 0) {
@@ -206,6 +226,15 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
     }
     setLoading(false);
   };
+
+  const products = useMemo(() => {
+    if (!urlSearch) return allProducts;
+    return allProducts
+      .filter((p) => matchesProductSearch(urlSearch, p.name, p.categories?.name))
+      .map((p, index) => ({ p, index, rank: productSearchRank(urlSearch, p.name) }))
+      .sort((a, b) => a.rank - b.rank || a.index - b.index)
+      .map(({ p }) => p);
+  }, [allProducts, urlSearch]);
 
   // Group same-named products so pack variants share one card
   const productGroups = groupProductsByName(products);
