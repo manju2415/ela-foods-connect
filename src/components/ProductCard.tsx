@@ -273,7 +273,7 @@ const ProductCard = ({
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
             >
               <Select value={activeOption?.key} onValueChange={setSelectedKey}>
-                <SelectTrigger className="h-7 text-[11px] px-2">
+                <SelectTrigger className="h-7 text-xs font-semibold text-foreground px-2">
                   <SelectValue placeholder="Select pack" />
                 </SelectTrigger>
                 <SelectContent className="z-50 bg-popover">
@@ -286,7 +286,7 @@ const ProductCard = ({
               </Select>
             </div>
           ) : (
-            unitDisplay && <p className="text-[11px] text-muted-foreground">{unitDisplay}</p>
+            unitDisplay && <p className="text-xs font-semibold text-foreground sm:text-sm">{unitDisplay}</p>
           )}
         </div>
 
