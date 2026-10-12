@@ -56,7 +56,7 @@ export function ProductSearchSuggestions({ query, onPickProduct, onSeeAll, class
     if (!debouncedQuery || !catalog) return [];
     const seen = new Set<string>();
     return catalog
-      .filter((p) => matchesProductSearch(debouncedQuery, p.name, p.categories?.name))
+      .filter((p) => matchesProductSearch(debouncedQuery, p.name))
       .map((p, index) => ({ p, index, rank: productSearchRank(debouncedQuery, p.name) }))
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map(({ p }) => p)

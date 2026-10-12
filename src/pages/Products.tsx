@@ -230,7 +230,7 @@ const Products = ({ hideChrome = false }: ProductsProps) => {
   const products = useMemo(() => {
     if (!urlSearch) return allProducts;
     return allProducts
-      .filter((p) => matchesProductSearch(urlSearch, p.name, p.categories?.name))
+      .filter((p) => matchesProductSearch(urlSearch, p.name))
       .map((p, index) => ({ p, index, rank: productSearchRank(urlSearch, p.name) }))
       .sort((a, b) => a.rank - b.rank || a.index - b.index)
       .map(({ p }) => p);
