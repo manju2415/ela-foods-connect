@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 import { createGoodBoxContact } from "../_shared/goodboxContact.ts";
+import { isSimpleReferralScheme, recordPendingInvite } from "../_shared/referralScheme.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,17 +67,27 @@ Deno.serve(async (req) => {
       return founderIds[randomBytes[0] % founderIds.length];
     };
 
+    // Simple referral scheme: walk-ins are not placed under a founder, and a
+    // real invite gets a pending referrals row (that row is what pays the
+    // bonuses on the first paid order).
+    const simpleScheme = await isSimpleReferralScheme(supabase);
+    let inviteCodeId: string | null = null;
+
     const resolveReferrer = async (userId?: string): Promise<string | null> => {
       if (typeof referralCode === "string" && referralCode.trim().length >= 3) {
         const { data: codeRow } = await supabase
           .from("referral_codes")
-          .select("user_id")
+          .select("id, user_id")
           .eq("code", referralCode.trim().toUpperCase())
           .eq("is_active", true)
           .maybeSingle();
-        if (codeRow?.user_id && codeRow.user_id !== userId) return codeRow.user_id;
+        if (codeRow?.user_id && codeRow.user_id !== userId) {
+          inviteCodeId = codeRow.id;
+          return codeRow.user_id;
+        }
       }
-      return founder === true ? null : await pickWalkInFounder(userId);
+      if (founder === true || simpleScheme) return null;
+      return await pickWalkInFounder(userId);
     };
 
     // Check if user already exists by looking them up via profiles. Matched on
@@ -95,6 +106,9 @@ Deno.serve(async (req) => {
         const walkInFounderId = await resolveReferrer(existingProfile.id);
         if (walkInFounderId) {
           await supabase.from("profiles").update({ referred_by: walkInFounderId }).eq("id", existingProfile.id);
+          if (simpleScheme && inviteCodeId) {
+            await recordPendingInvite(supabase, walkInFounderId, existingProfile.id, inviteCodeId);
+          }
         }
       }
       return new Response(JSON.stringify({ success: true, isNewUser: false }), {
@@ -139,6 +153,10 @@ Deno.serve(async (req) => {
         ...(referredBy ? { referred_by: referredBy } : {}),
         ...(founder === true ? { user_level: "founder" } : {}),
       }, { onConflict: "id" });
+
+      if (simpleScheme && referredBy && inviteCodeId) {
+        await recordPendingInvite(supabase, referredBy, created.user.id, inviteCodeId);
+      }
 
       // New account saved: hand the number to GoodBox for its WhatsApp
       // welcome workflow. Best effort, at most once per user.

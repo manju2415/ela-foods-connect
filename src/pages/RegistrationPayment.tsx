@@ -13,6 +13,7 @@ import { Loader2, CreditCard, Wallet, Gift, CheckCircle2 } from "lucide-react";
 import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } from "@/utils/razorpay";
 import { realEmailOrEmpty, validateEmail } from "@/lib/email";
 import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 
 
 interface RegistrationSettings {
@@ -48,6 +49,7 @@ const RegistrationPayment = () => {
   // Registration switched off by super admin: there is nothing to complete —
   // send them back to shopping (the address is taken at checkout).
   const { registrationEnabled, isLoading: registrationSettingLoading } = useRegistrationEnabled();
+  const { scheme, referrerBonus } = useReferralScheme();
   useEffect(() => {
     if (!registrationSettingLoading && !registrationEnabled) navigate("/", { replace: true });
   }, [registrationEnabled, registrationSettingLoading, navigate]);
@@ -385,7 +387,11 @@ const RegistrationPayment = () => {
                     <CreditCard className="h-5 w-5 text-purple-600 mt-0.5" />
                     <div>
                       <p className="font-medium text-purple-800">Referral Earnings</p>
-                      <p className="text-sm text-purple-600">Earn ₹200+ for each referral</p>
+                      <p className="text-sm text-purple-600">
+                        {scheme === "simple"
+                          ? `Earn ₹${referrerBonus} when someone you invite completes their first order`
+                          : "Earn ₹200+ for each referral"}
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -13,6 +13,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 import { createGoodBoxContact } from "./goodboxContact.ts";
+import { isSimpleReferralScheme, recordPendingInvite } from "./referralScheme.ts";
 
 type Client = any;
 
@@ -204,7 +205,32 @@ export async function completeRegistration(
     .eq("referred_id", userId)
     .maybeSingle();
 
-  if (!referralAlreadyDone) {
+  // Simple referral scheme: nothing is paid at registration and walk-ins are
+  // not placed under a founder. A code entered on the payment page (member
+  // had no inviter yet) is recorded as a pending invite, paid on the first
+  // paid order.
+  const simpleScheme = !referralAlreadyDone && await isSimpleReferralScheme(supabase);
+  if (simpleScheme) {
+    const { data: userProfile } = await supabase
+      .from("profiles")
+      .select("referred_by")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!userProfile?.referred_by && typeof referralCode === "string" && referralCode.trim().length >= 3) {
+      const { data: enteredCode } = await supabase
+        .from("referral_codes")
+        .select("id, user_id")
+        .eq("code", referralCode.trim().toUpperCase())
+        .eq("is_active", true)
+        .maybeSingle();
+      if (enteredCode && enteredCode.user_id !== userId) {
+        await supabase.from("profiles").update({ referred_by: enteredCode.user_id }).eq("id", userId).is("referred_by", null);
+        await recordPendingInvite(supabase, enteredCode.user_id, userId, enteredCode.id);
+      }
+    }
+  }
+
+  if (!referralAlreadyDone && !simpleScheme) {
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("referred_by")
