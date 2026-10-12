@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -1548,6 +1548,7 @@ export type Database = {
           referral_code_id: string | null
           referred_id: string
           referrer_id: string | null
+          reward_order_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1557,6 +1558,7 @@ export type Database = {
           referral_code_id?: string | null
           referred_id: string
           referrer_id?: string | null
+          reward_order_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1566,6 +1568,7 @@ export type Database = {
           referral_code_id?: string | null
           referred_id?: string
           referrer_id?: string | null
+          reward_order_id?: string | null
         }
         Relationships: [
           {
@@ -2029,6 +2032,30 @@ export type Database = {
           },
         ]
       }
+      wallet_withdrawable_conversions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          user_id: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          user_id: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          user_id?: string
+          wallet_id?: string
+        }
+        Relationships: []
+      }
       wallets: {
         Row: {
           balance: number
@@ -2231,11 +2258,19 @@ export type Database = {
         Args: { p_new_user_id: string }
         Returns: undefined
       }
+      credit_founder_commission_mlm: {
+        Args: { p_new_user_id: string }
+        Returns: undefined
+      }
       credit_pending_referral_for_user: {
         Args: { p_user_id: string }
         Returns: undefined
       }
       credit_purchase_commission: {
+        Args: { p_order_total: number; p_user_id: string }
+        Returns: boolean
+      }
+      credit_purchase_commission_mlm: {
         Args: { p_order_total: number; p_user_id: string }
         Returns: boolean
       }
@@ -2333,6 +2368,7 @@ export type Database = {
         Args: { p_payment_id: string }
         Returns: string
       }
+      move_withdrawable_to_purchase_wallets: { Args: never; Returns: Json }
       next_invoice_number: { Args: { p_type: string }; Returns: string }
       notify_admins: {
         Args: {
@@ -2385,9 +2421,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      process_mlm_referral_mlm: {
+        Args: {
+          p_referral_code: string
+          p_referred_user_id: string
+          p_registration_fee?: number
+        }
+        Returns: undefined
+      }
       process_referral_incentive: {
         Args: { p_referral_code: string; p_referred_user_id: string }
         Returns: boolean
+      }
+      process_simple_referral: {
+        Args: { p_order_id: string; p_referred_user_id: string }
+        Returns: undefined
       }
       process_withdrawal: {
         Args: {
@@ -2419,10 +2467,27 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: Json
       }
-      set_withdrawals_enabled: {
-        Args: { p_enabled: boolean }
+      request_withdrawal_unchecked: {
+        Args: { p_amount: number; p_user_id: string }
         Returns: Json
       }
+      reverse_simple_referral: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
+      set_withdrawals_enabled: { Args: { p_enabled: boolean }; Returns: Json }
+      simple_referral_scheme_active: { Args: never; Returns: boolean }
+      take_back_simple_bonus: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_order_id: string
+          p_referred_user_id: string
+          p_wallet_id: string
+        }
+        Returns: number
+      }
+      withdrawals_enabled: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role:
