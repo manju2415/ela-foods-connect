@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, Gift, Users, Wallet, RefreshCw } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 
 interface ReferralCode {
   code: string;
@@ -33,6 +34,7 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const { toast } = useToast();
+  const { scheme, referrerBonus, welcomeBonus } = useReferralScheme();
 
   useEffect(() => {
     fetchData();
@@ -232,14 +234,23 @@ export const ReferralSection = ({ userId }: ReferralSectionProps) => {
 
           <div className="mt-6 p-4 bg-muted rounded-lg">
             <h4 className="font-medium mb-2">How it works:</h4>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Share your code with friends and family</li>
-              <li>• They use your code during registration</li>
-              <li>• You earn bonus credits in your wallet</li>
-              <li>• First 10 referrals: Withdrawable bonus</li>
-              <li>• Beyond 10: Purchase credits bonus</li>
-              <li>• Earn commission on their purchases!</li>
-            </ul>
+            {scheme === "simple" ? (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Share your code with friends and family</li>
+                <li>• They join using your code</li>
+                <li>• When they place their first paid order, you get ₹{referrerBonus} and they get ₹{welcomeBonus}</li>
+                <li>• Wallet credits can be used for purchases</li>
+              </ul>
+            ) : (
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Share your code with friends and family</li>
+                <li>• They use your code during registration</li>
+                <li>• You earn bonus credits in your wallet</li>
+                <li>• First 10 referrals: Withdrawable bonus</li>
+                <li>• Beyond 10: Purchase credits bonus</li>
+                <li>• Earn commission on their purchases!</li>
+              </ul>
+            )}
           </div>
         </CardContent>
       </Card>

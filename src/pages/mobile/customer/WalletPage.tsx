@@ -24,6 +24,7 @@ import { initiateRazorpayPayment, isPaymentCancelled, preloadRazorpayScript } fr
 import { realEmailOrEmpty } from "@/lib/email";
 import { toast } from "sonner";
 import { InviteCodeCard } from "@/components/InviteCodeCard";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 
 interface WalletData {
   balance: number;
@@ -49,6 +50,7 @@ export default function CustomerWalletPage() {
   const [topupAmount, setTopupAmount] = useState("");
   const [topupSubmitting, setTopupSubmitting] = useState(false);
   const [walletLimits, setWalletLimits] = useState({ min_wallet_topup: 100, max_wallet_balance: 0 });
+  const { withdrawalsEnabled } = useReferralScheme();
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -212,6 +214,7 @@ export default function CustomerWalletPage() {
                 ₹{wallet?.balance?.toFixed(2) || "0.00"}
               </p>
               
+              {withdrawalsEnabled ? (
               <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-primary-foreground/20">
                 <div>
                   <p className="text-xs opacity-75">Purchase Only</p>
@@ -226,16 +229,20 @@ export default function CustomerWalletPage() {
                   </p>
                 </div>
               </div>
+              ) : (
+                <p className="text-xs opacity-75">Usable for purchases</p>
+              )}
             </CardContent>
           </Card>
 
           {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${withdrawalsEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
             <Button variant="outline" className="h-auto py-4 flex-col gap-2" onClick={openTopup}>
               <Plus className="h-5 w-5" />
               <span className="text-sm">Add Money</span>
             </Button>
-            <Button 
+            {withdrawalsEnabled && (
+            <Button
               variant="outline" 
               className="h-auto py-4 flex-col gap-2"
               onClick={() => navigate("/dashboard")}
@@ -243,6 +250,7 @@ export default function CustomerWalletPage() {
               <ArrowUpRight className="h-5 w-5" />
               <span className="text-sm">Withdraw</span>
             </Button>
+            )}
           </div>
 
           {user && <InviteCodeCard userId={user.id} />}

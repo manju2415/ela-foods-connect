@@ -6,17 +6,20 @@ import { Copy, Gift, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 
 const INVITE_BASE_URL = "https://elabazar.com/auth";
 
 /**
  * Invite & earn card. Shows the user's active invite code; while registration
  * is switched off every logged-in user can get one, so it is issued on first
- * view. The inviter is credited (per MLM settings) on the invitee's first paid
- * order. Renders nothing when the user has no code and cannot get one.
+ * view. The inviter is credited (per the active referral scheme) on the
+ * invitee's first paid order. Renders nothing when the user has no code and
+ * cannot get one.
  */
 export function InviteCodeCard({ userId }: { userId: string }) {
   const { registrationEnabled, isLoading: settingLoading } = useRegistrationEnabled();
+  const { scheme, referrerBonus, welcomeBonus } = useReferralScheme();
   const [code, setCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -86,9 +89,11 @@ export function InviteCodeCard({ userId }: { userId: string }) {
           <Share2 className="mr-2 h-4 w-4" /> Share invite
         </Button>
         <p className="text-xs text-muted-foreground">
-          {registrationEnabled
-            ? "Friends sign up with your code. You earn wallet credits when they complete their membership payment."
-            : "Friends log in with your code. You earn wallet credits when they place their first paid order."}
+          {scheme === "simple"
+            ? `Friends join with your code. When they place their first paid order, you get ₹${referrerBonus} and they get ₹${welcomeBonus} in wallet credit to use on purchases.`
+            : registrationEnabled
+              ? "Friends sign up with your code. You earn wallet credits when they complete their membership payment."
+              : "Friends log in with your code. You earn wallet credits when they place their first paid order."}
         </p>
       </CardContent>
     </Card>

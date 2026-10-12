@@ -15,6 +15,17 @@ import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus } from "lucide-reac
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 import { REGISTRATION_ENABLED_QUERY_KEY } from "@/hooks/useRegistrationEnabled";
+import { REFERRAL_SCHEME_QUERY_KEY } from "@/hooks/useReferralScheme";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface StoreSettings {
   store_name: string;
@@ -39,12 +50,10 @@ interface TaxSettings {
   tax_included_in_price: boolean;
 }
 
-interface ReferralSettings {
-  referral_bonus_amount: number;
-  enable_referral_bonus: boolean;
-  max_referrals_per_user: number | null;
-  welcome_bonus_amount: number;
-  enable_welcome_bonus: boolean;
+interface ReferralSchemeSettings {
+  scheme: "simple" | "mlm";
+  referrer_bonus: number;
+  welcome_bonus: number;
 }
 
 interface WalletSettings {
@@ -76,12 +85,11 @@ const defaultTaxSettings: TaxSettings = {
   tax_included_in_price: true,
 };
 
-const defaultReferralSettings: ReferralSettings = {
-  referral_bonus_amount: 50,
-  enable_referral_bonus: true,
-  max_referrals_per_user: null,
-  welcome_bonus_amount: 0,
-  enable_welcome_bonus: false,
+// No row means the MLM scheme — the same default the server uses.
+const defaultReferralSchemeSettings: ReferralSchemeSettings = {
+  scheme: "mlm",
+  referrer_bonus: 99,
+  welcome_bonus: 99,
 };
 
 const defaultWalletSettings: WalletSettings = {
@@ -94,9 +102,11 @@ export default function Settings() {
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(defaultStoreSettings);
   const [shippingSettings, setShippingSettings] = useState<ShippingSettings>(defaultShippingSettings);
   const [taxSettings, setTaxSettings] = useState<TaxSettings>(defaultTaxSettings);
-  const [referralSettings, setReferralSettings] = useState<ReferralSettings>(defaultReferralSettings);
+  const [referralScheme, setReferralScheme] = useState<ReferralSchemeSettings>(defaultReferralSchemeSettings);
   const [walletSettings, setWalletSettings] = useState<WalletSettings>(defaultWalletSettings);
   const [registrationEnabled, setRegistrationEnabled] = useState(true);
+  const [withdrawalsEnabled, setWithdrawalsEnabled] = useState(true);
+  const [confirmWithdrawalsOff, setConfirmWithdrawalsOff] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
@@ -120,8 +130,10 @@ export default function Settings() {
           setShippingSettings({ ...defaultShippingSettings, ...(setting.value as unknown as ShippingSettings) });
         } else if (setting.key === "tax_settings" && setting.value) {
           setTaxSettings({ ...defaultTaxSettings, ...(setting.value as unknown as TaxSettings) });
-        } else if (setting.key === "referral_settings" && setting.value) {
-          setReferralSettings({ ...defaultReferralSettings, ...(setting.value as unknown as ReferralSettings) });
+        } else if (setting.key === "referral_scheme_settings" && setting.value) {
+          setReferralScheme({ ...defaultReferralSchemeSettings, ...(setting.value as unknown as ReferralSchemeSettings) });
+        } else if (setting.key === "withdrawal_settings" && setting.value) {
+          setWithdrawalsEnabled((setting.value as { withdrawals_enabled?: unknown }).withdrawals_enabled !== false);
         } else if (setting.key === "wallet_settings" && setting.value) {
           setWalletSettings({ ...defaultWalletSettings, ...(setting.value as unknown as WalletSettings) });
         } else if (setting.key === "registration_settings" && setting.value) {
@@ -202,13 +214,61 @@ export default function Settings() {
     },
   });
 
+  // Saved the moment it is flipped, like the registration switch: it decides
+  // which payouts run on the next paid order.
+  const schemeMutation = useMutation({
+    mutationFn: async (next: ReferralSchemeSettings) => {
+      await saveSetting(
+        "referral_scheme_settings",
+        next as unknown as Json,
+        "Referral scheme: simple (flat bonus on first order) or mlm (super admin)",
+      );
+      return next;
+    },
+    onMutate: (next) => setReferralScheme(next),
+    onSuccess: (next) => {
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: REFERRAL_SCHEME_QUERY_KEY });
+      toast.success(next.scheme === "simple" ? "Simple referral scheme turned ON" : "MLM scheme turned ON");
+    },
+    onError: (error, next) => {
+      setReferralScheme({ ...next, scheme: next.scheme === "simple" ? "mlm" : "simple" });
+      toast.error("Failed to update referral scheme: " + error.message);
+    },
+  });
+
+  // Goes through an RPC: turning withdrawals off also moves every withdrawable
+  // balance to the purchase wallet and cancels pending requests.
+  const withdrawalsMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { data, error } = await supabase.rpc("set_withdrawals_enabled", { p_enabled: enabled });
+      if (error) throw error;
+      const result = data as { success?: boolean; error?: string; cancelled_requests?: number; wallets_moved?: number } | null;
+      if (!result?.success) throw new Error(result?.error || "Unknown error");
+      return { enabled, result };
+    },
+    onSuccess: ({ enabled, result }) => {
+      setWithdrawalsEnabled(enabled);
+      queryClient.invalidateQueries({ queryKey: ["platform-settings"] });
+      queryClient.invalidateQueries({ queryKey: REFERRAL_SCHEME_QUERY_KEY });
+      toast.success(
+        enabled
+          ? "Cash withdrawals turned ON"
+          : `Cash withdrawals turned OFF. ${result.wallets_moved ?? 0} wallet(s) moved to purchase balance, ${result.cancelled_requests ?? 0} pending request(s) cancelled.`,
+      );
+    },
+    onError: (error) => {
+      toast.error("Failed to update withdrawals: " + error.message);
+    },
+  });
+
   const handleSaveAll = async () => {
     setIsSaving(true);
     await saveMutation.mutateAsync([
       { key: "store_settings", value: storeSettings as unknown as Json, description: "General store information", label: "Store" },
       { key: "shipping_settings", value: shippingSettings as unknown as Json, description: "Shipping rates and zones", label: "Shipping" },
       { key: "tax_settings", value: taxSettings as unknown as Json, description: "Tax configuration", label: "Tax" },
-      { key: "referral_settings", value: referralSettings as unknown as Json, description: "Referral incentive settings", label: "Referral" },
+      { key: "referral_scheme_settings", value: referralScheme as unknown as Json, description: "Referral scheme: simple (flat bonus on first order) or mlm (super admin)", label: "Referral" },
       { key: "wallet_settings", value: walletSettings as unknown as Json, description: "Wallet configuration", label: "Wallet" },
     ]);
     setIsSaving(false);
@@ -460,21 +520,27 @@ export default function Settings() {
           <TabsContent value="referral">
             <Card>
               <CardHeader>
-                <CardTitle>Referral Incentive Settings</CardTitle>
-                <CardDescription>Configure referral bonuses for founding members</CardDescription>
+                <CardTitle>Referral Scheme</CardTitle>
+                <CardDescription>
+                  Choose between the simple referral bonus and the full MLM scheme. The switch applies immediately.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
-                    <Label>Enable Referral Bonus</Label>
+                    <Label htmlFor="simple_referral_scheme">Simple Referral Scheme</Label>
                     <p className="text-sm text-muted-foreground">
-                      Credit referrer's wallet when a new user signs up with their code
+                      {referralScheme.scheme === "simple"
+                        ? "ON: MLM commissions are paused"
+                        : "OFF: the MLM scheme from MLM Settings is active"}
                     </p>
                   </div>
                   <Switch
-                    checked={referralSettings.enable_referral_bonus}
+                    id="simple_referral_scheme"
+                    checked={referralScheme.scheme === "simple"}
+                    disabled={schemeMutation.isPending}
                     onCheckedChange={(checked) =>
-                      setReferralSettings({ ...referralSettings, enable_referral_bonus: checked })
+                      schemeMutation.mutate({ ...referralScheme, scheme: checked ? "simple" : "mlm" })
                     }
                   />
                 </div>
@@ -483,80 +549,49 @@ export default function Settings() {
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="referral_bonus_amount">Referral Bonus Amount (₹)</Label>
+                    <Label htmlFor="referrer_bonus">Referral Bonus (₹)</Label>
                     <Input
-                      id="referral_bonus_amount"
+                      id="referrer_bonus"
                       type="number"
-                      value={referralSettings.referral_bonus_amount}
+                      min={0}
+                      value={referralScheme.referrer_bonus}
                       onChange={(e) =>
-                        setReferralSettings({
-                          ...referralSettings,
-                          referral_bonus_amount: parseFloat(e.target.value) || 0,
+                        setReferralScheme({
+                          ...referralScheme,
+                          referrer_bonus: Math.max(0, parseFloat(e.target.value) || 0),
                         })
                       }
-                      disabled={!referralSettings.enable_referral_bonus}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Amount credited to referrer when someone uses their code
+                      Credited to the person who invited
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="max_referrals">Max Referrals Per User</Label>
+                    <Label htmlFor="welcome_bonus">Welcome Bonus (₹)</Label>
                     <Input
-                      id="max_referrals"
+                      id="welcome_bonus"
                       type="number"
-                      value={referralSettings.max_referrals_per_user ?? ""}
-                      placeholder="Unlimited"
+                      min={0}
+                      value={referralScheme.welcome_bonus}
                       onChange={(e) =>
-                        setReferralSettings({
-                          ...referralSettings,
-                          max_referrals_per_user: e.target.value ? parseInt(e.target.value) : null,
+                        setReferralScheme({
+                          ...referralScheme,
+                          welcome_bonus: Math.max(0, parseFloat(e.target.value) || 0),
                         })
                       }
-                      disabled={!referralSettings.enable_referral_bonus}
                     />
                     <p className="text-sm text-muted-foreground">
-                      Leave empty for unlimited referrals
+                      Credited to the new member who joined with the invite code
                     </p>
                   </div>
                 </div>
 
-                <Separator />
-
-                <div className="flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <Label>Enable Welcome Bonus</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Credit new user's wallet when they sign up with a referral code
-                    </p>
-                  </div>
-                  <Switch
-                    checked={referralSettings.enable_welcome_bonus}
-                    onCheckedChange={(checked) =>
-                      setReferralSettings({ ...referralSettings, enable_welcome_bonus: checked })
-                    }
-                  />
-                </div>
-
-                {referralSettings.enable_welcome_bonus && (
-                  <div className="space-y-2">
-                    <Label htmlFor="welcome_bonus_amount">Welcome Bonus Amount (₹)</Label>
-                    <Input
-                      id="welcome_bonus_amount"
-                      type="number"
-                      value={referralSettings.welcome_bonus_amount}
-                      onChange={(e) =>
-                        setReferralSettings({
-                          ...referralSettings,
-                          welcome_bonus_amount: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                    />
-                    <p className="text-sm text-muted-foreground">
-                      Amount credited to new user's wallet on signup
-                    </p>
-                  </div>
-                )}
+                <p className="text-sm text-muted-foreground">
+                  While the simple scheme is ON, both bonuses are paid once, when the invited person's first paid
+                  order completes, as wallet credit usable only for purchases. The same amounts apply to every user,
+                  including founders, and to earlier invites that have not ordered yet. Save amount changes with
+                  "Save All Settings". Turning the simple scheme OFF restores the MLM scheme with its saved settings.
+                </p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -569,6 +604,48 @@ export default function Settings() {
                 <CardDescription>Configure wallet rules and limits</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="withdrawals_enabled">Cash Withdrawals</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {withdrawalsEnabled
+                        ? "ON: members can withdraw their withdrawable balance to bank"
+                        : "OFF: wallet balance can be used only for purchases"}
+                    </p>
+                  </div>
+                  <Switch
+                    id="withdrawals_enabled"
+                    checked={withdrawalsEnabled}
+                    disabled={withdrawalsMutation.isPending}
+                    onCheckedChange={(checked) => {
+                      if (checked) withdrawalsMutation.mutate(true);
+                      else setConfirmWithdrawalsOff(true);
+                    }}
+                  />
+                </div>
+
+                <AlertDialog open={confirmWithdrawalsOff} onOpenChange={setConfirmWithdrawalsOff}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Turn off cash withdrawals?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Every member's withdrawable balance will be moved to their purchase wallet, and pending
+                        withdrawal requests will be cancelled with the amount returned to the purchase wallet.
+                        Approved or processing requests are left for you to handle. Turning withdrawals back on
+                        later does not move the balances back.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => withdrawalsMutation.mutate(false)}>
+                        Turn off withdrawals
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                <Separator />
+
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <Label>Enable Wallet Payments</Label>

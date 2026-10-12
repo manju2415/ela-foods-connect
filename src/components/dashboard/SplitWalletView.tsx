@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 import { Wallet, ArrowUpRight, ArrowDownRight, Banknote, ShoppingBag, History } from "lucide-react";
 
 interface WalletData {
@@ -46,6 +47,7 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
   const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const { toast } = useToast();
+  const { withdrawalsEnabled } = useReferralScheme();
 
   useEffect(() => {
     fetchWalletData();
@@ -145,7 +147,7 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
   return (
     <div className="space-y-6">
       {/* Balance Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className={`grid gap-4 ${withdrawalsEnabled ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -160,6 +162,7 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
           </CardContent>
         </Card>
 
+        {withdrawalsEnabled && (
         <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5 border-green-500/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -206,6 +209,7 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
             )}
           </CardContent>
         </Card>
+        )}
 
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-500/20">
           <CardHeader className="pb-2">
@@ -267,9 +271,11 @@ export const SplitWalletView = ({ userId }: SplitWalletViewProps) => {
                     <p className={`font-semibold ${["credit", "referral_bonus", "refund"].includes(tx.type) ? "text-green-600" : "text-red-600"}`}>
                       {["credit", "referral_bonus", "refund"].includes(tx.type) ? "+" : "-"}₹{Number(tx.amount).toFixed(2)}
                     </p>
-                    <Badge variant="outline" className="text-xs">
-                      {tx.is_withdrawable ? "Withdrawable" : "Purchase only"}
-                    </Badge>
+                    {withdrawalsEnabled && (
+                      <Badge variant="outline" className="text-xs">
+                        {tx.is_withdrawable ? "Withdrawable" : "Purchase only"}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               ))}

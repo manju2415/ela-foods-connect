@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { IfscInput } from "@/components/IfscInput";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 import { Loader2, Banknote, Clock, CheckCircle, XCircle, ArrowDownToLine } from "lucide-react";
 
 import { format } from "date-fns";
@@ -44,6 +45,7 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
   const [showBankForm, setShowBankForm] = useState(false);
   const [ifscVerified, setIfscVerified] = useState(false);
   const [withdrawableBalance, setWithdrawableBalance] = useState(0);
+  const { withdrawalsEnabled, isLoading: schemeLoading } = useReferralScheme();
 
   const [bankDetails, setBankDetails] = useState({
     bank_name: "",
@@ -191,7 +193,7 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
     }
   };
 
-  if (loadingData) {
+  if (loadingData || schemeLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center p-8">
@@ -203,6 +205,8 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
 
   return (
     <div className="space-y-6">
+      {withdrawalsEnabled ? (
+      <>
       {/* Bank Details Card */}
       <Card>
         <CardHeader>
@@ -314,6 +318,20 @@ export const WithdrawalSection = ({ userId }: WithdrawalSectionProps) => {
           )}
         </CardContent>
       </Card>
+      </>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5" />
+              Withdrawals
+            </CardTitle>
+            <CardDescription>
+              Cash withdrawals are turned off. Your wallet balance can be used for purchases.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
 
       {/* Withdrawal History */}
       <Card>

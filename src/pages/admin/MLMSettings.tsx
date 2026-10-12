@@ -12,6 +12,8 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, DollarSign, Users, Percent, Gift, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useReferralScheme } from "@/hooks/useReferralScheme";
 
 interface MLMSetting {
   id: string;
@@ -23,6 +25,7 @@ interface MLMSetting {
 const MLMSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { scheme } = useReferralScheme();
   
   const [settings, setSettings] = useState<Record<string, Record<string, unknown>>>({
     registration_fee: { total: 2000, non_refundable: 1000, wallet_credit: 1000 },
@@ -150,6 +153,16 @@ const MLMSettings = () => {
               Save All Settings
             </Button>
           </div>
+
+          {scheme === "simple" && (
+            <Alert>
+              <AlertTitle>MLM scheme is paused</AlertTitle>
+              <AlertDescription>
+                The simple referral scheme is ON (Platform Settings → Referrals), so none of the bonuses and
+                commissions below are paid. They stay saved and apply again when the simple scheme is turned OFF.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Registration Fees */}
           <Card>

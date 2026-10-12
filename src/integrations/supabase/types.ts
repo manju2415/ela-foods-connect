@@ -2419,6 +2419,10 @@ export type Database = {
         Args: { p_amount: number; p_user_id: string }
         Returns: Json
       }
+      set_withdrawals_enabled: {
+        Args: { p_enabled: boolean }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
