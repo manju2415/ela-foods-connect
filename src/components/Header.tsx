@@ -130,7 +130,7 @@ const WebsiteHeader = () => {
   return (
     <>
       {/* Announcement strip (scrolls away; only the main bar is sticky) */}
-      <div className="bg-primary text-primary-foreground">
+      <div className="bg-green-600 text-white">
         <div className="container mx-auto flex h-8 items-center justify-between gap-4 px-4 text-xs">
           <p className="truncate font-medium">
             <Truck className="mr-1.5 inline h-3.5 w-3.5 align-[-2px]" />
