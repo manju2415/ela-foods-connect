@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
@@ -26,6 +26,17 @@ import { useShippingSettings } from "@/hooks/useShippingSettings";
 import { Capacitor } from "@capacitor/core";
 import { hapticSuccess } from "@/lib/haptics";
 import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
+import { useQuery } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +80,7 @@ interface Coupon {
 
 const Checkout = () => {
   const { user } = useAuth();
-  const { items, totalPrice, memberTotalPrice, clearCart } = useCart();
+  const { items, totalPrice, memberTotalPrice, clearCart, refreshCart, removeFromCart, updateQuantity } = useCart();
   const { isMember } = useUserRole();
   const memberPricing = useMemberPricing();
   const navigate = useNavigate();
@@ -121,6 +132,57 @@ const Checkout = () => {
     const pickupStock = storePickupStockMap?.get(item.product_id) ?? 0;
     return item.quantity <= pickupStock;
   });
+
+  // Stock as place_order_atomic will see it for the chosen fulfilment: home
+  // delivery draws only on central stock; pickup uses the store's own row if
+  // it has one, else central stock (20260908000000_pickup_stock_fallback_to_central).
+  const { data: pickupStoreStock } = useQuery({
+    queryKey: ["checkout-store-stock", pickupStoreId, items.map((item) => item.product_id).sort().join(",")],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("store_inventory")
+        .select("product_id, stock_quantity")
+        .eq("store_id", pickupStoreId!)
+        .in("product_id", items.map((item) => item.product_id));
+      return new Map((data || []).map((row) => [row.product_id, row.stock_quantity ?? 0]));
+    },
+    enabled: fulfillmentType === "store_pickup" && !!pickupStoreId && items.length > 0,
+  });
+  const stockIssues = items.flatMap((item) => {
+    const centralStock = item.variant?.stock_quantity ?? item.product.stock_quantity ?? 0;
+    let available = centralStock;
+    if (fulfillmentType === "store_pickup") {
+      if (!pickupStoreId) return [];
+      available = pickupStoreStock?.get(item.product_id) ?? centralStock;
+    }
+    if (item.quantity <= available) return [];
+    return [{ item, available: Math.max(available, 0), pickupOnly: fulfillmentType === "delivery" && pickupOnlyItems.includes(item) }];
+  });
+  const itemLabel = (item: (typeof items)[number]) =>
+    `${item.product.name}${item.variant?.label ? ` (${item.variant.label})` : ""}`;
+  const [showStockDialog, setShowStockDialog] = useState(false);
+  const [fixingStock, setFixingStock] = useState(false);
+  const [continueAfterStockFix, setContinueAfterStockFix] = useState(false);
+
+  // The stock loaded with the cart may be stale by the time the customer
+  // reaches checkout — re-read it once here.
+  useEffect(() => {
+    refreshCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Removes / trims the unavailable items; the effect further down then
+  // carries on with placing the order once the cart has reloaded.
+  const removeUnavailableAndContinue = async () => {
+    setFixingStock(true);
+    for (const { item, available } of stockIssues) {
+      if (available <= 0) await removeFromCart(item.id);
+      else await updateQuantity(item.id, available);
+    }
+    setFixingStock(false);
+    setShowStockDialog(false);
+    setContinueAfterStockFix(true);
+  };
 
 
   const [newAddress, setNewAddress] = useState({
@@ -347,12 +409,8 @@ const Checkout = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (fulfillmentType === "delivery" && pickupOnlyItems.length > 0) {
-      toast({
-        title: "Store pickup only",
-        description: `${pickupOnlyItems.map((item) => item.product.name).join(", ")} ${pickupOnlyItems.length > 1 ? "are" : "is"} only available for store pickup right now. Switch to Store Pickup to order ${pickupOnlyItems.length > 1 ? "them" : "it"}.`,
-        variant: "destructive",
-      });
+    if (stockIssues.length > 0) {
+      setShowStockDialog(true);
       return;
     }
     if (fulfillmentType === "delivery" && !selectedAddressId) {
@@ -485,6 +543,7 @@ const Checkout = () => {
     const result = data as { success: boolean; error?: string; code?: string; order_id?: string; order_number?: string; total_amount?: number } | null;
     if (error || !result?.success) {
       toast({ title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : "Order failed", description: result?.error || error?.message || "Please try again.", variant: "destructive" });
+      if (result?.code === "OUT_OF_STOCK") await refreshCart();
       await fetchData();
       setPlacing(false);
       return;
@@ -499,6 +558,14 @@ const Checkout = () => {
     }
     await finishOrder("Order Placed!", result.order_id!, result.order_number!, 0);
   };
+
+  // "Yes, remove & place order": continue once the trimmed cart is in state.
+  useEffect(() => {
+    if (!continueAfterStockFix || fixingStock) return;
+    setContinueAfterStockFix(false);
+    if (items.length > 0 && stockIssues.length === 0) handlePlaceOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [continueAfterStockFix, fixingStock, items]);
 
   if (!user) {
     return null;
@@ -556,12 +623,18 @@ const Checkout = () => {
   const finalAmount = amountAfterDiscount - totalWalletUsed;
 
   // Shared by the in-page button and the installed app's sticky pay bar.
-  const payDisabled =
-    placing ||
-    !hasDeliveryDate ||
-    (fulfillmentType === "delivery"
-      ? !selectedAddressId || pickupOnlyItems.length > 0
-      : !pickupStoreId);
+  // Stock problems don't disable the button: tapping it explains which item
+  // is short and offers to remove it (see the stock dialog below).
+  const payBlockedReason = !hasDeliveryDate
+    ? "No delivery date is available for the items in your cart."
+    : fulfillmentType === "delivery"
+      ? !selectedAddressId ? "Add or select a delivery address to place your order." : null
+      : !pickupStoreId ? "Select a pickup store to place your order." : null;
+  const payDisabled = placing || fixingStock || !!payBlockedReason;
+  const stockNotice = stockIssues.length > 0
+    ? `${stockIssues.map(({ item }) => item.product.name).join(", ")} ${stockIssues.length > 1 ? "are" : "is"} not available in the quantity you selected. Tap Place Order to remove ${stockIssues.length > 1 ? "them" : "it"} and continue.`
+    : null;
+  const payHint = stockNotice || (placing ? null : payBlockedReason);
   const payLabel = placing ? "Processing..." : finalAmount > 0 ? `Pay ₹${finalAmount.toFixed(2)} & Place Order` : "Place Order";
 
   return (
@@ -905,6 +978,16 @@ const Checkout = () => {
                           {item.product.name}{item.variant?.label ? ` — ${item.variant.label}` : ""}
                         </p>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                        {(() => {
+                          const issue = stockIssues.find((i) => i.item.id === item.id);
+                          if (!issue) return null;
+                          return (
+                            <p className="text-xs font-medium text-destructive">
+                              {issue.available <= 0 ? "Out of stock" : `Only ${issue.available} available`}
+                              {issue.pickupOnly ? " for home delivery" : ""}
+                            </p>
+                          );
+                        })()}
                         <p className="text-sm font-semibold">
                           ₹{((memberPricing
                             ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price || item.product.price))
@@ -975,6 +1058,9 @@ const Checkout = () => {
                 })()}
                 </div>
 
+                {!isNativeApp && payHint && (
+                  <p className="text-sm text-destructive text-center">{payHint}</p>
+                )}
                 <Button
                   className={isNativeApp ? "hidden" : "w-full"}
                   size="lg"
@@ -1003,6 +1089,7 @@ const Checkout = () => {
         <>
           <div aria-hidden className="h-24" />
           <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background px-4 pt-3 safe-area-pb shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+            {payHint && <p className="pb-2 text-xs font-medium text-destructive">{payHint}</p>}
             <div className="flex items-center gap-3 pb-3">
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">{finalAmount > 0 ? "To pay" : "Total"}</p>
@@ -1015,6 +1102,46 @@ const Checkout = () => {
           </div>
         </>
       )}
+
+      <AlertDialog open={showStockDialog} onOpenChange={(open) => !fixingStock && setShowStockDialog(open)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {stockIssues.length > 1 ? "Some items are not available" : "Item not available"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                {stockIssues.map(({ item, available, pickupOnly }) => (
+                  <p key={item.id}>
+                    {available <= 0 ? (
+                      <><span className="font-semibold text-foreground">{itemLabel(item)}</span> is not available{pickupOnly ? " for home delivery" : ""} at the moment.</>
+                    ) : (
+                      <>Only <span className="font-semibold text-foreground">{available}</span> of <span className="font-semibold text-foreground">{itemLabel(item)}</span> {available > 1 ? "are" : "is"} available{pickupOnly ? " for home delivery" : ""} (you added {item.quantity}).</>
+                    )}
+                  </p>
+                ))}
+                <p className="pt-1">
+                  {stockIssues.every((i) => i.available <= 0)
+                    ? `Do you want to remove ${stockIssues.length > 1 ? "them" : "it"} and proceed with your order?`
+                    : "Do you want to update your cart to the available quantity and proceed with your order?"}
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={fixingStock}>No, go back</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={fixingStock}
+              onClick={(e) => {
+                e.preventDefault();
+                removeUnavailableAndContinue();
+              }}
+            >
+              {fixingStock ? "Updating..." : "Yes, remove & place order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Footer />
     </div>

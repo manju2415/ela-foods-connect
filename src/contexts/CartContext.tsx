@@ -45,6 +45,8 @@ interface CartContextType {
   updateQuantity: (itemId: string, quantity: number) => Promise<boolean>;
   removeFromCart: (itemId: string) => Promise<void>;
   clearCart: () => Promise<void>;
+  /** Re-reads the cart (incl. current stock) from the server. */
+  refreshCart: () => Promise<void>;
   totalItems: number;
   totalPrice: number;
   memberTotalPrice: number;
@@ -263,7 +265,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const addToCart = async (productId: string, quantity = 1, variantId: string | null = null): Promise<boolean> => {
     const existingItem = items.find((item) => item.product_id === productId && (item.variant_id ?? null) === (variantId ?? null));
     const requestedQuantity = (existingItem?.quantity || 0) + quantity;
-    const stock = variantId ? existingItem?.variant?.stock_quantity : existingItem?.product.stock_quantity;
+    let stock = variantId ? existingItem?.variant?.stock_quantity : existingItem?.product.stock_quantity;
+    if (stock === undefined) {
+      // Not in the cart yet, so its stock isn't loaded — read it, so an item
+      // that is already sold out can't be added at all.
+      const { data } = variantId
+        ? await supabase.from("product_variants").select("stock_quantity").eq("id", variantId).maybeSingle()
+        : await supabase.from("products").select("stock_quantity").eq("id", productId).maybeSingle();
+      if (data?.stock_quantity != null) stock = data.stock_quantity;
+    }
     if (stock !== undefined && requestedQuantity > stock) {
       // Central stock alone says no, but store-pickup inventory is tracked as
       // a separate pool (see admin Store Inventory) and can still cover this
@@ -271,7 +281,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       // fulfillment-specific check still happens server-side at checkout.
       const maxStorePickupStock = await fetchMaxStorePickupStock(productId);
       if (requestedQuantity > maxStorePickupStock) {
-        toast({ title: "Not enough stock", description: `Only ${stock} available.`, variant: "destructive" });
+        toast(
+          stock <= 0 && maxStorePickupStock <= 0
+            ? { title: "Out of stock", description: "This item is not available at the moment.", variant: "destructive" }
+            : { title: "Not enough stock", description: `Only ${Math.max(stock, maxStorePickupStock)} available.`, variant: "destructive" },
+        );
         return false;
       }
     }
@@ -429,6 +443,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshCart = async () => {
+    if (user) await fetchCart();
+    else await loadGuestCart();
+  };
+
   const clearCart = async () => {
     if (user) {
       const { error } = await supabase
@@ -469,6 +488,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         updateQuantity,
         removeFromCart,
         clearCart,
+        refreshCart,
         totalItems,
         totalPrice,
         memberTotalPrice,

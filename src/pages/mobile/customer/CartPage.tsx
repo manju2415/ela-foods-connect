@@ -11,6 +11,8 @@ import { OptimizedImage } from "@/components/ui/optimized-image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { hapticTap } from "@/lib/haptics";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
+import { CartStockNote } from "@/components/CartStockNote";
 
 const formatRupees = (amount: number) => `₹${amount.toFixed(2)}`;
 
@@ -23,6 +25,7 @@ export default function CartPage() {
   const { user } = useAuth();
   const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice, memberTotalPrice } = useCart();
   const memberPricing = useMemberPricing();
+  const { data: pickupStockMap } = useStorePickupStockMap(items.map((item) => item.product_id));
   const { calculateShipping } = useShippingSettings();
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
@@ -101,6 +104,11 @@ export default function CartPage() {
                         <p className="line-clamp-2 text-sm font-semibold leading-snug">{item.product.name}</p>
                         {item.variant?.label && <p className="text-xs text-muted-foreground">{item.variant.label}</p>}
                         <p className="mt-0.5 text-xs text-muted-foreground">{formatRupees(price)} each</p>
+                        <CartStockNote
+                          quantity={item.quantity}
+                          stock={item.variant ? item.variant.stock_quantity : item.product.stock_quantity}
+                          pickupStock={pickupStockMap?.get(item.product_id)}
+                        />
                         <div className="mt-2 flex items-center justify-between gap-2">
                           <div className="flex items-center rounded-lg bg-primary text-primary-foreground">
                             <button

@@ -12,6 +12,8 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
+import { useStorePickupStockMap } from "@/hooks/useStorePickupStock";
+import { CartStockNote } from "@/components/CartStockNote";
 import { Minus, Plus, Trash2, ShoppingBag, ArrowLeft, Store } from "lucide-react";
 
 interface CartSheetProps {
@@ -23,6 +25,7 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
   const { items, loading, updateQuantity, removeFromCart, totalItems, totalPrice, memberTotalPrice } = useCart();
   const { user } = useAuth();
   const memberPricing = useMemberPricing();
+  const { data: pickupStockMap } = useStorePickupStockMap(items.map((item) => item.product_id));
   const navigate = useNavigate();
   const { calculateShipping } = useShippingSettings();
   const displayTotalPrice = memberPricing ? memberTotalPrice : totalPrice;
@@ -111,6 +114,11 @@ const CartSheet = ({ open, onOpenChange }: CartSheetProps) => {
                         ? (item.variant ? (item.variant.member_price ?? item.variant.price) : (item.product.member_price ?? item.product.price))
                         : (item.variant?.price ?? item.product.price)}
                     </p>
+                    <CartStockNote
+                        quantity={item.quantity}
+                        stock={item.variant ? item.variant.stock_quantity : item.product.stock_quantity}
+                        pickupStock={pickupStockMap?.get(item.product_id)}
+                      />
                     <div className="flex items-center gap-2 mt-2">
                       <Button
                         variant="outline"
