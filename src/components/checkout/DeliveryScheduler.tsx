@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Clock } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
-import { availableDeliveryDates, loadDeliveryRules, type DeliveryRules } from "@/lib/deliveryDays";
+import { Truck } from "lucide-react";
+import { format, isToday, isTomorrow } from "date-fns";
+import { availableDeliveryDates, isDeliverableOn, loadDeliveryRules, type DeliveryRules } from "@/lib/deliveryDays";
 
 interface DeliverySlot {
   id: string;
@@ -27,6 +25,27 @@ interface DeliverySchedulerProps {
   onAvailabilityChange?: (available: boolean) => void;
 }
 
+// Standard delivery: orders placed before noon can come the same evening;
+// later orders go out the next delivery day, morning or afternoon.
+const SAME_DAY_CUTOFF_HOUR = 12;
+
+type SlotKind = "morning" | "afternoon" | "evening";
+const SLOT_KINDS: Record<SlotKind, { start: string; name: string; hours: string; order: number }> = {
+  morning: { start: "09:00", name: "Morning", hours: "9 AM – 12 PM", order: 0 },
+  afternoon: { start: "12:00", name: "Afternoon", hours: "12 PM – 3 PM", order: 1 },
+  evening: { start: "15:00", name: "Evening", hours: "3 PM – 6 PM", order: 2 },
+};
+
+interface DeliveryOption {
+  key: string;
+  date: Date;
+  slot: DeliverySlot | null;
+  label: string;
+}
+
+const dayLabel = (date: Date) =>
+  isToday(date) ? "Today" : isTomorrow(date) ? "Tomorrow" : format(date, "EEEE, d MMM");
+
 export const DeliveryScheduler = ({
   selectedDate,
   selectedSlotId,
@@ -38,6 +57,13 @@ export const DeliveryScheduler = ({
   const [slots, setSlots] = useState<DeliverySlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [rules, setRules] = useState<DeliveryRules | null>(null);
+  // Re-evaluated every minute so the same-day option disappears at noon.
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
 
   const productKey = [...productIds].sort().join(",");
   useEffect(() => {
@@ -50,54 +76,83 @@ export const DeliveryScheduler = ({
     };
   }, [productKey]);
 
-  // Next available days, skipping days the cart's items can't be delivered on.
-  const availableDates = useMemo(
-    () => (rules ? availableDeliveryDates(rules.categoryIds, rules.categories, rules.overrides) : []),
-    [rules],
-  );
-
   useEffect(() => {
-    fetchSlots();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchSlots = async () => {
-    const { data, error } = await supabase
+    let cancelled = false;
+    supabase
       .from("delivery_time_slots")
       .select("id, name, start_time, end_time")
       .eq("is_active", true)
-      .order("display_order");
+      .order("display_order")
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (!error && data) setSlots(data);
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    if (!error && data) {
-      setSlots(data);
-      if (data.length > 0 && !selectedSlotId) {
-        onSlotChange(data[0].id);
-      }
-    }
-    setLoading(false);
+  // The admin-managed slot rows, matched by start time (falling back to order).
+  const slotFor = (kind: SlotKind): DeliverySlot | null =>
+    slots.find((s) => s.start_time.startsWith(SLOT_KINDS[kind].start)) ?? slots[SLOT_KINDS[kind].order] ?? null;
+
+  const options = useMemo<DeliveryOption[]>(() => {
+    if (!rules) return [];
+    const ids = rules.categoryIds.length > 0 ? Array.from(new Set(rules.categoryIds)) : [null];
+    const nextDay = availableDeliveryDates(rules.categoryIds, rules.categories, rules.overrides)[0];
+    if (!nextDay) return [];
+
+    const option = (date: Date, kind: SlotKind): DeliveryOption => {
+      const slot = slotFor(kind);
+      return {
+        key: `${format(date, "yyyy-MM-dd")}|${kind}`,
+        date,
+        slot,
+        label: `${dayLabel(date)}, ${SLOT_KINDS[kind].name} (${SLOT_KINDS[kind].hours})`,
+      };
+    };
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sameDay =
+      now.getHours() < SAME_DAY_CUTOFF_HOUR &&
+      ids.every((id) => isDeliverableOn(today, id, rules.categories, rules.overrides));
+
+    return sameDay
+      ? [option(today, "evening"), option(nextDay, "morning")]
+      : [option(nextDay, "morning"), option(nextDay, "afternoon")];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rules, slots, now]);
+
+  const selectedKey =
+    options.find(
+      (o) => selectedDate && o.date.toDateString() === selectedDate.toDateString() && (o.slot?.id ?? null) === selectedSlotId,
+    )?.key ?? "";
+
+  const choose = (o: DeliveryOption) => {
+    onDateChange(o.date);
+    if (o.slot) onSlotChange(o.slot.id);
   };
 
-  // Pick the first available date, and replace a selection that is no longer
-  // allowed (e.g. after the cart changed).
+  // Pick the first option, and replace a selection that is no longer offered
+  // (e.g. noon passed or the cart changed).
   useEffect(() => {
-    if (!rules || availableDates.length === 0) return;
-    const stillValid = selectedDate && availableDates.some((d) => d.toDateString() === selectedDate.toDateString());
-    if (!stillValid) {
-      onDateChange(availableDates[0]);
-    }
-  }, [rules, selectedDate, availableDates, onDateChange]);
+    if (loading || options.length === 0 || selectedKey) return;
+    choose(options[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, options, selectedKey]);
 
   useEffect(() => {
-    if (rules) onAvailabilityChange?.(availableDates.length > 0);
-  }, [rules, availableDates, onAvailabilityChange]);
+    if (rules) onAvailabilityChange?.(options.length > 0);
+  }, [rules, options, onAvailabilityChange]);
 
   if (loading || !rules) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Delivery Schedule
+            <Truck className="h-5 w-5" />
+            Standard Delivery
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -114,75 +169,43 @@ export const DeliveryScheduler = ({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Calendar className="h-5 w-5" />
-          Schedule Delivery
+          <Truck className="h-5 w-5" />
+          Standard Delivery
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Date Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Select Delivery Date</Label>
-          {rules.restrictedLabels.length > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Delivery days: {rules.restrictedLabels.join(" · ")}
-            </p>
-          )}
-          {availableDates.length === 0 && (
-            <p className="text-sm text-destructive">
-              No delivery date is available for all the items in your cart. Please order them separately or try again later.
-            </p>
-          )}
-          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
-            {availableDates.map((date) => (
-              <Button
-                key={date.toISOString()}
-                variant={selectedDate?.toDateString() === date.toDateString() ? "default" : "outline"}
-                className="flex flex-col h-auto py-2 px-1"
-                onClick={() => onDateChange(date)}
+      <CardContent className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Order before 12 PM for delivery the same evening. Orders after 12 PM are delivered the next day.
+        </p>
+        {rules.restrictedLabels.length > 0 && (
+          <p className="text-xs text-muted-foreground">Delivery days: {rules.restrictedLabels.join(" · ")}</p>
+        )}
+        {options.length === 0 ? (
+          <p className="text-sm text-destructive">
+            No delivery date is available for all the items in your cart. Please order them separately or try again later.
+          </p>
+        ) : (
+          <RadioGroup
+            value={selectedKey}
+            onValueChange={(key) => {
+              const o = options.find((opt) => opt.key === key);
+              if (o) choose(o);
+            }}
+            className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+          >
+            {options.map((o) => (
+              <label
+                key={o.key}
+                htmlFor={o.key}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                  selectedKey === o.key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                }`}
               >
-                <span className="text-xs">{format(date, "EEE")}</span>
-                <span className="text-lg font-bold">{format(date, "d")}</span>
-                <span className="text-xs">{format(date, "MMM")}</span>
-              </Button>
+                <RadioGroupItem value={o.key} id={o.key} />
+                <span className="font-medium text-sm">{o.label}</span>
+              </label>
             ))}
-          </div>
-        </div>
-
-        {/* Time Slot Selection */}
-        <div className="space-y-3">
-          <Label className="text-sm font-medium flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Select Time Slot
-          </Label>
-          <RadioGroup value={selectedSlotId || ""} onValueChange={onSlotChange}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {slots.map((slot) => (
-                <div
-                  key={slot.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
-                    selectedSlotId === slot.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                  onClick={() => onSlotChange(slot.id)}
-                >
-                  <RadioGroupItem value={slot.id} id={slot.id} />
-                  <label htmlFor={slot.id} className="flex-1 cursor-pointer">
-                    <span className="font-medium">{slot.name}</span>
-                  </label>
-                </div>
-              ))}
-            </div>
           </RadioGroup>
-        </div>
-
-        {selectedDate && selectedSlotId && (
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <p className="text-sm">
-              <span className="font-medium">Scheduled for:</span>{" "}
-              {format(selectedDate, "EEEE, MMMM d, yyyy")} - {slots.find(s => s.id === selectedSlotId)?.name}
-            </p>
-          </div>
         )}
       </CardContent>
     </Card>

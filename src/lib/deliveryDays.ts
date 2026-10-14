@@ -88,7 +88,8 @@ export interface DeliveryRules {
 export async function loadDeliveryRules(productIds: string[]): Promise<DeliveryRules> {
   const empty: DeliveryRules = { categoryIds: [], categories: new Map(), overrides: [], restrictedLabels: [] };
   try {
-    const today = format(addDays(startOfToday(), 1), "yyyy-MM-dd");
+    // From today: same-day delivery checks today's overrides too.
+    const today = format(startOfToday(), "yyyy-MM-dd");
     const until = format(addDays(startOfToday(), SEARCH_DAYS), "yyyy-MM-dd");
 
     const [productsRes, categoriesRes, overridesRes] = await Promise.all([
