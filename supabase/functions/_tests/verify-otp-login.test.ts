@@ -9,8 +9,10 @@ Deno.env.set("SUPABASE_ANON_KEY", "anon");
 Deno.env.set("MSG91_AUTH_TOKEN", "msg91");
 
 // MSG91 stand-in: "123456" is the only correct OTP for real numbers.
+const msg91Calls: string[] = [];
 globalThis.fetch = ((input: string | URL | Request) => {
   const url = new URL(String(input instanceof Request ? input.url : input));
+  msg91Calls.push(url.searchParams.get("mobile") ?? "");
   const ok = url.searchParams.get("otp") === "123456";
   return Promise.resolve(new Response(JSON.stringify(ok ? { type: "success", message: "OTP verified success" } : { type: "error", message: "OTP not match" })));
 }) as typeof fetch;
@@ -37,7 +39,7 @@ const userByEmail = (email: string) => db.users.find((u) => u.email === email);
 const profileOf = (id: string) => db.tables.profiles.find((p) => p.id === id);
 const lastLog = () => db.tables.otp_send_log.at(-1)?.outcome;
 
-const setup = (registrationEnabled: boolean) => { db.reset(); setRegistration(registrationEnabled); };
+const setup = (registrationEnabled: boolean) => { db.reset(); msg91Calls.length = 0; setRegistration(registrationEnabled); };
 
 Deno.test("existing confirmed user logs in (registration OFF)", async () => {
   setup(false);
@@ -139,12 +141,136 @@ Deno.test("invalid OTP (real number) is rejected and touches no account", async 
   assertEquals(db.calls.length, 0);
 });
 
-Deno.test("invalid OTP (test number) is rejected", async () => {
+Deno.test("invalid OTP (demo number) is rejected", async () => {
   setup(false);
   const r = await login({ phone: "+919999000005", otp: "111111" });
   assertEquals(r.status, 400);
   assertEquals(r.body.code, "OTP_REJECTED");
   assertEquals(db.users.length, 0);
+  assertEquals(msg91Calls.length, 0, "the demo number never goes to MSG91");
+});
+
+// --- Demo bypass: only 9999000005, never a privileged account ---------------
+
+const DEMO_EMAIL = "919999000005@elabazar.local";
+
+for (const phone of ["+919999000005", "919999000005", "9999000005"]) {
+  Deno.test(`demo number ${phone} signs in with the demo code, without MSG91`, async () => {
+    setup(false);
+    const u = seedUser(DEMO_EMAIL, { confirmed: true, phone: "+919999000005" });
+    const r = await login({ phone, otp: "000000" });
+    assertEquals(r.status, 200);
+    assertEquals(r.body.access_token, `at-${u.id}`);
+    assertEquals(msg91Calls.length, 0);
+    assertEquals(lastLog(), "session:SUCCESS");
+  });
+}
+
+// The seeded admin/founder/delivery/member test numbers and the old 8888888888
+// used to accept 000000; they must now be verified by MSG91 like anyone else.
+for (const last10 of ["9999000001", "9999000002", "9999000003", "9999000004", "9999000006", "8888888888"]) {
+  Deno.test(`former test number ${last10} cannot use the demo code`, async () => {
+    setup(false);
+    seedUser(`91${last10}@elabazar.local`, { confirmed: true, phone: `+91${last10}` });
+    const r = await login({ phone: `+91${last10}`, otp: "000000" });
+    assertEquals(r.status, 400);
+    assertEquals(r.body.code, "OTP_REJECTED");
+    assertEquals(msg91Calls, [`91${last10}`], "checked by MSG91");
+    assert(!db.calls.some((c) => c.startsWith("updateUserById")), "no password rotation, no session");
+  });
+}
+
+Deno.test("former test number (super admin) still signs in with a real SMS code", async () => {
+  setup(false);
+  const u = seedUser("919999000001@elabazar.local", { confirmed: true, phone: "+919999000001" });
+  db.tables.user_roles.push({ user_id: u.id, role: "super_admin" });
+  const r = await login({ phone: "+919999000001", otp: "123456" });
+  assertEquals(r.status, 200);
+  assertEquals(r.body.access_token, `at-${u.id}`);
+  assertEquals(msg91Calls, ["919999000001"]);
+});
+
+for (const phone of ["+19999000005", "009999000005", "+9199999000005"]) {
+  Deno.test(`look-alike number ${phone} does not get the demo bypass`, async () => {
+    setup(false);
+    const r = await login({ phone, otp: "000000" });
+    assertEquals(r.status, 400);
+    assertEquals(r.body.code, "OTP_REJECTED");
+    assertEquals(msg91Calls.length, 1);
+    assertEquals(db.users.length, 0);
+  });
+}
+
+for (const role of ["super_admin", "admin", "mlm_admin", "founding_member", "delivery_partner"]) {
+  Deno.test(`demo number holding the ${role} role is refused the demo code`, async () => {
+    setup(false);
+    const u = seedUser(DEMO_EMAIL, { confirmed: true, phone: "+919999000005" });
+    db.tables.user_roles.push({ user_id: u.id, role: "member" }, { user_id: u.id, role });
+    const r = await login({ phone: "+919999000005", otp: "000000" });
+    assertEquals(r.status, 403);
+    assertEquals(r.body.code, "DEMO_PRIVILEGED");
+    assertEquals(r.body.access_token, undefined);
+    assert(!db.calls.some((c) => c.startsWith("updateUserById")), "no password rotation, no session");
+    assertEquals(lastLog(), "session:DEMO_PRIVILEGED");
+  });
+}
+
+Deno.test("demo number linked to a delivery_partners row is refused the demo code", async () => {
+  setup(false);
+  const u = seedUser(DEMO_EMAIL, { confirmed: true, phone: "+919999000005" });
+  db.tables.delivery_partners.push({ id: "dp-1", user_id: u.id });
+  const r = await login({ phone: "+919999000005", otp: "000000" });
+  assertEquals(r.status, 403);
+  assertEquals(r.body.code, "DEMO_PRIVILEGED");
+});
+
+Deno.test("demo code is refused when the role check cannot be read", async () => {
+  setup(false);
+  seedUser(DEMO_EMAIL, { confirmed: true, phone: "+919999000005" });
+  const fake = await import("./fake_supabase.ts");
+  const client = fake.createClient("", "");
+  const proto = Object.getPrototypeOf(client.from("user_roles"));
+  const originalRun = proto.run;
+  proto.run = function (this: { table: string }) {
+    if (this.table === "user_roles") return Promise.resolve({ data: null, error: { message: "db down" } });
+    return originalRun.call(this);
+  };
+  try {
+    const r = await login({ phone: "+919999000005", otp: "000000" });
+    assertEquals(r.status, 503);
+    assertEquals(r.body.code, "DEMO_ROLE_CHECK_FAILED");
+    assertEquals(r.body.access_token, undefined);
+    assert(!db.calls.some((c) => c.startsWith("updateUserById")), "no password rotation, no session");
+  } finally {
+    proto.run = originalRun;
+  }
+});
+
+Deno.test("demo number with only the member role still signs in", async () => {
+  setup(false);
+  const u = seedUser(DEMO_EMAIL, { confirmed: true, phone: "+919999000005" });
+  db.tables.user_roles.push({ user_id: u.id, role: "member" });
+  const r = await login({ phone: "+919999000005", otp: "000000" });
+  assertEquals(r.status, 200);
+  assertEquals(r.body.access_token, `at-${u.id}`);
+});
+
+Deno.test("email lookup failing for an existing account falls back to the account found by phone", async () => {
+  setup(true);
+  const u = seedUser(EMAIL, { confirmed: true, phone: PHONE });
+  const { createClient } = await import("./fake_supabase.ts");
+  const admin = createClient("", "").auth.admin;
+  const original = admin.generateLink;
+  admin.generateLink = () => Promise.resolve({ data: { user: null, properties: null }, error: { message: "transient", status: 500, name: "AuthApiError" } });
+  try {
+    const r = await login({ phone: PHONE, otp: "123456" });
+    assertEquals(r.status, 200);
+    assertEquals(r.body.access_token, `at-${u.id}`);
+    assert(db.tables.otp_send_log.some((l) => l.outcome === "session:LOOKUP_FALLBACK"));
+    assertEquals(db.users.length, 1);
+  } finally {
+    admin.generateLink = original;
+  }
 });
 
 Deno.test("missing phone/OTP is a bad request", async () => {

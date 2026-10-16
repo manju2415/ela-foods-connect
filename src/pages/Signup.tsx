@@ -33,19 +33,16 @@ import elaLogo from "@/assets/ela-foods-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import { useRegistrationEnabled } from "@/hooks/useRegistrationEnabled";
 
-const DEMO_PHONES = [
-  "8888888888",
-  "9999000001",
-  "9999000002",
-  "9999000003",
-  "9999000004",
-  "9999000005",
-  "9999000006",
-];
+// Only the App Store review demo number skips SMS; the server
+// (verify-otp-login) accepts the fixed code for this number alone.
+const DEMO_PHONES = ["9999000005"];
 const DEMO_OTP = "000000";
 const RESEND_COOLDOWN = 30;
 
-const isDemoPhone = (p: string) => DEMO_PHONES.some((x) => p.endsWith(x));
+const isDemoPhone = (p: string) => {
+  const digits = p.replace(/\D/g, "");
+  return DEMO_PHONES.some((x) => digits === x || digits === `91${x}`);
+};
 
 const signupSchema = z.object({
   fullName: z

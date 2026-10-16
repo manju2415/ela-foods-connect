@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { APP_CART_PATH } from "@/lib/appRoutes";
+import { accountPath } from "@/lib/guestAccess";
 import { ProductSearchSuggestions } from "@/components/ProductSearchSuggestions";
 
 // Same orange as the customer app's native status bar (useSplashScreen), so
@@ -70,7 +71,9 @@ export function AppHomeTopBar() {
 
   const addressText = address
     ? [address.address_line1, address.city, address.postal_code].filter(Boolean).join(", ")
-    : "Tap to add your delivery address";
+    : user
+      ? "Tap to add your delivery address"
+      : "Sign in to add your delivery address";
 
   const iconButton =
     "relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/25 backdrop-blur-sm active:scale-95 transition-transform";
@@ -84,7 +87,7 @@ export function AppHomeTopBar() {
         <div className="flex items-center gap-3 px-4 pt-3">
           <button
             type="button"
-            onClick={() => navigate("/customer-app/addresses")}
+            onClick={() => navigate(accountPath("/customer-app/addresses", !!user))}
             className="flex min-w-0 flex-1 items-center gap-2.5 text-left active:opacity-80"
             aria-label="Change delivery address"
           >
