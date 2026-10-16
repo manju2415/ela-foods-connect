@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { useContext, useEffect, useState, ReactNode } from "react";
+import { createSharedContext } from "@/lib/sharedContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -52,7 +53,8 @@ interface CartContextType {
   memberTotalPrice: number;
 }
 
-const CartContext = createContext<CartContextType | undefined>(undefined);
+// Shared across hot-reloaded copies of this module — see createSharedContext.
+const CartContext = createSharedContext<CartContextType>("__ELA_CART_CONTEXT__");
 
 const GUEST_CART_KEY = "ela_guest_cart";
 

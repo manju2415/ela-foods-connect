@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useContext, useState, useEffect, ReactNode } from "react";
+import { createSharedContext } from "@/lib/sharedContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +16,8 @@ interface WishlistContextType {
   loading: boolean;
 }
 
-const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
+// Shared across hot-reloaded copies of this module — see createSharedContext.
+const WishlistContext = createSharedContext<WishlistContextType>("__ELA_WISHLIST_CONTEXT__");
 
 export const useWishlist = () => {
   const context = useContext(WishlistContext);

@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
+import { useContext, useEffect, useState, useRef, useCallback, ReactNode } from "react";
+import { createSharedContext } from "@/lib/sharedContext";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
@@ -58,7 +59,8 @@ interface AuthContextType {
   suppressAuthChanges: (suppress: boolean) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Shared across hot-reloaded copies of this module — see createSharedContext.
+const AuthContext = createSharedContext<AuthContextType>("__ELA_AUTH_CONTEXT__");
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
