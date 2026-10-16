@@ -3,7 +3,7 @@
 // login: nothing about the account's Supabase Auth password is derivable from public
 // data, and it is rotated to a fresh random value on every call here, so a session can
 // only ever be obtained by actually passing OTP verification (real MSG91 check, or the
-// test-account bypass below for QA phones).
+// fixed code for the App Store review demo number below).
 import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isRegistrationEnabled } from "../_shared/registrationSettings.ts";
 import { createGoodBoxContact } from "../_shared/goodboxContact.ts";
@@ -13,11 +13,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Kept in sync with the TEST_PHONES lists in src/pages/Auth.tsx, Signup.tsx and
-// MLMLogin.tsx — these numbers bypass real SMS for QA. Real users always go through MSG91.
-const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006", "8888888888"];
-const TEST_OTP = "000000";
-const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
+// The App Store review demo account (a plain customer) is the only number that
+// may sign in with the fixed code. Every other number — including the seeded
+// admin, founder and delivery partner test numbers — goes through MSG91.
+// Kept in sync with DEMO_PHONES in src/pages/Auth.tsx, Signup.tsx and MLMLogin.tsx.
+const DEMO_PHONES = ["9999000005"];
+const DEMO_OTP = "000000";
+// Exact match on the 10-digit number, with or without the 91 country code.
+const isDemoPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return DEMO_PHONES.some((p) => digits === p || digits === `91${p}`);
+};
+
+// Roles that must never be reachable through the fixed demo code, even if one
+// is later granted to the demo number by mistake.
+const PRIVILEGED_ROLES = ["super_admin", "admin", "mlm_admin", "founding_member", "delivery_partner"];
 
 const sanitizeSecret = (raw: string | undefined): string => {
   if (!raw) return "";
@@ -137,9 +147,10 @@ Deno.serve(async (req) => {
 
     // 1. Verify the OTP server-side. This is the only gate — nothing downstream
     // trusts anything the client claims about verification having happened.
-    if (isTestPhone(phone)) {
-      if (otp !== TEST_OTP) {
-        await logAttempt("OTP_REJECTED", "test phone: wrong test OTP");
+    const usedDemoBypass = isDemoPhone(phone);
+    if (usedDemoBypass) {
+      if (otp !== DEMO_OTP) {
+        await logAttempt("OTP_REJECTED", "demo phone: wrong demo OTP");
         return json(400, { success: false, code: "OTP_REJECTED", error: "Invalid OTP" });
       }
     } else {
@@ -246,6 +257,18 @@ Deno.serve(async (req) => {
             // transient) — retry the link generation once more before
             // reporting "not found" for an account that clearly exists.
             ({ data: linkData, error: linkError } = await findAuthUser());
+
+            // The email lookup can still fail for an account fetched by id a
+            // moment ago (an App Review login with the demo number got "Account
+            // not found" this way). The account is known — sign it in directly.
+            if (linkError || !linkData?.user) {
+              const { data: freshRes } = await admin.auth.admin.getUserById(profile.id);
+              if (freshRes?.user?.email === mockEmail) {
+                await logAttempt("LOOKUP_FALLBACK", linkError?.message || "generateLink returned no user");
+                linkData = { ...linkData, user: freshRes.user } as typeof linkData;
+                linkError = null;
+              }
+            }
           }
         }
       }
@@ -321,6 +344,26 @@ Deno.serve(async (req) => {
     }
 
     const authUserId = linkData.user.id;
+
+    if (usedDemoBypass) {
+      const [{ data: privilegedRole, error: roleErr }, { data: partner, error: partnerErr }] = await Promise.all([
+        admin.from("user_roles").select("role").eq("user_id", authUserId).in("role", PRIVILEGED_ROLES).limit(1).maybeSingle(),
+        admin.from("delivery_partners").select("id").eq("user_id", authUserId).limit(1).maybeSingle(),
+      ]);
+      // Fails closed: if the roles can't be read, the demo code is refused.
+      if (roleErr || partnerErr) {
+        await logAttempt("DEMO_ROLE_CHECK_FAILED", (roleErr ?? partnerErr)?.message);
+        return json(503, { success: false, code: "DEMO_ROLE_CHECK_FAILED", error: "Could not complete sign-in. Please try again." });
+      }
+      if (privilegedRole || partner) {
+        await logAttempt("DEMO_PRIVILEGED", privilegedRole?.role ?? "delivery_partner");
+        return json(403, {
+          success: false,
+          code: "DEMO_PRIVILEGED",
+          error: "This account cannot use the demo code. Please sign in with an SMS code.",
+        });
+      }
+    }
 
     // Rotate + sign in, retried once: a transient failure here previously
     // surfaced to the user as a permanent "account not found".

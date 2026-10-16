@@ -22,7 +22,7 @@ export const db = {
   calls: [] as string[],
   reset() {
     this.users = [];
-    this.tables = { profiles: [], platform_settings: [], referral_codes: [], referrals: [], otp_send_log: [] };
+    this.tables = { profiles: [], platform_settings: [], referral_codes: [], referrals: [], otp_send_log: [], user_roles: [], delivery_partners: [] };
     this.calls = [];
   },
 };
@@ -109,6 +109,7 @@ class Query {
   update(p: Row) { this.op = "update"; this.payload = p; return this; }
   upsert(p: Row | Row[], opts: Row = {}) { this.op = "upsert"; this.payload = p; this.opts = opts; return this; }
   eq(col: string, val: unknown) { this.filters.push((r) => r[col] === val); return this; }
+  in(col: string, vals: unknown[]) { this.filters.push((r) => vals.includes(r[col])); return this; }
   is(col: string, val: unknown) { this.filters.push((r) => (r[col] ?? null) === val); return this; }
   or(expr: string) {
     const parts = expr.split(",").map((p) => { const [col, , ...v] = p.split("."); return { col, val: v.join(".") }; });

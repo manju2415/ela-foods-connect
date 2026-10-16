@@ -15,12 +15,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import elaLogo from "@/assets/ela-foods-logo.png";
 
-// Test accounts bypass real SMS for QA. Real users always go through MSG91.
-const TEST_PHONES = ["9999000001", "9999000002", "9999000003", "9999000004", "9999000005", "9999000006"];
+// Only the App Store review demo number skips SMS; the server
+// (verify-otp-login) accepts the fixed code for this number alone.
+const TEST_PHONES = ["9999000005"];
 const TEST_OTP = "000000";
 const RESEND_COOLDOWN_SECONDS = 30;
 
-const isTestPhone = (phone: string) => TEST_PHONES.some((p) => phone.endsWith(p));
+const isTestPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return TEST_PHONES.some((p) => digits === p || digits === `91${p}`);
+};
 
 // Shared with the customer/member login screen so the last number typed on
 // this device is remembered no matter which login page it was entered on.

@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AppErrorBoundary } from "@/components/errors/AppErrorBoundary";
@@ -24,6 +24,7 @@ import { ScrollToTop } from "@/components/ScrollToTop";
 import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
 import { NativeAppShell, NativePageSkeleton } from "@/components/mobile/NativeAppShell";
+import { nativeLaunchPath } from "@/lib/guestAccess";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
@@ -118,6 +119,14 @@ const DriverInstall = lazy(() => import("./pages/install/DriverInstall"));
 const MemberInstall = lazy(() => import("./pages/install/MemberInstall"));
 
 const queryClient = new QueryClient();
+
+// Installed app launch screen: guests browse the shop, signed-in users are
+// routed by role (see nativeLaunchPath).
+function NativeHome() {
+  const { user, loading } = useAuth();
+  if (loading) return <NativePageSkeleton />;
+  return <Navigate to={nativeLaunchPath(!!user)} replace />;
+}
 
 // Minimal loading fallback (the installed app shows a skeleton instead)
 const PageLoader = () =>
@@ -248,7 +257,7 @@ function App() {
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
 
-                        <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/auth" replace /> : <Index />} />
+                        <Route path="/" element={Capacitor.isNativePlatform() ? <NativeHome /> : <Index />} />
                         <Route path="/auth" element={<Auth />} />
                         <Route path="/signup" element={<Signup />} />
                         <Route path="/founder-signup" element={<Signup />} />

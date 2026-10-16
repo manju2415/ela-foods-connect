@@ -16,7 +16,7 @@ import Index from "./Index";
 
 /**
  * Customer Mobile App Entry Point
- * Registration is compulsory after login before accessing the app.
+ * Open to guests for browsing; registration is compulsory after login.
  */
 export default function CustomerApp() {
   const { user, loading } = useAuth();
@@ -27,14 +27,17 @@ export default function CustomerApp() {
   
   useAppManifest('customer');
 
-  // Redirect to /auth if not logged in, or to /complete-registration if not registered
+  // Guests browse freely (App Store guideline 5.1.1(v)); signed-in users who
+  // are not registered yet are sent to /complete-registration.
   useEffect(() => {
     if (loading) return;
 
     if (!user) {
-      navigate("/auth?redirect=/customer-app", { replace: true });
+      setCheckingRegistration(false);
       return;
     }
+
+    setCheckingRegistration(true);
 
     const checkRegistration = async () => {
       try {
