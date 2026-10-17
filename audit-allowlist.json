@@ -1,0 +1,20 @@
+{
+  "$comment": "Advisories that scripts/audit-check.mjs tolerates at high/critical severity. Every entry needs a technical justification and a reviewBy date; an expired entry fails CI. Do not add entries just to make CI pass.",
+  "advisories": [
+    {
+      "id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "severity": "high",
+      "affected": "<=3.0.3 (no patched release exists; 3.0.3 is the latest published version)",
+      "paths": [
+        "tailwindcss@3 > micromatch > braces",
+        "tailwindcss@3 > fast-glob > micromatch > braces",
+        "tailwindcss@3 > chokidar@3 > braces",
+        "lovable-tagger > tailwindcss@3 > ... > braces"
+      ],
+      "justification": "Stack-exhaustion DoS when expanding attacker-controlled, deeply nested brace patterns. braces is only reachable from build/dev tooling (Tailwind 3 content scanning and file watching). The patterns it expands come from our own tailwind.config.ts content globs, not from user input, and it is not bundled into the web app or the Capacitor iOS/Android builds. Migrating to Tailwind 4 would not remove it because lovable-tagger depends on tailwindcss ^3.4.17.",
+      "remediation": "Remove this entry once braces publishes a fix (or micromatch/chokidar drop it), or once Tailwind 3 and lovable-tagger are no longer in the tree.",
+      "reviewBy": "2027-01-31"
+    }
+  ]
+}

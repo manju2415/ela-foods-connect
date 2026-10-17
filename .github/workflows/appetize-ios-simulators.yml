@@ -23,8 +23,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Fails on any high/critical advisory except those documented, with a
+      # justification and review date, in audit-allowlist.json.
       - name: Audit npm dependencies
-        run: npm audit --audit-level=high
+        run: npm run audit:ci
 
       - name: Build web app
         run: npm run build
