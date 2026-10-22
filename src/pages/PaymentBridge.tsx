@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { openRazorpayCheckout, type RazorpayPaymentOptions } from "@/utils/razorpay";
+import { decodeBridgePayload, isPreparedOrder } from "@/utils/paymentBridge";
 
 const CALLBACK_SCHEME = "elabazarpay://payment-callback";
 
 type BridgePayload = Omit<RazorpayPaymentOptions, "onSuccess" | "onFailure">;
-
-const decodeBridgePayload = (value: string): BridgePayload =>
-  JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(value)))));
 
 const redirectToApp = (params: Record<string, string>) => {
   window.location.href = `${CALLBACK_SCHEME}?${new URLSearchParams(params).toString()}`;
@@ -28,9 +26,22 @@ const PaymentBridge = () => {
 
       let payload: BridgePayload;
       try {
-        payload = decodeBridgePayload(encoded);
+        payload = decodeBridgePayload<BridgePayload>(encoded);
       } catch {
         setError("Invalid payment details.");
+        return;
+      }
+
+      // This tab has no Supabase session, so the app creates the Razorpay
+      // order itself and passes it in. Member orders can't be created from
+      // here at all — an app build from before that change gets a clear
+      // message instead of a sign-in error.
+      if (payload.preparedOrder !== undefined && !isPreparedOrder(payload.preparedOrder)) {
+        setError("Invalid payment details.");
+        return;
+      }
+      if (!payload.preparedOrder && payload.purpose === "member_order") {
+        redirectToApp({ status: "failed", error: "Please update the Ela Bazar app to pay online." });
         return;
       }
 

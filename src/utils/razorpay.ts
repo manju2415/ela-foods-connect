@@ -3,6 +3,15 @@ import { Browser } from "@capacitor/browser";
 import { App as CapacitorApp } from "@capacitor/app";
 import { supabase } from "@/integrations/supabase/client";
 import { realEmailOrEmpty } from "@/lib/email";
+import {
+  PaymentError,
+  buildBridgePayload,
+  encodeBridgePayload,
+  paymentErrorFromInvoke,
+  type PreparedRazorpayOrder,
+} from "@/utils/paymentBridge";
+
+export { PaymentError } from "@/utils/paymentBridge";
 
 
 // The exact message used everywhere below when the user closes the checkout
@@ -69,6 +78,13 @@ export interface RazorpayPaymentOptions {
    * be reconciled into an order by an admin.
    */
   attemptContext?: PaymentAttemptContext;
+  /**
+   * A Razorpay order already created by razorpay-create-order. Set by the
+   * native app before handing off to /payment-bridge, whose browser tab has
+   * no Supabase session; checkout then opens against it without calling
+   * razorpay-create-order again.
+   */
+  preparedOrder?: PreparedRazorpayOrder;
   onSuccess: (response: RazorpayCheckoutResponse) => void;
   onFailure: (error: { message?: string; description?: string }) => void;
 }
@@ -77,7 +93,9 @@ export interface RazorpayPaymentOptions {
 // app-detection (Google Pay, PhonePe, ...) doesn't work inside the app's own
 // embedded WebView, only in a real browser context, so native builds open
 // checkout in an in-app browser tab against this page instead.
-const PAYMENT_BRIDGE_URL = "https://elabazar.com/payment-bridge";
+// VITE_PAYMENT_BRIDGE_URL overrides it for local device testing only
+// (e.g. http://localhost:8080/payment-bridge with `adb reverse tcp:8080 tcp:8080`).
+const PAYMENT_BRIDGE_URL = import.meta.env.VITE_PAYMENT_BRIDGE_URL || "https://elabazar.com/payment-bridge";
 const PAYMENT_CALLBACK_SCHEME = "elabazarpay://payment-callback";
 
 const formatRazorpayContact = (contact?: string) => {
@@ -130,6 +148,43 @@ export const preloadRazorpayScript = () => {
 };
 
 /**
+ * Step 1 of checkout: creates the Razorpay order via the edge function, which
+ * also records a "payment started" row server-side, before the customer sees
+ * the payment sheet, so the payment is never untraceable even if they never
+ * come back. Sent with the caller's Supabase session — for member orders the
+ * server quotes the amount from the signed-in customer's cart.
+ */
+export const createRazorpayOrder = async (
+  options: Omit<RazorpayPaymentOptions, "onSuccess" | "onFailure">,
+): Promise<PreparedRazorpayOrder> => {
+  const customerEmail = realEmailOrEmpty(options.prefill?.email);
+  type CreateOrderResponse = Partial<PreparedRazorpayOrder> & { error?: string; code?: string };
+  let result: { data: CreateOrderResponse | null; error: unknown };
+  try {
+    result = await supabase.functions.invoke<CreateOrderResponse>("razorpay-create-order", {
+      body: {
+        amount: options.amount,
+        receipt: options.receipt || `rcpt_${Date.now()}`,
+        notes: { ...(options.notes || {}), ...(customerEmail ? { email: customerEmail } : {}) },
+        purpose: options.purpose,
+        orderId: options.orderId,
+        attemptContext: options.attemptContext,
+      },
+    });
+  } catch (err) {
+    throw await paymentErrorFromInvoke({ name: "FunctionsFetchError", cause: err }, null);
+  }
+
+  const { data, error } = result;
+  if (error || !data?.order_id) {
+    const paymentError = await paymentErrorFromInvoke(error, data);
+    console.error("[razorpay] create-order failed:", paymentError.kind, paymentError.code ?? "");
+    throw paymentError;
+  }
+  return { order_id: data.order_id, amount: Number(data.amount), currency: String(data.currency), key_id: String(data.key_id) };
+};
+
+/**
  * Opens Razorpay's own Checkout modal in the current page and verifies the
  * payment server-side. Works correctly in any real browser (mobile web,
  * desktop web, and the in-app browser tab opened by the payment bridge page
@@ -138,31 +193,20 @@ export const preloadRazorpayScript = () => {
  */
 export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   // Ensure Razorpay SDK is loaded
-  await loadRazorpayScript();
+  try {
+    await loadRazorpayScript();
+  } catch {
+    throw new PaymentError("checkout", "Could not load the payment window. Check your internet connection and try again.");
+  }
   if (!window.Razorpay) {
-    throw new Error("Razorpay SDK failed to initialize. Please refresh and try again.");
+    throw new PaymentError("checkout", "Razorpay SDK failed to initialize. Please refresh and try again.");
   }
 
   // Only send real customer emails to Razorpay (never internal placeholders)
   const customerEmail = realEmailOrEmpty(options.prefill?.email);
 
-  // Step 1: Create Razorpay order via edge function — also records a
-  // "payment started" row server-side, before the customer sees the payment
-  // sheet, so the payment is never untraceable even if they never come back.
-  const { data, error } = await supabase.functions.invoke("razorpay-create-order", {
-    body: {
-      amount: options.amount,
-      receipt: options.receipt || `rcpt_${Date.now()}`,
-      notes: { ...(options.notes || {}), ...(customerEmail ? { email: customerEmail } : {}) },
-      purpose: options.purpose,
-      orderId: options.orderId,
-      attemptContext: options.attemptContext,
-    },
-  });
-
-  if (error || !data?.order_id) {
-    throw new Error(data?.error || "Failed to create payment order");
-  }
+  // Step 1: Create the Razorpay order (skipped when the native app already did).
+  const data = options.preparedOrder ?? (await createRazorpayOrder(options));
 
   // Step 2: Open Razorpay checkout
   const rzpOptions = {
@@ -230,9 +274,6 @@ export const openRazorpayCheckout = async (options: RazorpayPaymentOptions) => {
   rzp.open();
 };
 
-const encodeBridgePayload = (value: unknown): string =>
-  encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(value)))));
-
 /**
  * Native-only path: hands the payment off to a real browser tab (Chrome
  * Custom Tabs) pointed at the live site's /payment-bridge page, which runs
@@ -240,10 +281,17 @@ const encodeBridgePayload = (value: unknown): string =>
  * apps. The bridge redirects to a custom-scheme deep link with the result,
  * which we catch here and translate back into the normal onSuccess/onFailure
  * callbacks, so callers don't need to know which path was taken.
+ *
+ * The Razorpay order is created here, in the app, where the customer's
+ * Supabase session lives — the Custom Tab is a separate browser with no
+ * session, so razorpay-create-order (which needs it for member orders) can't
+ * be called from there. Only the resulting order id goes to the bridge; no
+ * access/refresh token is ever put in the URL.
  */
 const initiateRazorpayPaymentNative = async (options: RazorpayPaymentOptions) => {
   const { onSuccess, onFailure, ...serializable } = options;
-  const payloadParam = encodeBridgePayload(serializable);
+  const preparedOrder = await createRazorpayOrder(serializable);
+  const payloadParam = encodeBridgePayload(buildBridgePayload(serializable, preparedOrder));
   const url = `${PAYMENT_BRIDGE_URL}?payload=${payloadParam}`;
 
   let settled = false;

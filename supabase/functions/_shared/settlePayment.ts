@@ -81,7 +81,12 @@ export async function settlePayment(supabase: Client, params: SettlePaymentParam
 
   const purpose = params.purpose || initiatedRow?.purpose || (params.orderId ? "order" : "unknown");
   const orderId = params.orderId ?? initiatedRow?.order_id ?? null;
-  const userId = params.attempt?.user_id ?? initiatedRow?.user_id ?? (purpose === "registration" ? orderId : null);
+  // A member order belongs to whoever razorpay-create-order authenticated
+  // (recorded on the initiated row) — never to a user_id sent by the caller,
+  // or one customer's payment could place an order on another's account.
+  const userId = purpose === "member_order"
+    ? initiatedRow?.user_id ?? null
+    : params.attempt?.user_id ?? initiatedRow?.user_id ?? (purpose === "registration" ? orderId : null);
   const guestDetails = params.attempt?.guest_details ?? initiatedRow?.guest_details ?? null;
   const customerName = params.attempt?.customer_name ?? initiatedRow?.customer_name ?? null;
   const customerPhone = params.attempt?.customer_phone ?? initiatedRow?.customer_phone ?? null;

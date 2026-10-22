@@ -57,7 +57,7 @@ serve(async (req) => {
       const token = (req.headers.get("Authorization") || "").replace("Bearer ", "").trim();
       const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       const { data: userData } = await admin.auth.getUser(token);
-      if (!userData?.user) return json({ error: "Please sign in again to pay." }, 401);
+      if (!userData?.user) return json({ error: "Please sign in again to pay.", code: "AUTH_REQUIRED" }, 401);
       memberUserId = userData.user.id;
       const c = (attemptContext as any)?.checkout;
       if (!c || !Array.isArray(c.items) || c.items.length === 0) return json({ error: "Your cart is empty." }, 400);

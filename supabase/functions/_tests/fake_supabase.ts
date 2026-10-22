@@ -1,4 +1,4 @@
-// In-memory stand-in for supabase-js, used only by verify-otp-login tests.
+// In-memory stand-in for supabase-js, used by the edge-function tests here.
 // Auth admin behaviour mirrors Supabase Auth (internal/api/mail.go
 // adminGenerateLink): a "magiclink" for an unknown email becomes a signup and
 // creates an UNCONFIRMED user; "recovery" for an unknown email returns 404 and
@@ -20,10 +20,13 @@ export const db = {
   users: [] as FakeUser[],
   tables: {} as Record<string, Row[]>,
   calls: [] as string[],
+  // rpc name -> handler, for functions that call Postgres functions.
+  rpcs: {} as Record<string, (args: Row) => { data: any; error: any }>,
   reset() {
     this.users = [];
     this.tables = { profiles: [], platform_settings: [], referral_codes: [], referrals: [], otp_send_log: [], user_roles: [], delivery_partners: [] };
     this.calls = [];
+    this.rpcs = {};
   },
 };
 db.reset();
@@ -88,6 +91,11 @@ const auth = {
       return { data: { user: publicUser(u) }, error: null };
     },
   },
+  // Access tokens are "at-<user id>" (as handed out by signInWithPassword).
+  getUser: async (token?: string) => {
+    const u = token?.startsWith("at-") ? db.users.find((x) => `at-${x.id}` === token) : undefined;
+    return u ? { data: { user: publicUser(u) }, error: null } : { data: { user: null }, error: err("invalid JWT", 401) };
+  },
   signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
     const u = db.users.find((x) => x.email === email);
     if (!u || u.password !== password) return { data: { session: null }, error: err("Invalid login credentials") };
@@ -98,7 +106,7 @@ const auth = {
 
 class Query {
   private filters: ((r: Row) => boolean)[] = [];
-  private op: "select" | "update" | "insert" | "upsert" = "select";
+  private op: "select" | "update" | "insert" | "upsert" | "delete" = "select";
   private payload: Row | Row[] | null = null;
   private opts: Row = {};
   private max = Infinity;
@@ -107,6 +115,7 @@ class Query {
   select(..._args: unknown[]) { return this; }
   insert(p: Row | Row[]) { this.op = "insert"; this.payload = p; return this; }
   update(p: Row) { this.op = "update"; this.payload = p; return this; }
+  delete() { this.op = "delete"; return this; }
   upsert(p: Row | Row[], opts: Row = {}) { this.op = "upsert"; this.payload = p; this.opts = opts; return this; }
   eq(col: string, val: unknown) { this.filters.push((r) => r[col] === val); return this; }
   in(col: string, vals: unknown[]) { this.filters.push((r) => vals.includes(r[col])); return this; }
@@ -129,6 +138,11 @@ class Query {
       for (const r of [this.payload].flat() as Row[]) rows.push({ ...r });
       return Promise.resolve({ data: null, error: null });
     }
+    if (this.op === "delete") {
+      const hit = new Set(this.matches());
+      db.tables[this.table] = rows.filter((r) => !hit.has(r));
+      return Promise.resolve({ data: null, error: null });
+    }
     if (this.op === "update") {
       for (const r of this.matches()) Object.assign(r, this.payload);
       return Promise.resolve({ data: null, error: null });
@@ -147,4 +161,9 @@ export type SupabaseClient = any;
 export const createClient = (_url: string, _key: string, _opts?: unknown) => ({
   auth,
   from: (table: string) => new Query(table),
+  rpc: async (name: string, args: Row) => {
+    db.calls.push(`rpc:${name}`);
+    const fn = db.rpcs[name];
+    return fn ? fn(args) : { data: null, error: { message: `rpc ${name} not stubbed` } };
+  },
 });
