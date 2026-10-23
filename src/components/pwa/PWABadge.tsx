@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { isOnSensitivePage } from "@/pwa/sw-guard";
+import { formScreenBlocksReload } from "@/pwa/reloadGuard";
 
 /**
  * Registers the app-shell service worker and keeps every visitor current
@@ -52,18 +53,13 @@ const MIN_UPDATE_GAP_MS = 30_000;
 const RELOAD_GUARD_KEY = "ela-sw-reload-at";
 const RELOAD_GUARD_MS = 30_000;
 
-// Extra places (beyond isOnSensitivePage) where an unannounced reload could
-// lose state: wallet top-up screens launch Razorpay too, and login / signup /
-// registration screens may be mid-OTP (waiting for an SMS with no field
-// focused). Keep in sync with public/sw-reload-stale-tabs.js.
+// Extra places (beyond isOnSensitivePage) where an unannounced reload is
+// never safe: wallet top-up screens launch Razorpay, admin screens hold
+// unsaved edits. Login / signup screens are handled by formScreenBlocksReload:
+// they reload only when no field has text and no OTP step is showing.
 const NO_RELOAD_PATH_PREFIXES = [
   "/customer-app/wallet",
   "/member-app/wallet",
-  "/auth",
-  "/mlm-login",
-  "/signup",
-  "/founder-signup",
-  "/complete-registration",
   "/admin",
   "/mlm-admin",
 ];
@@ -73,6 +69,7 @@ function isBusyForReload(): boolean {
   if (isOnSensitivePage()) return true;
   const path = window.location.pathname;
   if (NO_RELOAD_PATH_PREFIXES.some((p) => path.startsWith(p))) return true;
+  if (formScreenBlocksReload(path, document)) return true;
   // Razorpay's checkout is injected into the page as a container/iframe. Its
   // script keeps a hidden (display:none) container in the DOM after loading,
   // so only an actually rendered one (getClientRects is empty for display:none
