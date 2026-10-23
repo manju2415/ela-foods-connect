@@ -206,24 +206,12 @@ Deno.test("asset extraction ignores comments and external URLs, honours <base> a
 
 // ---- activation lifecycle ----
 Deno.test("activation race: navigations during repair wait for it and get the validated shell", async () => {
-  let release!: () => void;
-  const gate = new Promise<void>((r) => (release = r));
-  const routes = { ...okRoutes };
-  const w = loadWorker({ routes });
-  // Delay the HTML fetch until we release it.
-  const origRepair = w.api.repairShell;
-  void origRepair;
-  const act = (async () => {
-    await gate;
-  })();
-  void act;
-  // Start activation with the HTML fetch slowed down.
-  routes["/index.html"] = okRoutes["/index.html"];
+  const w = loadWorker({ routes: okRoutes });
   const activation = w.api.runActivation();
   let responded: Promise<Response> | null = null;
   w.api.onFetch({ request: { mode: "navigate", url: ORIGIN + "/" }, respondWith: (p: Promise<Response>) => (responded = p) });
   assert(responded, "navigation during activation must be held by this worker");
-  release();
+  assertEquals(w.claimed(), 0, "no claim before repair finishes");
   assertEquals(await activation, "replaced");
   assertEquals(await (await responded!).text(), NEW);
   assertEquals(w.claimed(), 1);
@@ -256,16 +244,22 @@ Deno.test("hung validation times out without claiming", async () => {
   assertEquals(await (self.__elaShell as any).runActivation(), "timeout");
 });
 
-Deno.test("failed repair during activation: held navigation falls back to network, then offline cache", async () => {
+Deno.test("failed repair during activation: held navigation goes to the network, not the stale cache", async () => {
   const w = loadWorker({ routes: { "/index.html": "throw", "/": { status: 200, type: "text/html", body: "net" } } });
   const activation = w.api.runActivation();
   let p: Promise<Response> | null = null;
-  w.api.onFetch({ request: new Request(ORIGIN + "/", {}) as Request & { mode: string }, respondWith: (x: Promise<Response>) => (p = x) });
-  // Request.mode is "cors" for constructed requests; simulate a navigation instead.
-  w.api.onFetch({ request: { mode: "navigate", url: ORIGIN + "/" } as unknown as Request, respondWith: (x: Promise<Response>) => (p = x) });
+  w.api.onFetch({ request: { mode: "navigate", url: ORIGIN + "/" }, respondWith: (x: Promise<Response>) => (p = x) });
+  assertEquals(await activation, "error");
+  assertEquals(await (await p!).text(), "net");
+});
+
+Deno.test("failed repair while offline: held navigation falls back to the existing cache", async () => {
+  const w = loadWorker({ routes: { "/index.html": "throw", "/": "throw" } });
+  const activation = w.api.runActivation();
+  let p: Promise<Response> | null = null;
+  w.api.onFetch({ request: { mode: "navigate", url: ORIGIN + "/" }, respondWith: (x: Promise<Response>) => (p = x) });
   await activation;
-  // fetch(Request-like) resolves via pathname "/" route
-  assert(p);
+  assertEquals(await (await p!).text(), OLD);
 });
 
 Deno.test("offline reopening after activation: worker does not intercept navigations itself", () => {

@@ -218,8 +218,11 @@ function onFetch(event) {
 }
 
 async function runActivation() {
-  await clearDeploymentPin();
-  repairing = withTimeout(repairShell(), REPAIR_TIMEOUT_MS);
+  // Set synchronously, before any await, so no navigation slips past it.
+  repairing = withTimeout(
+    clearDeploymentPin().then(() => repairShell()),
+    REPAIR_TIMEOUT_MS,
+  );
   let result;
   try {
     result = await repairing;
