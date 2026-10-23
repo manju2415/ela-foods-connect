@@ -92,8 +92,13 @@ export default defineConfig(({ mode }) => ({
         // controllerchange listener (PWABadge.tsx) decides *when* it's safe
         // to actually reload the visible page (never mid checkout/payment).
         skipWaiting: true,
-        clientsClaim: true,
-        // On activation, navigate tabs still running an old build (see file).
+        // clientsClaim is OFF on purpose: Workbox's own claim() runs in a
+        // separate activate listener, racing ahead of the shell repair and
+        // letting open tabs reload onto stale HTML. sw-reload-stale-tabs.js
+        // calls clients.claim() itself, only AFTER the repair has validated
+        // the cached HTML and its assets.
+        clientsClaim: false,
+        // Shell repair, guarded claim and stale-tab handling (see file).
         importScripts: ["sw-reload-stale-tabs.js"],
         runtimeCaching: [
           {
@@ -136,6 +141,23 @@ export default defineConfig(({ mode }) => ({
               cacheableResponse: {
                 statuses: [200],
               },
+              // Never store an HTML fallback (or any wrong type) under a
+              // script/style/font URL. Self-contained: serialized into sw.js.
+              plugins: [
+                {
+                  cacheWillUpdate: async ({ request, response }) => {
+                    if (!response || response.status !== 200 || response.redirected) return null;
+                    const type = (response.headers.get("content-type") || "").toLowerCase().split(";")[0].trim();
+                    const path = new URL(request.url).pathname;
+                    const ok = path.endsWith(".js")
+                      ? type === "text/javascript" || type === "application/javascript"
+                      : path.endsWith(".css")
+                        ? type === "text/css"
+                        : type.startsWith("font/") || type === "application/font-woff" || type === "application/octet-stream";
+                    return ok ? response : null;
+                  },
+                },
+              ],
             },
           },
           {
