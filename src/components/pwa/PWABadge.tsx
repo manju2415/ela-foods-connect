@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { isOnSensitivePage } from "@/pwa/sw-guard";
-import { formScreenBlocksReload } from "@/pwa/reloadGuard";
+import { isBusyForReload } from "@/pwa/reloadGuard";
 
 /**
  * Registers the app-shell service worker and keeps every visitor current
@@ -53,33 +53,9 @@ const MIN_UPDATE_GAP_MS = 30_000;
 const RELOAD_GUARD_KEY = "ela-sw-reload-at";
 const RELOAD_GUARD_MS = 30_000;
 
-// Extra places (beyond isOnSensitivePage) where an unannounced reload is
-// never safe: wallet top-up screens launch Razorpay, admin screens hold
-// unsaved edits. Login / signup screens are handled by formScreenBlocksReload:
-// they reload only when no field has text and no OTP step is showing.
-const NO_RELOAD_PATH_PREFIXES = [
-  "/customer-app/wallet",
-  "/member-app/wallet",
-  "/admin",
-  "/mlm-admin",
-];
-
 /** True while a reload could wipe input or interrupt a live payment. */
-function isBusyForReload(): boolean {
-  if (isOnSensitivePage()) return true;
-  const path = window.location.pathname;
-  if (NO_RELOAD_PATH_PREFIXES.some((p) => path.startsWith(p))) return true;
-  if (formScreenBlocksReload(path, document)) return true;
-  // Razorpay's checkout is injected into the page as a container/iframe. Its
-  // script keeps a hidden (display:none) container in the DOM after loading,
-  // so only an actually rendered one (getClientRects is empty for display:none
-  // or a hidden ancestor) means a payment sheet is open.
-  const razorpayEls = document.querySelectorAll(".razorpay-container, iframe.razorpay-checkout-frame");
-  if (Array.from(razorpayEls).some((el) => el.getClientRects().length > 0)) return true;
-  // Someone is typing (e.g. entering an OTP) — don't wipe it.
-  const el = document.activeElement as HTMLElement | null;
-  if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return true;
-  return false;
+function isBusy(): boolean {
+  return isOnSensitivePage() || isBusyForReload(window);
 }
 
 function reloadedRecently(): boolean {
@@ -109,19 +85,25 @@ export function PWABadge() {
     let reloaded = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     // The very first controllerchange on a device with no controller is just
-    // the new worker claiming an already-fresh page (clientsClaim) — nothing
-    // stale to replace, so don't reload brand-new visitors. Every later
-    // controllerchange is a real version swap.
+    // the new worker claiming an already-fresh page — nothing stale to
+    // replace, so don't reload brand-new visitors.
     let hadController = !!navigator.serviceWorker.controller;
+    const retryLater = () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      retryTimer = setTimeout(reloadWhenSafe, 4000);
+    };
     const reloadWhenSafe = () => {
       if (reloaded) return;
-      if (isBusyForReload()) {
+      // Deferred, never dropped: both checks re-arm a retry.
+      if (isBusy()) {
         console.info("[pwa] new version is active but reload is deferred (checkout/payment/typing)");
-        if (retryTimer) clearTimeout(retryTimer);
-        retryTimer = setTimeout(reloadWhenSafe, 4000);
+        retryLater();
         return;
       }
-      if (reloadedRecently()) return;
+      if (reloadedRecently()) {
+        retryLater();
+        return;
+      }
       reloaded = true;
       markReloading();
       console.info("[pwa] new version active — reloading once to load it");
