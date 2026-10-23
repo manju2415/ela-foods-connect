@@ -19,7 +19,13 @@ export const NEVER_RELOAD_PATH_PREFIXES = [
   "/mlm-admin",
 ];
 
-type FieldLike = { value?: string; type?: string; checked?: boolean; defaultChecked?: boolean };
+type FieldLike = {
+  value?: string;
+  type?: string;
+  checked?: boolean;
+  defaultChecked?: boolean;
+  getClientRects?: () => { length: number };
+};
 type DocLike = { querySelectorAll(selector: string): ArrayLike<FieldLike> };
 
 /**
@@ -59,11 +65,15 @@ export function hasUserEditedOn(path: string): boolean {
 
 let trackerInstalled = false;
 export function installEditTracker() {
-  if (trackerInstalled || typeof document === "undefined") return;
+  const g = globalThis as unknown as {
+    document?: { addEventListener(t: string, f: () => void, c: boolean): void };
+    location?: { pathname: string };
+  };
+  if (trackerInstalled || !g.document) return;
   trackerInstalled = true;
-  const mark = () => noteUserEdit(window.location.pathname);
-  document.addEventListener("input", mark, true);
-  document.addEventListener("change", mark, true);
+  const mark = () => noteUserEdit(g.location?.pathname ?? "");
+  g.document.addEventListener("input", mark, true);
+  g.document.addEventListener("change", mark, true);
 }
 
 type WinLike = {
