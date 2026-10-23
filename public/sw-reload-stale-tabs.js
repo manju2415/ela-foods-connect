@@ -4,26 +4,27 @@
 // without the customer doing anything:
 //
 // 1. Deployment-pin recovery. The host pins a browser to the deployment it
-//    first loaded via a `__dpl` cookie, and then serves that OLD deployment's
+//    first loaded via a `__dpl` cookie and serves that OLD deployment's
 //    index.html for every request carrying the cookie — while sw.js itself
-//    keeps coming from the CURRENT deployment. So when a new worker installs,
-//    workbox downloads index.html under the stale pin and stores the old shell
-//    (which loads the old JS bundle) under the NEW revision key, and the worker
-//    then serves that stale shell forever. Here the worker (which can read and
-//    delete cookies through the Cookie Store API) removes the stale pin, then
-//    replaces the cached shell with a fresh copy.
+//    keeps coming from the CURRENT deployment. Workbox's install step
+//    downloads index.html WITH cookies, so it can store the old shell under
+//    the new revision key. The cookie may be HttpOnly (and iOS has no Cookie
+//    Store API), so deleting it is only best-effort. The real fix is
+//    repairShell() in `activate`: activation always runs after Workbox's
+//    install-time precache has finished and before this worker answers any
+//    page request (the browser holds fetches until activation completes), so
+//    a stale shell cached during the FIRST install is repaired too.
 //
 // 2. Reload stale tabs. A tab still running OLD page JavaScript has no code
 //    that reloads it, so once the worker has activated (and fixed the shell) it
-//    navigates those tabs itself. Only clients that were controlled by the
-//    PREVIOUS worker are returned by matchAll() at activation (a first-ever
-//    install has none, and this listener is registered before workbox's
-//    clientsClaim, so uncontrolled pages are not included). This runs once per
-//    new worker version, so it cannot loop.
+//    navigates those tabs itself. Only clients controlled by the PREVIOUS
+//    worker are returned by matchAll() at activation. Runs once per worker
+//    version, so it cannot loop.
 //
 // Tabs on login / checkout / payment / wallet / registration / admin screens
-// are left alone — the worker can't see typing or an open payment sheet — and
-// simply pick up the new version on their next navigation.
+// are left alone here — the worker can't see typing or an open payment sheet.
+// The page itself (src/components/pwa/PWABadge.tsx) reloads those once it can
+// see no input or OTP step would be lost.
 const NO_RELOAD_PATH_PREFIXES = [
   "/auth",
   "/mlm-login",
@@ -43,6 +44,7 @@ const NO_RELOAD_PATH_PREFIXES = [
 const DEPLOYMENT_PIN_COOKIE = "__dpl";
 
 // Removes only the host's deployment-pin cookie (never anything else).
+// Best-effort only: no-op on Safari and for HttpOnly cookies.
 async function clearDeploymentPin() {
   try {
     if (!self.cookieStore) return;
@@ -51,44 +53,81 @@ async function clearDeploymentPin() {
       pins.map((c) => self.cookieStore.delete({ name: c.name, domain: c.domain, path: c.path })),
     );
   } catch (e) {
-    // Best-effort: never let cookie cleanup break install/activation.
+    // Never let cookie cleanup break install/activation.
   }
 }
 
-// If the cached app shell references a script that this worker did not
-// precache, it is a stale shell (see above). Replace it with a fresh copy, but
-// only when that copy is consistent with what this worker precached.
-async function refreshStaleShell() {
+/** Same-origin entry scripts/styles an index.html loads, as absolute paths. */
+function shellAssetsOf(html) {
+  const found = html.match(/\/?assets\/[A-Za-z0-9._-]+\.(?:js|css)/g) || [];
+  return [...new Set(found.map((s) => (s[0] === "/" ? s : "/" + s)))].sort();
+}
+
+/** Fetch without cookies, so the host cannot route it to a pinned deployment. */
+function fetchUnpinned(path) {
+  return fetch(path, { cache: "no-store", credentials: "omit", redirect: "error" });
+}
+
+/**
+ * Downloads the current index.html without cookies and proves it is usable:
+ * it must be real HTML, reference at least one entry script, and every
+ * referenced asset must be served (cookieless) as a 200 with a matching
+ * script/style content type — the host returns 404 text/plain for assets a
+ * deployment does not contain, so this confirms HTML and assets come from the
+ * same deployment. Returns { response, assets } or null.
+ */
+async function fetchValidatedShell() {
+  const res = await fetchUnpinned("/index.html");
+  if (!res.ok || res.status !== 200) return null;
+  if (!/text\/html/i.test(res.headers.get("content-type") || "")) return null;
+  const html = await res.clone().text();
+  if (!/<div id="root"><\/div>/.test(html)) return null;
+  const assets = shellAssetsOf(html);
+  if (!assets.some((p) => p.endsWith(".js"))) return null;
+  for (const path of assets) {
+    const a = await fetchUnpinned(path);
+    if (!a.ok || a.status !== 200) return null;
+    const type = a.headers.get("content-type") || "";
+    const ok = path.endsWith(".js") ? /javascript/i.test(type) : /text\/css/i.test(type);
+    if (!ok) return null;
+  }
+  return { response: res, assets };
+}
+
+/**
+ * Replace the precached index.html with a validated cookieless copy when the
+ * cached one references different entry assets. Leaves the cache untouched on
+ * any failure (offline, bad response, missing asset).
+ */
+async function repairShell() {
   try {
     const cacheName = (await caches.keys()).find((n) => n.startsWith("workbox-precache"));
-    if (!cacheName) return;
+    if (!cacheName) return "no-cache";
     const cache = await caches.open(cacheName);
-    const keys = await cache.keys();
-    const precachedPaths = new Set(keys.map((r) => new URL(r.url).pathname));
-    const shellKeys = keys.filter((r) => new URL(r.url).pathname === "/index.html");
-    if (shellKeys.length === 0) return;
+    const shellKeys = (await cache.keys()).filter((r) => new URL(r.url).pathname === "/index.html");
+    if (shellKeys.length === 0) return "no-shell";
 
-    const scriptsOf = (html) => (html.match(/\/?assets\/[A-Za-z0-9._-]+\.js/g) || []).map((s) => (s[0] === "/" ? s : "/" + s));
-    const isConsistent = (html) => scriptsOf(html).every((p) => precachedPaths.has(p));
+    const fresh = await fetchValidatedShell();
+    if (!fresh) return "fresh-invalid";
+    const want = fresh.assets.join("|");
 
-    let needsRefresh = false;
+    let stale = false;
     for (const key of shellKeys) {
       const cached = await cache.match(key);
-      if (!cached || !isConsistent(await cached.text())) needsRefresh = true;
+      if (!cached || shellAssetsOf(await cached.text()).join("|") !== want) stale = true;
     }
-    if (!needsRefresh) return;
+    if (!stale) return "up-to-date";
 
-    const fresh = await fetch("/index.html", { cache: "reload", credentials: "same-origin" });
-    if (!fresh.ok) return;
-    if (!isConsistent(await fresh.clone().text())) return; // fresh copy doesn't match this worker's precache — keep as is
-    await Promise.all(shellKeys.map((key) => cache.put(key, fresh.clone())));
+    for (const key of shellKeys) await cache.put(key, fresh.response.clone());
+    return "replaced";
   } catch (e) {
-    // Best-effort (e.g. offline): the next worker update tries again.
+    return "error"; // e.g. offline — the next worker update tries again.
   }
 }
 
-// Try to drop the stale pin before workbox downloads the shell; the activate
-// step below repairs the shell if that download already raced ahead of it.
+// Exposed for tests (tests/swShell.test.ts); harmless in the worker.
+self.__elaShell = { shellAssetsOf, fetchValidatedShell, repairShell, NO_RELOAD_PATH_PREFIXES };
+
 self.addEventListener("install", (event) => {
   event.waitUntil(clearDeploymentPin());
 });
@@ -98,19 +137,17 @@ self.addEventListener("activate", (event) => {
     (async () => {
       try {
         await clearDeploymentPin();
-        await refreshStaleShell();
+        await repairShell();
         const windows = await self.clients.matchAll({ type: "window" });
         windows.forEach((client) => {
           const path = new URL(client.url).pathname;
           if (NO_RELOAD_PATH_PREFIXES.some((p) => path.startsWith(p))) return;
-          // Deliberately NOT awaited: the navigation's own request is only
-          // handled once this worker finishes activating, and navigate()
-          // settles only when that request completes — awaiting it here
-          // would deadlock activation and freeze the tab.
+          // Deliberately NOT awaited: navigate() settles only after this
+          // worker finishes activating — awaiting would deadlock activation.
           client.navigate(client.url).catch(() => {});
         });
       } catch (e) {
-        // Best-effort: activation must never fail because of this.
+        // Activation must never fail because of this.
       }
     })(),
   );
