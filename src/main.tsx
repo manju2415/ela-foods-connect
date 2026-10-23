@@ -5,8 +5,11 @@ import "./index.css";
 import { installAuthRecovery } from "./lib/authRecovery";
 import { BUILD_MARK } from "./buildMark";
 import { Capacitor } from "@capacitor/core";
+import { installEditTracker } from "./pwa/reloadGuard";
 
 installAuthRecovery();
+// Lets automatic reloads (app updates, chunk recovery) see unsaved edits.
+installEditTracker();
 
 // Installed app only: enables the app-only styles in index.css (tap feedback,
 // no text selection, no overscroll bounce, screen fade, bottom-sheet dialogs).
