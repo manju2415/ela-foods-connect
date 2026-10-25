@@ -15,9 +15,23 @@ const sanitizeSecret = (raw: string | undefined): string => {
   return trimmed;
 };
 
+const OUTDATED_PAGE_MESSAGE = 'This page is out of date. Please refresh the page (Ctrl+Shift+R) and try again.';
+
+const isBrowser = (req: Request) => {
+  const ua = req.headers.get('user-agent') || '';
+  return /Safari\//.test(ua) && !/; wv\)/.test(ua);
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (isBrowser(req)) {
+    return new Response(
+      JSON.stringify({ success: false, code: 'OUTDATED_CLIENT', error: OUTDATED_PAGE_MESSAGE }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
