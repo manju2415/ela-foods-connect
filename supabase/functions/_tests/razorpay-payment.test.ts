@@ -281,3 +281,24 @@ Deno.test("internal details are never shown to customers", async () => {
     assertEquals(e.message, "Could not start the payment. Please try again.");
   }
 });
+
+// ---- delivery location pin --------------------------------------------------
+
+Deno.test("a confirmed map pin in the shipping address reaches quote_checkout and place_paid_order unchanged", async () => {
+  setup();
+  stubPlace();
+  const alice = seedUser(ALICE);
+  const pinned = { address_line1: "12 MG Road", city: "Bengaluru", postal_code: "560001", latitude: 12.971599, longitude: 77.594566, location_confirmed_at: "2026-10-26T10:00:00.000Z" };
+  const r = await createOrder(memberBody({ attemptContext: { purpose: "member_order", checkout: { ...cart(), shipping_address: pinned } } }), `Bearer at-${alice.id}`);
+  assertEquals(r.status, 200);
+  assertEquals(r.body.amount, 109000); // pricing unaffected
+  assertEquals(quoteCalls[0].p_shipping_address, pinned);
+  const row = db.tables.payment_attempts[0] as { checkout_payload: { shipping_address: unknown } };
+  assertEquals(row.checkout_payload.shipping_address, pinned);
+
+  const res = await settlePayment(createClient("", ""), {
+    razorpayPaymentId: "pay_pin", razorpayOrderId: "order_T1", capturedAmountPaise: 109000, purpose: "member_order",
+  });
+  assert(res.success);
+  assertEquals((placed[0].p_payload as { shipping_address: unknown }).shipping_address, pinned);
+});

@@ -52,4 +52,10 @@
          outright if either isn't declared here. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <!-- Optional "Use My Current Location" at checkout: Capacitor's WebView asks
+         for these at runtime only when the customer taps the button (one-time
+         foreground read, no background location). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>

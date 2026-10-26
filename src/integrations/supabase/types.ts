@@ -61,6 +61,9 @@ export type Database = {
           id: string
           is_default: boolean | null
           label: string | null
+          latitude: number | null
+          location_confirmed_at: string | null
+          longitude: number | null
           phone: string
           postal_code: string
           state: string
@@ -77,6 +80,9 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           label?: string | null
+          latitude?: number | null
+          location_confirmed_at?: string | null
+          longitude?: number | null
           phone: string
           postal_code: string
           state: string
@@ -93,6 +99,9 @@ export type Database = {
           id?: string
           is_default?: boolean | null
           label?: string | null
+          latitude?: number | null
+          location_confirmed_at?: string | null
+          longitude?: number | null
           phone?: string
           postal_code?: string
           state?: string

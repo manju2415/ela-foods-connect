@@ -41,6 +41,8 @@
 	<string>We use your contacts so you can quickly add a member by picking their number.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Ela Bazar uses the camera to capture package and delivery proof photos.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Ela Bazar uses your location only when you tap Use My Current Location, to pin your delivery address on the map. It is used for order delivery and may be shared with the assigned delivery partner.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

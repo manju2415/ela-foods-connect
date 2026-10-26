@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 import { InvoiceButton } from "@/components/InvoiceButton";
+import { OrderLocationActions } from "@/components/admin/OrderLocationActions";
 import { orderPaymentMethodLabel, orderValue } from "@/lib/paymentMethod";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -461,6 +462,7 @@ export default function Orders() {
                       {selectedOrder.shipping_address?.state} - {selectedOrder.shipping_address?.postal_code}
                     </p>
                     <p className="text-sm text-muted-foreground">{selectedOrder.shipping_address?.phone}</p>
+                    <OrderLocationActions orderNumber={selectedOrder.order_number} shippingAddress={selectedOrder.shipping_address} />
                   </div>
                 </div>
 

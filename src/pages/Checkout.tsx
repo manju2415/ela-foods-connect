@@ -9,6 +9,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { DeliveryScheduler } from "@/components/checkout/DeliveryScheduler";
+import { DeliveryLocationPicker } from "@/components/checkout/DeliveryLocationPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,10 @@ interface Address {
   country: string;
   label: string;
   is_default: boolean;
+  // Optional map pin; travels to the order inside shipping_address.
+  latitude?: number | null;
+  longitude?: number | null;
+  location_confirmed_at?: string | null;
 }
 
 interface WalletData {
@@ -786,6 +791,13 @@ const Checkout = () => {
                         </div>
                       ))}
                     </RadioGroup>
+
+                    <DeliveryLocationPicker
+                      address={addresses.find((address) => address.id === selectedAddressId)}
+                      onConfirmed={(addressId, location) =>
+                        setAddresses((current) => current.map((address) => (address.id === addressId ? { ...address, ...location } : address)))
+                      }
+                    />
 
                     <Dialog open={showAddAddress} onOpenChange={setShowAddAddress}>
                       <DialogTrigger asChild>
