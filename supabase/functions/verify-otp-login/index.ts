@@ -25,6 +25,13 @@ const isDemoPhone = (phone: string) => {
   return DEMO_PHONES.some((p) => digits === p || digits === `91${p}`);
 };
 
+const ADMIN_TEST_PHONE = "9999000001";
+const ADMIN_TEST_MAX_FAILURES_PER_HOUR = 5;
+const isAdminTestPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return digits === ADMIN_TEST_PHONE || digits === `91${ADMIN_TEST_PHONE}`;
+};
+
 // Roles that must never be reachable through the fixed demo code, even if one
 // is later granted to the demo number by mistake.
 const PRIVILEGED_ROLES = ["super_admin", "admin", "mlm_admin", "founding_member", "delivery_partner"];
@@ -145,12 +152,32 @@ Deno.serve(async (req) => {
     }
     loggedPhone = phone;
 
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
     // 1. Verify the OTP server-side. This is the only gate — nothing downstream
     // trusts anything the client claims about verification having happened.
     const usedDemoBypass = isDemoPhone(phone);
+    const adminTestOtp = sanitizeSecret(Deno.env.get("ADMIN_TEST_OTP"));
+    const usedAdminTestCode = isAdminTestPhone(phone) && /^\d{6}$/.test(adminTestOtp);
     if (usedDemoBypass) {
       if (otp !== DEMO_OTP) {
         await logAttempt("OTP_REJECTED", "demo phone: wrong demo OTP");
+        return json(400, { success: false, code: "OTP_REJECTED", error: "Invalid OTP" });
+      }
+    } else if (usedAdminTestCode) {
+      const { count, error: countErr } = await admin.from("otp_send_log")
+        .select("id", { count: "exact", head: true })
+        .like("phone", `%${ADMIN_TEST_PHONE}`)
+        .eq("outcome", "session:ADMIN_TEST_REJECTED")
+        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+      if (countErr || (count ?? 0) >= ADMIN_TEST_MAX_FAILURES_PER_HOUR) {
+        await logAttempt("ADMIN_TEST_LOCKED", countErr?.message);
+        return json(429, { success: false, code: "ADMIN_TEST_LOCKED", error: "Too many wrong codes. Try again in an hour." });
+      }
+      if (otp !== adminTestOtp) {
+        await logAttempt("ADMIN_TEST_REJECTED");
         return json(400, { success: false, code: "OTP_REJECTED", error: "Invalid OTP" });
       }
     } else {
@@ -198,9 +225,6 @@ Deno.serve(async (req) => {
     // 2. Mint a session for the phone's account. The password is rotated to a
     // fresh random value on every login, so it is never guessable and never
     // needs to be shared with — or computed by — the client.
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
 
     const cleanPhone = phone.replace(/\+/g, "");
     const mockEmail = `${cleanPhone}@elabazar.local`;

@@ -28,7 +28,7 @@ export function MLMAdminLayout({ children }: MLMAdminLayoutProps) {
       <div className="min-h-screen flex w-full">
         <MLMAdminSidebar />
         <main className="flex-1 flex flex-col">
-          <header className="h-14 border-b border-border bg-card flex items-center px-4 gap-4">
+          <header className="box-content h-14 safe-area-pt border-b border-border bg-card flex items-center px-4 gap-4">
             <SidebarTrigger />
             <Network className="h-5 w-5 text-primary" />
             <h1 className="font-semibold text-lg flex-1">Ela Bazar Network Manager</h1>
