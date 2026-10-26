@@ -66,6 +66,7 @@ import {
   RotateCcw,
   Store,
   ArrowRight,
+  Loader2,
 } from "lucide-react";
 import CartSheet from "@/components/CartSheet";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -488,6 +489,17 @@ const Dashboard = ({ hideChrome = false }: DashboardProps) => {
 
   if (!user) {
     return null;
+  }
+
+  // Admins are redirected to their own dashboard by the effect above. Until
+  // the role is known (or while that redirect happens) show a spinner, so the
+  // member dashboard doesn't flash up for an admin.
+  if (roleLoading || isSuperAdmin || isMLMAdmin || isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
