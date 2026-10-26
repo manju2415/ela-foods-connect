@@ -93,7 +93,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div className="min-h-screen flex w-full max-w-full overflow-hidden">
         <AdminSidebar />
         <main className="flex-1 min-w-0 max-w-full flex flex-col overflow-hidden">
-          <header className="h-14 border-b border-border bg-card flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 overflow-hidden">
+          <header className="box-content h-14 safe-area-pt border-b border-border bg-card flex items-center px-2 sm:px-4 gap-1.5 sm:gap-4 overflow-hidden">
             <SidebarTrigger className="shrink-0" />
             {showBackButton && (
               <Button variant="ghost" size="icon" onClick={handleBack} className="h-9 w-9 shrink-0" aria-label="Go back">
