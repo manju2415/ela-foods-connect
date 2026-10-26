@@ -26,6 +26,12 @@ const isTestPhone = (phone: string) => {
   return TEST_PHONES.some((p) => digits === p || digits === `91${p}`);
 };
 
+const ADMIN_TEST_PHONES = ["9999000001"];
+const isAdminTestPhone = (phone: string) => {
+  const digits = phone.replace(/\D/g, "");
+  return ADMIN_TEST_PHONES.some((p) => digits === p || digits === `91${p}`);
+};
+
 // Shared with the customer/member login screen so the last number typed on
 // this device is remembered no matter which login page it was entered on.
 const LAST_PHONE_STORAGE_KEY = "ela_last_login_phone";
@@ -40,7 +46,7 @@ const checkPhoneRegistered = async (phone: string): Promise<boolean> => {
 };
 
 const sendOtpViaMsg91 = async (phone: string) => {
-  if (isTestPhone(phone)) return { success: true as const };
+  if (isTestPhone(phone) || isAdminTestPhone(phone)) return { success: true as const };
   const { data, error } = await supabase.functions.invoke("msg91-send-otp", { body: { phone } });
   console.log("[MLMLogin] msg91-send-otp response:", { data, error });
   if (error) {
@@ -56,6 +62,7 @@ const sendOtpViaMsg91 = async (phone: string) => {
 
 const getOtpSentDescription = (phone: string, result: { requestId?: string; mobile?: string }) => {
   if (isTestPhone(phone)) return `Test account — use ${TEST_OTP}`;
+  if (isAdminTestPhone(phone)) return "Admin test account — enter your test code";
   const details = result.requestId ? ` MSG91 ID: ${result.requestId}` : "";
   return `A 6-digit code was accepted by MSG91 for ${phone}.${details}`;
 };
