@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { untypedSupabase } from "@/lib/untypedSupabase";
@@ -112,6 +112,10 @@ export default function Categories() {
   const [existingImage, setExistingImage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
+
+  // One preview URL per chosen file (creating it in render reloaded the image on every keystroke).
+  const previewUrl = useMemo(() => (imageFile ? URL.createObjectURL(imageFile) : null), [imageFile]);
+  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
 
   const { data: categories = [], isLoading } = useQuery({
     queryKey: ["admin-categories"],
@@ -237,7 +241,7 @@ export default function Categories() {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (category: Category) => {
+  const openEditDialog = useCallback((category: Category) => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
@@ -254,7 +258,7 @@ export default function Categories() {
     setExistingImage(category.image_url);
     setImageFile(null);
     setIsDialogOpen(true);
-  };
+  }, []);
 
   const closeDialog = () => {
     setIsDialogOpen(false);
@@ -288,55 +292,25 @@ export default function Categories() {
     setExistingImage(null);
   };
 
-  const filteredCategories = categories.filter((cat) =>
-    cat.name.toLowerCase().includes(search.toLowerCase())
+  const filteredCategories = useMemo(
+    () => categories.filter((cat) => cat.name.toLowerCase().includes(search.toLowerCase())),
+    [categories, search]
   );
 
-  const getParentName = (parentId: string | null) => {
-    if (!parentId) return "—";
-    return categories.find((c) => c.id === parentId)?.name || "Unknown";
-  };
+  const nameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
+  const childCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of categories) if (c.parent_id) counts.set(c.parent_id, (counts.get(c.parent_id) ?? 0) + 1);
+    return counts;
+  }, [categories]);
 
-  const getChildCount = (categoryId: string) => {
-    return categories.filter((c) => c.parent_id === categoryId).length;
-  };
 
   // Only show parent categories (no parent_id) for parent selection
   const parentCategoryOptions = categories.filter(c => !c.parent_id);
 
-  return (
-    <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-            <p className="text-muted-foreground">Organize your product catalog</p>
-          </div>
-          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" /> Add Category
-          </Button>
-        </div>
-
-        <Card className="max-w-full overflow-hidden">
-          <CardHeader className="p-4 sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FolderTree className="h-5 w-5" />
-                All Categories ({filteredCategories.length})
-              </CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search categories..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 w-full sm:w-64"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            {isLoading ? (
+  // Memoized so typing in / toggling the edit dialog doesn't re-render every row.
+  const categoryList = useMemo(() => (
+    isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
@@ -372,6 +346,7 @@ export default function Categories() {
                               src={category.image_url}
                               alt={category.name}
                               className="h-10 w-10 rounded object-cover"
+                              loading="lazy"
                             />
                           ) : (
                             <div className="h-10 w-10 rounded bg-muted flex items-center justify-center">
@@ -390,12 +365,12 @@ export default function Categories() {
                         </TableCell>
                         <TableCell>
                           {category.parent_id ? (
-                            <Badge variant="outline">{getParentName(category.parent_id)}</Badge>
+                            <Badge variant="outline">{nameById.get(category.parent_id) || "Unknown"}</Badge>
                           ) : (
                             <Badge>Parent Category</Badge>
                           )}
                         </TableCell>
-                        <TableCell>{getChildCount(category.id)} subcategories</TableCell>
+                        <TableCell>{childCounts.get(category.id) ?? 0} subcategories</TableCell>
                         <TableCell>
                           <Badge variant={category.is_active ? "default" : "secondary"}>
                             {category.is_active ? "Active" : "Inactive"}
@@ -426,7 +401,7 @@ export default function Categories() {
                   <AdminMobileCard key={category.id}>
                     <div className="flex gap-3">
                       {category.image_url ? (
-                        <img src={category.image_url} alt={category.name} className="h-12 w-12 shrink-0 rounded object-cover" />
+                        <img src={category.image_url} alt={category.name} loading="lazy" className="h-12 w-12 shrink-0 rounded object-cover" />
                       ) : (
                         <div className="h-12 w-12 shrink-0 rounded bg-muted flex items-center justify-center"><FolderTree className="h-5 w-5 text-muted-foreground" /></div>
                       )}
@@ -438,8 +413,8 @@ export default function Categories() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <AdminMobileField label="Order">{category.display_order}</AdminMobileField>
-                      <AdminMobileField label="Products">{getChildCount(category.id)} subcategories</AdminMobileField>
-                      <AdminMobileField label="Parent" className="col-span-2">{category.parent_id ? <Badge variant="outline">{getParentName(category.parent_id)}</Badge> : <Badge>Parent Category</Badge>}</AdminMobileField>
+                      <AdminMobileField label="Products">{childCounts.get(category.id) ?? 0} subcategories</AdminMobileField>
+                      <AdminMobileField label="Parent" className="col-span-2">{category.parent_id ? <Badge variant="outline">{nameById.get(category.parent_id) || "Unknown"}</Badge> : <Badge>Parent Category</Badge>}</AdminMobileField>
                     </div>
                     <div className="flex justify-end gap-2 pt-1">
                       <Button variant="outline" size="sm" onClick={() => openEditDialog(category)}><Pencil className="h-4 w-4" /></Button>
@@ -449,7 +424,42 @@ export default function Categories() {
                 ))}
               </div>
               </>
-            )}
+            )
+  ), [isLoading, filteredCategories, nameById, childCounts, openEditDialog]);
+
+  return (
+    <AdminLayout>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
+            <p className="text-muted-foreground">Organize your product catalog</p>
+          </div>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> Add Category
+          </Button>
+        </div>
+
+        <Card className="max-w-full overflow-hidden">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <FolderTree className="h-5 w-5" />
+                All Categories ({filteredCategories.length})
+              </CardTitle>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search categories..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 w-full sm:w-64"
+                />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            {categoryList}
           </CardContent>
         </Card>
 
@@ -529,7 +539,7 @@ export default function Categories() {
                   {(existingImage || imageFile) && (
                     <div className="relative">
                       <img
-                        src={imageFile ? URL.createObjectURL(imageFile) : existingImage!}
+                        src={previewUrl ?? existingImage!}
                         alt=""
                         className="h-20 w-20 object-cover rounded"
                       />
