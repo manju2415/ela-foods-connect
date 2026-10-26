@@ -112,7 +112,8 @@ class Query {
   private max = Infinity;
   constructor(private table: string) {}
 
-  select(..._args: unknown[]) { return this; }
+  private counting = false;
+  select(_cols?: unknown, o?: { count?: string; head?: boolean }) { this.counting = !!o?.count; return this; }
   insert(p: Row | Row[]) { this.op = "insert"; this.payload = p; return this; }
   update(p: Row) { this.op = "update"; this.payload = p; return this; }
   delete() { this.op = "delete"; return this; }
@@ -120,6 +121,12 @@ class Query {
   eq(col: string, val: unknown) { this.filters.push((r) => r[col] === val); return this; }
   in(col: string, vals: unknown[]) { this.filters.push((r) => vals.includes(r[col])); return this; }
   is(col: string, val: unknown) { this.filters.push((r) => (r[col] ?? null) === val); return this; }
+  like(col: string, pattern: string) {
+    const re = new RegExp("^" + pattern.split("%").map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
+    this.filters.push((r) => re.test(String(r[col] ?? "")));
+    return this;
+  }
+  gte(col: string, val: string) { this.filters.push((r) => String(r[col] ?? new Date().toISOString()) >= val); return this; }
   or(expr: string) {
     const parts = expr.split(",").map((p) => { const [col, , ...v] = p.split("."); return { col, val: v.join(".") }; });
     this.filters.push((r) => parts.some(({ col, val }) => String(r[col] ?? "") === val));
@@ -133,6 +140,7 @@ class Query {
 
   run(): Promise<{ data: any; error: any }> {
     const rows = this.rows();
+    if (this.op === "select" && this.counting) return Promise.resolve({ data: null, count: this.matches().length, error: null } as any);
     if (this.op === "select") return Promise.resolve({ data: this.matches().slice(0, this.max), error: null });
     if (this.op === "insert") {
       for (const r of [this.payload].flat() as Row[]) rows.push({ ...r });

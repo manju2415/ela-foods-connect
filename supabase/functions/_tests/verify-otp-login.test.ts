@@ -302,3 +302,52 @@ Deno.test("unconfirmed account missed by the lookup check is confirmed at sign-i
     admin.generateLink = original;
   }
 });
+
+// Admin test number: its code is the ADMIN_TEST_OTP secret, never MSG91 or 000000.
+const ADMIN_TEST = "+919999000001";
+const ADMIN_TEST_EMAIL = "919999000001@elabazar.local";
+
+Deno.test("admin test number logs in with the ADMIN_TEST_OTP secret, without MSG91", async () => {
+  setup(false);
+  Deno.env.set("ADMIN_TEST_OTP", "482915");
+  const u = seedUser(ADMIN_TEST_EMAIL, { confirmed: true, phone: ADMIN_TEST });
+  const r = await login({ phone: ADMIN_TEST, otp: "482915" });
+  assertEquals(r.status, 200);
+  assertEquals(r.body.access_token, `at-${u.id}`);
+  assertEquals(msg91Calls.length, 0);
+  Deno.env.delete("ADMIN_TEST_OTP");
+});
+
+Deno.test("admin test number: wrong code and the demo code 000000 are rejected", async () => {
+  setup(false);
+  Deno.env.set("ADMIN_TEST_OTP", "482915");
+  seedUser(ADMIN_TEST_EMAIL, { confirmed: true, phone: ADMIN_TEST });
+  for (const otp of ["000000", "111111"]) {
+    const r = await login({ phone: ADMIN_TEST, otp });
+    assertEquals(r.status, 400);
+    assertEquals(lastLog(), "session:ADMIN_TEST_REJECTED");
+  }
+  assertEquals(msg91Calls.length, 0);
+  Deno.env.delete("ADMIN_TEST_OTP");
+});
+
+Deno.test("admin test number locks after 5 wrong codes, even for the right code", async () => {
+  setup(false);
+  Deno.env.set("ADMIN_TEST_OTP", "482915");
+  seedUser(ADMIN_TEST_EMAIL, { confirmed: true, phone: ADMIN_TEST });
+  for (let i = 0; i < 5; i++) await login({ phone: ADMIN_TEST, otp: "111111" });
+  const r = await login({ phone: ADMIN_TEST, otp: "482915" });
+  assertEquals(r.status, 429);
+  assertEquals(r.body.code, "ADMIN_TEST_LOCKED");
+  Deno.env.delete("ADMIN_TEST_OTP");
+});
+
+Deno.test("admin test number without the secret set goes through MSG91 like any number", async () => {
+  setup(false);
+  Deno.env.delete("ADMIN_TEST_OTP");
+  seedUser(ADMIN_TEST_EMAIL, { confirmed: true, phone: ADMIN_TEST });
+  const r = await login({ phone: ADMIN_TEST, otp: "000000" });
+  assertEquals(r.status, 400);
+  assertEquals(r.body.code, "OTP_REJECTED");
+  assertEquals(msg91Calls.length, 1);
+});
