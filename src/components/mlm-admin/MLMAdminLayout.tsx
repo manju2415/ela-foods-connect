@@ -5,6 +5,8 @@ import { MLMAdminSidebar } from "./MLMAdminSidebar";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, ExternalLink, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Capacitor } from "@capacitor/core";
+import { nativeLaunchPath } from "@/lib/guestAccess";
 
 interface MLMAdminLayoutProps {
   children: ReactNode;
@@ -19,8 +21,10 @@ export function MLMAdminLayout({ children }: MLMAdminLayoutProps) {
     navigate("/mlm-login", { replace: true });
   };
 
+  // The installed app has no tabs: open the shop inside the app instead.
   const handleVisitSite = () => {
-    window.open("/", "_blank");
+    if (Capacitor.isNativePlatform()) navigate(nativeLaunchPath(false));
+    else window.open("/", "_blank");
   };
 
   return (

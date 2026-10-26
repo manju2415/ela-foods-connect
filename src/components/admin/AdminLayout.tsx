@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Loader2, LogOut, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLayoutOverride } from "@/contexts/AdminLayoutContext";
+import { Capacitor } from "@capacitor/core";
+import { nativeLaunchPath } from "@/lib/guestAccess";
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -60,8 +62,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     navigate("/auth", { replace: true });
   };
 
+  // The installed app has no tabs: open the shop inside the app instead.
   const handleVisitSite = () => {
-    window.open("/", "_blank");
+    if (Capacitor.isNativePlatform()) navigate(nativeLaunchPath(false));
+    else window.open("/", "_blank");
   };
 
   const handleBack = () => {
