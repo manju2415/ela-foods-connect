@@ -124,7 +124,9 @@ export default function CustomerApp() {
     <MobileAppLayout appType="customer">
       {Capacitor.isNativePlatform() && <AppHomeTopBar />}
       <AppPullToRefresh onRefresh={() => queryClient.refetchQueries({ type: "active" })}>
-        <Index hideChrome />
+        {/* Browsers get the normal website header/footer (search, cart, menu);
+            the installed app uses its own top bar and bottom tabs instead. */}
+        <Index hideChrome={Capacitor.isNativePlatform()} />
       </AppPullToRefresh>
       <InstallPrompt appName="Ela Bazar" appType="customer" themeColor="#f97316" />
     </MobileAppLayout>
