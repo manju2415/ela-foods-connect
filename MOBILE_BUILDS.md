@@ -1,7 +1,5 @@
 # ELA Foods Mobile Apps - Build Guide
 
-> **Out of date. To build the apps, follow `BUILD.md` instead.**
-
 This project contains three separate mobile apps built with Capacitor:
 
 ## App Configurations
