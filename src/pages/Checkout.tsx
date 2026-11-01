@@ -10,6 +10,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { DeliveryScheduler } from "@/components/checkout/DeliveryScheduler";
 import { DeliveryLocationPicker } from "@/components/checkout/DeliveryLocationPicker";
+import { ExpressDeliveryOption } from "@/components/checkout/ExpressDeliveryOption";
+import type { ExpressQuote } from "@/lib/expressDelivery";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -116,6 +118,11 @@ const Checkout = () => {
   const [contactEmail, setContactEmail] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
   const [orderPlaced, setOrderPlaced] = useState<{ orderNumber: string; amount: number } | null>(null);
+  // Express Delivery: only counts while the server says this address qualifies.
+  const [expressSelected, setExpressSelected] = useState(false);
+  const [expressQuote, setExpressQuote] = useState<ExpressQuote | null>(null);
+  const [expressRecheck, setExpressRecheck] = useState(0);
+  const isExpress = fulfillmentType === "delivery" && expressSelected && !!expressQuote?.eligible;
   const isNativeApp = Capacitor.isNativePlatform();
 
   // Installed app: success haptic once the order is confirmed (observes the
@@ -426,7 +433,7 @@ const Checkout = () => {
       toast({ title: "Select Store", description: "Please select a store for pickup.", variant: "destructive" });
       return;
     }
-    if (!hasDeliveryDate) {
+    if (!hasDeliveryDate && !isExpress) {
       toast({ title: "No delivery date", description: "No delivery date is available for all the items in your cart.", variant: "destructive" });
       return;
     }
@@ -451,11 +458,15 @@ const Checkout = () => {
       full_name: "Store Pickup", phone: selectedStore.phone || "", address_line1: selectedStore.address_line1,
       address_line2: selectedStore.address_line2, city: selectedStore.city, state: selectedStore.state,
       postal_code: selectedStore.postal_code, country: "India", email: validEmail,
-    } : selectedAddress ? { ...selectedAddress, email: validEmail } : {};
+    } : selectedAddress ? { ...selectedAddress, email: validEmail, ...(isExpress ? { delivery_type: "express" } : {}) } : {};
 
     setPlacing(true);
     const cartItems = items.map((item) => ({ product_id: item.product_id, variant_id: item.variant_id || null, quantity: item.quantity }));
-    const deliveryDate = selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null;
+    // Express is delivered today (the server's IST date) and has no slot.
+    const deliveryDate = isExpress
+      ? expressQuote?.delivery_date ?? null
+      : selectedDeliveryDate ? format(selectedDeliveryDate, "yyyy-MM-dd") : null;
+    const deliverySlotId = isExpress ? null : selectedDeliverySlotId;
 
     const finishOrder = async (title: string, orderId: string, orderNumber: string, amount: number) => {
       try { await supabase.functions.invoke("send-order-confirmation", { body: { order_id: orderId } }); } catch (emailError) { console.error("Confirmation email error:", emailError); }
@@ -490,7 +501,7 @@ const Checkout = () => {
               coupon_code: appliedCoupon?.code || null,
               use_wallet: useWallet,
               preferred_delivery_date: deliveryDate,
-              preferred_delivery_slot_id: selectedDeliverySlotId,
+              preferred_delivery_slot_id: deliverySlotId,
             },
           },
           prefill: { name: selectedAddress?.full_name || user.user_metadata?.full_name || "", contact: selectedAddress?.phone || user.phone || "", email: validEmail },
@@ -525,6 +536,7 @@ const Checkout = () => {
         });
       } catch (paymentError) {
         toast({ title: "Could not start payment", description: paymentError instanceof Error ? paymentError.message : "No order was placed. Please try again.", variant: "destructive" });
+        if (isExpress) setExpressRecheck((n) => n + 1);
         await fetchData();
         setPlacing(false);
       }
@@ -542,13 +554,21 @@ const Checkout = () => {
       p_use_wallet: useWallet,
       p_payment_method: paymentMethod,
       p_preferred_delivery_date: deliveryDate,
-      p_preferred_delivery_slot_id: selectedDeliverySlotId,
+      p_preferred_delivery_slot_id: deliverySlotId,
       p_idempotency_key: crypto.randomUUID(),
     });
     const result = data as { success: boolean; error?: string; code?: string; order_id?: string; order_number?: string; total_amount?: number } | null;
     if (error || !result?.success) {
-      toast({ title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : "Order failed", description: result?.error || error?.message || "Please try again.", variant: "destructive" });
+      toast({
+        title: result?.code === "OUT_OF_STOCK" ? "Stock changed" : result?.code === "EXPRESS_UNAVAILABLE" ? "Express Delivery unavailable" : "Order failed",
+        description: result?.error || error?.message || "Please try again.",
+        variant: "destructive",
+      });
       if (result?.code === "OUT_OF_STOCK") await refreshCart();
+      if (result?.code === "EXPRESS_UNAVAILABLE") {
+        setExpressSelected(false);
+        setExpressRecheck((n) => n + 1);
+      }
       await fetchData();
       setPlacing(false);
       return;
@@ -614,7 +634,7 @@ const Checkout = () => {
   }
 
   const discountAmount = calculateDiscount();
-  const shippingAmountDisplay = calculateShipping(effectiveTotalPrice, fulfillmentType);
+  const shippingAmountDisplay = calculateShipping(effectiveTotalPrice, fulfillmentType, isExpress);
   const purchaseOnlyBalance = wallet.purchase_only_balance;
   const withdrawableBalance = wallet.withdrawable_balance;
   const totalWalletBalance = wallet.balance;
@@ -630,7 +650,7 @@ const Checkout = () => {
   // Shared by the in-page button and the installed app's sticky pay bar.
   // Stock problems don't disable the button: tapping it explains which item
   // is short and offers to remove it (see the stock dialog below).
-  const payBlockedReason = !hasDeliveryDate
+  const payBlockedReason = !hasDeliveryDate && !isExpress
     ? "No delivery date is available for the items in your cart."
     : fulfillmentType === "delivery"
       ? !selectedAddressId ? "Add or select a delivery address to place your order." : null
@@ -823,15 +843,30 @@ const Checkout = () => {
             </Card>
             )}
 
+            {/* Express Delivery - hidden unless enabled by an admin */}
+            {fulfillmentType === "delivery" && selectedAddressId && (
+              <ExpressDeliveryOption
+                latitude={addresses.find((address) => address.id === selectedAddressId)?.latitude}
+                longitude={addresses.find((address) => address.id === selectedAddressId)?.longitude}
+                productIds={items.map((item) => item.product_id)}
+                selected={expressSelected}
+                onSelectedChange={setExpressSelected}
+                onQuoteChange={setExpressQuote}
+                recheckKey={expressRecheck}
+              />
+            )}
+
             {/* Delivery Scheduling */}
-            <DeliveryScheduler
-              selectedDate={selectedDeliveryDate}
-              selectedSlotId={selectedDeliverySlotId}
-              onDateChange={setSelectedDeliveryDate}
-              onSlotChange={setSelectedDeliverySlotId}
-              productIds={items.map((item) => item.product_id)}
-              onAvailabilityChange={setHasDeliveryDate}
-            />
+            {!isExpress && (
+              <DeliveryScheduler
+                selectedDate={selectedDeliveryDate}
+                selectedSlotId={selectedDeliverySlotId}
+                onDateChange={setSelectedDeliveryDate}
+                onSlotChange={setSelectedDeliverySlotId}
+                productIds={items.map((item) => item.product_id)}
+                onAvailabilityChange={setHasDeliveryDate}
+              />
+            )}
 
             {/* Payment Options */}
             <Card>
@@ -1016,7 +1051,7 @@ const Checkout = () => {
                 <div className="space-y-2">
                 {(() => {
                   const discountAmount = calculateDiscount();
-                  const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType);
+                  const shippingAmount = calculateShipping(effectiveTotalPrice, fulfillmentType, isExpress);
                   const amountAfterDiscount = effectiveTotalPrice - discountAmount + shippingAmount;
                   const purchaseOnlyUsed = useWallet ? Math.min(wallet.purchase_only_balance, amountAfterDiscount) : 0;
                   const remainingAfterPurchaseOnly = amountAfterDiscount - purchaseOnlyUsed;

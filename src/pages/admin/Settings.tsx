@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus } from "lucide-react";
+import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 import { REGISTRATION_ENABLED_QUERY_KEY } from "@/hooks/useRegistrationEnabled";
+import { defaultExpressSettings, type ExpressSettings } from "@/hooks/useShippingSettings";
 import { REFERRAL_SCHEME_QUERY_KEY } from "@/hooks/useReferralScheme";
 import {
   AlertDialog,
@@ -41,6 +42,7 @@ interface ShippingSettings {
   flat_rate: number;
   enable_free_shipping: boolean;
   shipping_zones: Array<{ name: string; rate: number }>;
+  express?: Partial<ExpressSettings>;
 }
 
 interface TaxSettings {
@@ -448,6 +450,86 @@ export default function Settings() {
                     </p>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" /> Express Delivery
+                </CardTitle>
+                <CardDescription>
+                  Same-day delivery for addresses near a store. Uses each store's map location and opening hours
+                  (Admin → Stores); customers need a confirmed map pin on their address.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {(() => {
+                  const express = { ...defaultExpressSettings, ...shippingSettings.express };
+                  const setExpress = (patch: Partial<ExpressSettings>) =>
+                    setShippingSettings({ ...shippingSettings, express: { ...express, ...patch } });
+                  return (
+                    <>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-0.5">
+                          <Label>Offer Express Delivery</Label>
+                          <p className="text-sm text-muted-foreground">Show Express at checkout for eligible addresses</p>
+                        </div>
+                        <Switch checked={express.enabled} onCheckedChange={(checked) => setExpress({ enabled: checked })} />
+                      </div>
+
+                      <Separator />
+
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="express_radius">Delivery Radius (km)</Label>
+                          <Input
+                            id="express_radius"
+                            type="number"
+                            min={0}
+                            step="0.5"
+                            value={express.radius_km}
+                            onChange={(e) => setExpress({ radius_km: parseFloat(e.target.value) || 0 })}
+                          />
+                          <p className="text-sm text-muted-foreground">Straight-line distance from the nearest store</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="express_fee">Express Fee (₹)</Label>
+                          <Input
+                            id="express_fee"
+                            type="number"
+                            min={0}
+                            value={express.fee}
+                            onChange={(e) => setExpress({ fee: parseFloat(e.target.value) || 0 })}
+                          />
+                          <p className="text-sm text-muted-foreground">Added on top of the standard delivery charge</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="express_eta">Delivered Within (minutes)</Label>
+                          <Input
+                            id="express_eta"
+                            type="number"
+                            min={15}
+                            step={15}
+                            value={express.eta_minutes}
+                            onChange={(e) => setExpress({ eta_minutes: parseInt(e.target.value) || 0 })}
+                          />
+                          <p className="text-sm text-muted-foreground">Express closes this long before the store closes</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="express_cutoff">Last Express Order (IST)</Label>
+                          <Input
+                            id="express_cutoff"
+                            type="time"
+                            value={express.last_order_time}
+                            onChange={(e) => setExpress({ last_order_time: e.target.value })}
+                          />
+                          <p className="text-sm text-muted-foreground">Leave empty to use store closing time only</p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>

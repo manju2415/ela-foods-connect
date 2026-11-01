@@ -67,6 +67,7 @@ interface Order {
   user_id: string;
   preferred_delivery_date?: string | null;
   preferred_delivery_slot_id?: string | null;
+  delivery_type?: string | null;
   delivery_slot?: { name: string; start_time: string; end_time: string } | null;
   profiles?: { email: string; full_name: string | null } | null;
 }
@@ -315,10 +316,11 @@ export default function Orders() {
                         </TableCell>
                         <TableCell>
                           <div>{format(new Date(order.created_at), "MMM d, yyyy")}</div>
-                          {(order.preferred_delivery_date || order.delivery_slot) && (
+                          {(order.preferred_delivery_date || order.delivery_slot || order.delivery_type === "express") && (
                             <div className="text-xs text-muted-foreground">
                               Deliver: {order.preferred_delivery_date ? format(new Date(order.preferred_delivery_date), "MMM d") : "—"}
                               {order.delivery_slot ? ` · ${order.delivery_slot.name}` : ""}
+                              {order.delivery_type === "express" && <span className="font-semibold text-primary"> · Express</span>}
                             </div>
                           )}
                         </TableCell>
@@ -474,9 +476,11 @@ export default function Orders() {
                       : "No date selected"}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {selectedOrder.delivery_slot
-                      ? `${selectedOrder.delivery_slot.name} (${selectedOrder.delivery_slot.start_time?.slice(0, 5)} - ${selectedOrder.delivery_slot.end_time?.slice(0, 5)})`
-                      : "No time slot selected"}
+                    {selectedOrder.delivery_type === "express"
+                      ? `Express Delivery — ordered at ${format(new Date(selectedOrder.created_at), "h:mm a")}`
+                      : selectedOrder.delivery_slot
+                        ? `${selectedOrder.delivery_slot.name} (${selectedOrder.delivery_slot.start_time?.slice(0, 5)} - ${selectedOrder.delivery_slot.end_time?.slice(0, 5)})`
+                        : "No time slot selected"}
                   </p>
                 </div>
 
