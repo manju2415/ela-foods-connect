@@ -11,12 +11,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus, Zap } from "lucide-react";
+import { Store, Truck, Receipt, Save, Gift, Wallet, UserPlus, Zap, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { Json } from "@/integrations/supabase/types";
 import { REGISTRATION_ENABLED_QUERY_KEY } from "@/hooks/useRegistrationEnabled";
 import { defaultExpressSettings, type ExpressSettings } from "@/hooks/useShippingSettings";
 import { REFERRAL_SCHEME_QUERY_KEY } from "@/hooks/useReferralScheme";
+import { OrderNotificationSettingsCard } from "@/components/admin/OrderNotificationSettingsCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -322,6 +323,9 @@ export default function Settings() {
             </TabsTrigger>
             <TabsTrigger value="registration" className="flex items-center gap-2">
               <UserPlus className="h-4 w-4" /> Registration
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" /> Notifications
             </TabsTrigger>
           </TabsList>
 
@@ -832,6 +836,11 @@ export default function Settings() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Order notifications: saved by its own button, not "Save All" */}
+          <TabsContent value="notifications">
+            <OrderNotificationSettingsCard />
           </TabsContent>
         </Tabs>
       </div>

@@ -835,6 +835,56 @@ export type Database = {
           },
         ]
       }
+      order_dispatches: {
+        Row: {
+          created_at: string
+          dispatched_at: string
+          dispatched_by: string | null
+          notes: string | null
+          order_id: string
+          partner_name: string | null
+          partner_type: string
+          rider_name: string | null
+          rider_phone: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          dispatched_at?: string
+          dispatched_by?: string | null
+          notes?: string | null
+          order_id: string
+          partner_name?: string | null
+          partner_type: string
+          rider_name?: string | null
+          rider_phone: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          dispatched_at?: string
+          dispatched_by?: string | null
+          notes?: string | null
+          order_id?: string
+          partner_name?: string | null
+          partner_type?: string
+          rider_name?: string | null
+          rider_phone?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_dispatches_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -885,6 +935,71 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_notifications: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          created_by: string | null
+          event: string
+          id: string
+          last_error: string | null
+          locked_at: string | null
+          next_attempt_at: string
+          order_id: string
+          phone_last4: string | null
+          provider_request_id: string | null
+          sent_at: string | null
+          seq: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          event: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          order_id: string
+          phone_last4?: string | null
+          provider_request_id?: string | null
+          sent_at?: string | null
+          seq?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          event?: string
+          id?: string
+          last_error?: string | null
+          locked_at?: string | null
+          next_attempt_at?: string
+          order_id?: string
+          phone_last4?: string | null
+          provider_request_id?: string | null
+          sent_at?: string | null
+          seq?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notifications_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -2240,6 +2355,19 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_dispatch_order: {
+        Args: {
+          p_dispatched_at?: string | null
+          p_notes?: string | null
+          p_notify?: boolean
+          p_order_id: string
+          p_partner_name: string | null
+          p_partner_type: string
+          p_rider_name: string | null
+          p_rider_phone: string
+        }
+        Returns: Json
+      }
       admin_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       admin_record_registration_payment: {
         Args: {
@@ -2249,6 +2377,10 @@ export type Database = {
           p_reference?: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      admin_resend_order_notification: {
+        Args: { p_event: string; p_order_id: string }
         Returns: Json
       }
       count_paid_order_sales: { Args: { p_order_id: string }; Returns: boolean }
