@@ -71,6 +71,7 @@ const ProductDisplaySettings = lazy(() => import("./pages/admin/ProductDisplaySe
 const AdminCategories = lazy(() => import("./pages/admin/Categories"));
 const AdminDeliveryCalendar = lazy(() => import("./pages/admin/DeliveryCalendar"));
 const AdminCoupons = lazy(() => import("./pages/admin/Coupons"));
+const AdminOffers = lazy(() => import("./pages/admin/Offers"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const AdminDeliveryPartners = lazy(() => import("./pages/admin/DeliveryPartners"));
 const AdminOrderAssignments = lazy(() => import("./pages/admin/OrderAssignments"));
@@ -285,6 +286,7 @@ function App() {
                         <Route path="/admin/categories" element={<AdminCategories />} />
                         <Route path="/admin/delivery-calendar" element={<AdminDeliveryCalendar />} />
                         <Route path="/admin/coupons" element={<AdminCoupons />} />
+                        <Route path="/admin/offers" element={<SuperAdminGuard><AdminOffers /></SuperAdminGuard>} />
                         <Route path="/admin/settings" element={<AdminSettings />} />
                         <Route path="/admin/delivery-partners" element={<AdminDeliveryPartners />} />
                         <Route path="/admin/order-assignments" element={<AdminOrderAssignments />} />

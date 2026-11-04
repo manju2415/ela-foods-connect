@@ -835,6 +835,127 @@ export type Database = {
           },
         ]
       }
+      offer_items: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          offer_id: string
+          offer_price: number
+          product_id: string
+          updated_at: string
+          variant_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          offer_id: string
+          offer_price: number
+          product_id: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          offer_id?: string
+          offer_price?: number
+          product_id?: string
+          updated_at?: string
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offer_items_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offer_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      offers: {
+        Row: {
+          audience: string
+          created_at: string
+          created_by: string | null
+          customer_limit_period: string
+          deactivated_at: string | null
+          description: string | null
+          ends_at: string | null
+          id: string
+          is_active: boolean
+          kind: string
+          max_units_per_customer: number | null
+          max_units_per_order: number
+          min_cart_value: number | null
+          name: string
+          starts_at: string
+          total_units_cap: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          customer_limit_period?: string
+          deactivated_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind: string
+          max_units_per_customer?: number | null
+          max_units_per_order?: number
+          min_cart_value?: number | null
+          name: string
+          starts_at: string
+          total_units_cap?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          audience?: string
+          created_at?: string
+          created_by?: string | null
+          customer_limit_period?: string
+          deactivated_at?: string | null
+          description?: string | null
+          ends_at?: string | null
+          id?: string
+          is_active?: boolean
+          kind?: string
+          max_units_per_customer?: number | null
+          max_units_per_order?: number
+          min_cart_value?: number | null
+          name?: string
+          starts_at?: string
+          total_units_cap?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       order_dispatches: {
         Row: {
           created_at: string
@@ -2383,6 +2504,11 @@ export type Database = {
         Args: { p_event: string; p_order_id: string }
         Returns: Json
       }
+      admin_save_offer: { Args: { p_items: Json; p_offer: Json }; Returns: string }
+      admin_set_offer_active: {
+        Args: { p_active: boolean; p_offer_id: string }
+        Returns: undefined
+      }
       count_paid_order_sales: { Args: { p_order_id: string }; Returns: boolean }
       create_notification: {
         Args: {
@@ -2426,6 +2552,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: string
       }
+      get_active_offers: { Args: never; Returns: Json }
       get_homepage_product_sections: { Args: never; Returns: Json }
       get_my_member_network: { Args: never; Returns: Json }
       get_network_admin_stats: { Args: never; Returns: Json }
