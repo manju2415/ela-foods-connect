@@ -38,7 +38,13 @@ serve(async (req) => {
   // Only the cron job (service role) may run the worker. The gateway has
   // already verified the JWT signature; the anon key is a valid JWT too, so
   // the role must be checked here.
-  if (jwtRole(req.headers.get("Authorization")) !== "service_role") {
+  // Newer projects issue a non-JWT secret key (sb_secret_...), which has no
+  // role claim, so an exact match with this function's own key is accepted too.
+  const authHeader = req.headers.get("Authorization");
+  const bearer = authHeader?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const ownKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const isOwnKey = ownKey.length > 0 && bearer === ownKey;
+  if (!isOwnKey && jwtRole(authHeader) !== "service_role") {
     return json({ error: "Forbidden" }, 403);
   }
 

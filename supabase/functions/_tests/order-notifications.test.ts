@@ -161,6 +161,14 @@ Deno.test("worker rejects non-service callers without touching anything", async 
   assertEquals(fetchCalls.length, 0);
 });
 
+Deno.test("worker accepts its own non-JWT secret key and rejects a different one", async () => {
+  const send = (token: string) => worker(new Request("http://x/", { method: "POST", headers: { Authorization: `Bearer ${token}` } }));
+  setup({ ...LIVE, mode: "record_only" }, [row()], { live: true, key: true });
+  assertEquals((await send("sb_secret_other")).status, 403);
+  assertEquals((await send("service")).status, 200);
+  assertEquals(fetchCalls.length, 0);
+});
+
 Deno.test("worker: setting missing or off -> claims nothing, sends nothing", async () => {
   for (const s of [undefined, { mode: "off", sms: { enabled: true, confirmation_flow_id: "f" } }]) {
     setup(s, [row()], { live: true, key: true });
