@@ -753,88 +753,6 @@ export type Database = {
         }
         Relationships: []
       }
-      order_assignments: {
-        Row: {
-          assigned_at: string
-          created_at: string
-          delivered_at: string | null
-          delivery_partner_id: string
-          delivery_photo_url: string | null
-          id: string
-          is_return_assignment: boolean | null
-          notes: string | null
-          order_id: string
-          original_assignment_id: string | null
-          picked_up_at: string | null
-          pickup_photo_url: string | null
-          status: string
-          undelivery_reason:
-            | Database["public"]["Enums"]["undelivery_reason"]
-            | null
-          updated_at: string
-        }
-        Insert: {
-          assigned_at?: string
-          created_at?: string
-          delivered_at?: string | null
-          delivery_partner_id: string
-          delivery_photo_url?: string | null
-          id?: string
-          is_return_assignment?: boolean | null
-          notes?: string | null
-          order_id: string
-          original_assignment_id?: string | null
-          picked_up_at?: string | null
-          pickup_photo_url?: string | null
-          status?: string
-          undelivery_reason?:
-            | Database["public"]["Enums"]["undelivery_reason"]
-            | null
-          updated_at?: string
-        }
-        Update: {
-          assigned_at?: string
-          created_at?: string
-          delivered_at?: string | null
-          delivery_partner_id?: string
-          delivery_photo_url?: string | null
-          id?: string
-          is_return_assignment?: boolean | null
-          notes?: string | null
-          order_id?: string
-          original_assignment_id?: string | null
-          picked_up_at?: string | null
-          pickup_photo_url?: string | null
-          status?: string
-          undelivery_reason?:
-            | Database["public"]["Enums"]["undelivery_reason"]
-            | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "order_assignments_delivery_partner_id_fkey"
-            columns: ["delivery_partner_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_partners"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_assignments_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: true
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_assignments_original_assignment_id_fkey"
-            columns: ["original_assignment_id"]
-            isOneToOne: false
-            referencedRelation: "order_assignments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       offer_items: {
         Row: {
           created_at: string
@@ -955,6 +873,88 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      order_assignments: {
+        Row: {
+          assigned_at: string
+          created_at: string
+          delivered_at: string | null
+          delivery_partner_id: string
+          delivery_photo_url: string | null
+          id: string
+          is_return_assignment: boolean | null
+          notes: string | null
+          order_id: string
+          original_assignment_id: string | null
+          picked_up_at: string | null
+          pickup_photo_url: string | null
+          status: string
+          undelivery_reason:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
+          updated_at: string
+        }
+        Insert: {
+          assigned_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_partner_id: string
+          delivery_photo_url?: string | null
+          id?: string
+          is_return_assignment?: boolean | null
+          notes?: string | null
+          order_id: string
+          original_assignment_id?: string | null
+          picked_up_at?: string | null
+          pickup_photo_url?: string | null
+          status?: string
+          undelivery_reason?:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
+          updated_at?: string
+        }
+        Update: {
+          assigned_at?: string
+          created_at?: string
+          delivered_at?: string | null
+          delivery_partner_id?: string
+          delivery_photo_url?: string | null
+          id?: string
+          is_return_assignment?: boolean | null
+          notes?: string | null
+          order_id?: string
+          original_assignment_id?: string | null
+          picked_up_at?: string | null
+          pickup_photo_url?: string | null
+          status?: string
+          undelivery_reason?:
+            | Database["public"]["Enums"]["undelivery_reason"]
+            | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_assignments_delivery_partner_id_fkey"
+            columns: ["delivery_partner_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assignments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_assignments_original_assignment_id_fkey"
+            columns: ["original_assignment_id"]
+            isOneToOne: false
+            referencedRelation: "order_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_dispatches: {
         Row: {
@@ -1190,6 +1190,7 @@ export type Database = {
           confirmation_email_sent_at: string | null
           coupon_code: string | null
           created_at: string
+          delivery_type: string | null
           discount_amount: number | null
           fulfillment_type: string
           id: string
@@ -1224,6 +1225,7 @@ export type Database = {
           confirmation_email_sent_at?: string | null
           coupon_code?: string | null
           created_at?: string
+          delivery_type?: string | null
           discount_amount?: number | null
           fulfillment_type?: string
           id?: string
@@ -1258,6 +1260,7 @@ export type Database = {
           confirmation_email_sent_at?: string | null
           coupon_code?: string | null
           created_at?: string
+          delivery_type?: string | null
           discount_amount?: number | null
           fulfillment_type?: string
           id?: string
@@ -1793,6 +1796,7 @@ export type Database = {
           referral_code_id: string | null
           referred_id: string
           referrer_id: string | null
+          reward_on_first_order: boolean
           reward_order_id: string | null
         }
         Insert: {
@@ -1803,6 +1807,7 @@ export type Database = {
           referral_code_id?: string | null
           referred_id: string
           referrer_id?: string | null
+          reward_on_first_order?: boolean
           reward_order_id?: string | null
         }
         Update: {
@@ -1813,6 +1818,7 @@ export type Database = {
           referral_code_id?: string | null
           referred_id?: string
           referrer_id?: string | null
+          reward_on_first_order?: boolean
           reward_order_id?: string | null
         }
         Relationships: [
@@ -2476,20 +2482,20 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       admin_dispatch_order: {
         Args: {
-          p_dispatched_at?: string | null
-          p_notes?: string | null
+          p_dispatched_at?: string
+          p_notes?: string
           p_notify?: boolean
           p_order_id: string
-          p_partner_name: string | null
+          p_partner_name: string
           p_partner_type: string
-          p_rider_name: string | null
+          p_rider_name: string
           p_rider_phone: string
         }
         Returns: Json
       }
-      admin_delete_order: { Args: { p_order_id: string }; Returns: boolean }
       admin_record_registration_payment: {
         Args: {
           p_amount: number
@@ -2504,10 +2510,50 @@ export type Database = {
         Args: { p_event: string; p_order_id: string }
         Returns: Json
       }
-      admin_save_offer: { Args: { p_items: Json; p_offer: Json }; Returns: string }
+      admin_save_offer: {
+        Args: { p_items: Json; p_offer: Json }
+        Returns: string
+      }
       admin_set_offer_active: {
         Args: { p_active: boolean; p_offer_id: string }
         Returns: undefined
+      }
+      category_deliverable_on: {
+        Args: { p_category_id: string; p_date: string }
+        Returns: boolean
+      }
+      claim_order_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          address_phone: string
+          attempts: number
+          channel: string
+          event: string
+          fulfillment_type: string
+          id: string
+          order_id: string
+          order_number: string
+          order_status: string
+          order_value: number
+          partner_name: string
+          partner_type: string
+          payment_status: string
+          profile_phone: string
+          rider_name: string
+          rider_phone: string
+          seq: number
+        }[]
+      }
+      clean_admin_text: { Args: { p_text: string }; Returns: string }
+      complete_order_notification: {
+        Args: {
+          p_error?: string
+          p_id: string
+          p_outcome: string
+          p_phone_last4?: string
+          p_provider_request_id?: string
+        }
+        Returns: string
       }
       count_paid_order_sales: { Args: { p_order_id: string }; Returns: boolean }
       create_notification: {
@@ -2545,7 +2591,24 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: boolean
       }
+      enqueue_order_notification: {
+        Args: {
+          p_created_by: string
+          p_event: string
+          p_order_id: string
+          p_seq: number
+        }
+        Returns: number
+      }
       ensure_user_wallet: { Args: { p_user_id: string }; Returns: string }
+      express_delivery_quote: {
+        Args: {
+          p_latitude: number
+          p_longitude: number
+          p_product_ids?: string[]
+        }
+        Returns: Json
+      }
       generate_order_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       generate_user_referral_code: {
@@ -2622,6 +2685,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      haversine_km: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
+      }
+      invite_rewards_auto_since: { Args: never; Returns: string }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_any_admin: { Args: { _user_id: string }; Returns: boolean }
       is_founding_member: { Args: { _user_id: string }; Returns: boolean }
@@ -2638,6 +2706,7 @@ export type Database = {
       }
       move_withdrawable_to_purchase_wallets: { Args: never; Returns: Json }
       next_invoice_number: { Args: { p_type: string }; Returns: string }
+      normalize_indian_mobile: { Args: { p_phone: string }; Returns: string }
       notify_admins: {
         Args: {
           p_message: string
@@ -2648,6 +2717,8 @@ export type Database = {
         }
         Returns: undefined
       }
+      order_notification_channels: { Args: never; Returns: string[] }
+      order_notifications_mode: { Args: never; Returns: string }
       owns_order: {
         Args: { _order_id: string; _user_id: string }
         Returns: boolean
