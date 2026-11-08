@@ -15,6 +15,13 @@
       "when": 1791016210636,
       "tag": "0001_payment_first_member_checkout",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794117069806,
+      "tag": "0002_bootstrap_order_notifications_vault_key",
+      "breakpoints": true
     }
   ]
 }

@@ -2518,6 +2518,10 @@ export type Database = {
         Args: { p_active: boolean; p_offer_id: string }
         Returns: undefined
       }
+      bootstrap_order_notifications_key: {
+        Args: { p_key: string }
+        Returns: boolean
+      }
       category_deliverable_on: {
         Args: { p_category_id: string; p_date: string }
         Returns: boolean
