@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.bootstrap_order_notifications_key(text);

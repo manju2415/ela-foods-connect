@@ -22,6 +22,13 @@
       "when": 1794117069806,
       "tag": "0002_bootstrap_order_notifications_vault_key",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794117097512,
+      "tag": "0003_drop_bootstrap_order_notifications_key",
+      "breakpoints": true
     }
   ]
 }
