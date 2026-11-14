@@ -25,6 +25,7 @@ import { LayoutOverrideProvider } from "./contexts/AdminLayoutContext";
 import { SuperAdminGuard } from "./components/admin/SuperAdminGuard";
 import { NativeAppShell, NativePageSkeleton } from "@/components/mobile/NativeAppShell";
 import { nativeLaunchPath } from "@/lib/guestAccess";
+import { MaintenanceGate } from "@/components/maintenance/MaintenanceGate";
 
 // Critical path - eagerly loaded
 import Index from "./pages/Index";
@@ -250,6 +251,8 @@ function App() {
             {/* Single guarded PWA registration + update prompt (no-op in dev/preview) */}
             {canRegisterSW() && <PWABadge />}
               <BrowserRouter>
+                {/* Storefront maintenance mode — toggle in src/config/maintenance.ts */}
+                <MaintenanceGate>
                 <CartProvider>
                   <WishlistProvider>
                     <ScrollToTop />
@@ -359,6 +362,7 @@ function App() {
                     </NativeAppShell>
                   </WishlistProvider>
                 </CartProvider>
+                </MaintenanceGate>
               </BrowserRouter>
             </TooltipProvider>
           </AuthProvider>
